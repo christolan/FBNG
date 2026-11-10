@@ -81,6 +81,32 @@ jobs:
             echo "| Commit | \`$(git rev-parse HEAD)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          apk="${{ steps.apk.outputs.path }}"
+          signer="$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -1)"
+          test -x "$signer"
+          # apksigner reports a scheme as true only on API levels that still use it.
+          # v1 is checked at 21, v2 at 24, v3 at the app minSdk 33.
+          v1="$("$signer" verify --min-sdk-version 21 --verbose "$apk")"
+          v2="$("$signer" verify --min-sdk-version 24 --verbose "$apk")"
+          v3="$("$signer" verify --min-sdk-version 33 --verbose --print-certs "$apk")"
+          printf '%s\n' "$v1" "$v2" "$v3"
+          printf '%s\n' "$v1" | grep -q "Verified using v1 scheme (JAR signing): true"
+          printf '%s\n' "$v2" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"
+          printf '%s\n' "$v3" | grep -q "Verified using v3 scheme (APK Signature Scheme v3): true"
+          cert="$(printf '%s\n' "$v3" | grep "Signer #1 certificate SHA-256 digest:" | head -1)"
+          {
+            echo ""
+            echo "### Signature"
+            echo ""
+            echo "- v1 at API 21: true"
+            echo "- v2 at API 24: true"
+            echo "- v3 at API 33: true"
+            echo "- ${cert}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
