@@ -1,0 +1,87 @@
+# Builds the personal debug APK and uploads it as a normal zip.
+# actions/upload-artifact compresses with zlib (the same method as gzip), not LZMA,
+# so the zip downloaded from the Actions page opens in the system unzipper.
+name: Assemble debug APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble-debug:
+    name: assembleDebug
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # pull_request builds the branch head, so the artifact name matches that commit.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # This cmdline-tools build can see platforms;android-37.2.
+          cmdline-tools-version: "16111833"
+          packages: platform-tools platforms;android-37.2 build-tools;36.0.0
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK and record its size and SHA-256
+        id: apk
+        run: |
+          set -euo pipefail
+          short="$(git rev-parse --short=7 HEAD)"
+          src="app/build/outputs/apk/debug/app-debug.apk"
+          dest="FBNG-phase0-debug-${short}.apk"
+          test -f "$src"
+          mv "$src" "$dest"
+          size="$(stat -c%s "$dest")"
+          sha="$(sha256sum "$dest" | awk '{print $1}')"
+          {
+            echo "short=${short}"
+            echo "path=${dest}"
+            echo "size=${size}"
+            echo "sha=${sha}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Debug APK"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| File | \`${dest}\` |"
+            echo "| Size | ${size} bytes |"
+            echo "| SHA-256 | \`${sha}\` |"
+            echo "| Commit | \`$(git rev-parse HEAD)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FBNG-phase0-debug-${{ steps.apk.outputs.short }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+          # zlib level 6, the same family as gzip. Not LZMA.
+          compression-level: 6
+          overwrite: true
