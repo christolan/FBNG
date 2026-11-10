@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -53,6 +53,7 @@ import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SessionLifecycleOwner
 import com.xiaojiwei.fbng.library.AppStorage
+import com.xiaojiwei.fbng.ui.theme.FbngButton
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -294,37 +295,51 @@ private fun ControlPanel(
     onLoad: () -> Unit,
     onQuit: () -> Unit,
 ) {
-    Column(
-        modifier
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
-        Text(stringResource(R.string.game_title), style = MaterialTheme.typography.titleMedium)
-        Text(
-            stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        ActionButton(stringResource(R.string.save), enabled = ready && !busy, onClick = onSave)
-        ActionButton(stringResource(R.string.load), enabled = ready && !busy, onClick = onLoad)
-        ActionButton(stringResource(R.string.quit), enabled = !busy, onClick = onQuit)
-        if (message.isNotEmpty()) {
-            Text(message, style = MaterialTheme.typography.bodySmall)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState())
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+        ) {
+            Text(
+                stringResource(R.string.game_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            ActionButton(stringResource(R.string.save), enabled = ready && !busy, onClick = onSave)
+            ActionButton(stringResource(R.string.load), enabled = ready && !busy, onClick = onLoad)
+            ActionButton(stringResource(R.string.quit), enabled = !busy, onClick = onQuit)
+            if (message.isNotEmpty()) {
+                Text(
+                    message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Text(
+                stringResource(R.string.in_game_hint),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
         }
-        Text(
-            stringResource(R.string.in_game_hint),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
     }
 }
 
 @Composable
 private fun ActionButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    Button(
+    FbngButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -335,15 +350,20 @@ private fun ActionButton(label: String, enabled: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun MissingCore(onQuit: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Text(stringResource(R.string.core_missing))
-        Button(onClick = onQuit) { Text(stringResource(R.string.quit)) }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        ) {
+            Text(stringResource(R.string.core_missing), color = MaterialTheme.colorScheme.onBackground)
+            FbngButton(onClick = onQuit) { Text(stringResource(R.string.quit)) }
+        }
     }
 }
