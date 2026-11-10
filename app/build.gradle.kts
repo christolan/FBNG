@@ -17,6 +17,13 @@ val fbneoPin = Properties().apply {
 fun pin(key: String): String =
     fbneoPin.getProperty(key) ?: error("core/fbneo.pin.properties is missing $key")
 
+val fbngDebugKey = Properties().apply {
+    rootProject.file("keystore/fbng-debug.properties").inputStream().use(::load)
+}
+
+fun debugKey(name: String): String =
+    fbngDebugKey.getProperty(name) ?: error("keystore/fbng-debug.properties is missing $name")
+
 val fbneoZipUrl = pin("fbneo.zipUrl")
 val fbneoZipSha256 = pin("fbneo.zipSha256")
 val fbneoEmbeddedMarker = pin("fbneo.embeddedMarker")
@@ -117,7 +124,24 @@ android {
         buildConfigField("String", "FBNEO_DAT_VERSION", "\"${pin("fbneo.datVersion")}\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // One committed test key so every debug APK, local or CI, overwrites the last install.
+            // v1 writes the META-INF signature files ColorOS looks for. v2 and v3 are required to sideload.
+            storeFile = rootProject.file("keystore/${debugKey("storeFile")}")
+            storePassword = debugKey("storePassword")
+            keyAlias = debugKey("keyAlias")
+            keyPassword = debugKey("keyPassword")
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(

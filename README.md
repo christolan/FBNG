@@ -20,7 +20,7 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，debug 包大约 100 MB。
 
-也可以不在本机编。推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble debug APK”，都会执行同一条 `./gradlew :app:assembleDebug`。Actions 里仍会留下名为 `FBNG-phase0-debug-<提交短 SHA>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本私有仓库的 Releases 里发一个 prerelease，tag 是 `debug-<提交短 SHA>`，直接挂裸的 `FBNG-phase0-debug-<提交短 SHA>.apk`，不再套一层 zip。GitHub App 的 Releases 页能看到它。APK 仍然不会提交进仓库。
+也可以不在本机编。推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble debug APK”，都会执行同一条 `./gradlew :app:assembleDebug`。Actions 里仍会留下名为 `FBNG-phase0-debug-<提交短 SHA>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本私有仓库的 Releases 里发一个 prerelease，tag 是 `debug-<提交短 SHA>`，直接挂裸的 `FBNG-phase0-debug-<提交短 SHA>.apk`，不再套一层 zip。GitHub App 的 Releases 页能看到它。APK 用仓库里的同一把测试证书签名（v1、v2、v3），所以后一个 debug 包可以覆盖安装。证书和口令只放在私有仓库的 `keystore/`，APK 本身仍然不会提交。
 
 构建会做两件和页面对齐有关的事：
 
