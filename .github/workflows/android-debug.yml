@@ -1,6 +1,7 @@
-# Builds the personal debug APK and uploads it as a normal zip.
-# actions/upload-artifact compresses with zlib (the same method as gzip), not LZMA,
-# so the zip downloaded from the Actions page opens in the system unzipper.
+# Builds the personal debug APK.
+# Actions artifact: zlib zip (not LZMA), kept for 14 days.
+# Push to main and workflow_dispatch also publish a prerelease in this private repo,
+# with the raw APK attached. Pull requests only upload the artifact.
 name: Assemble debug APK
 
 on:
@@ -23,6 +24,11 @@ jobs:
     name: assembleDebug
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Job permissions replace the workflow permissions. contents: write publishes
+    # the private prerelease; actions: write keeps the artifact upload.
+    permissions:
+      contents: write
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -85,3 +91,42 @@ jobs:
           # zlib level 6, the same family as gzip. Not LZMA.
           compression-level: 6
           overwrite: true
+
+      - name: Publish debug prerelease
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          short="${{ steps.apk.outputs.short }}"
+          tag="debug-${short}"
+          title="FBNG debug ${short}"
+          apk="${{ steps.apk.outputs.path }}"
+          commit="$(git rev-parse HEAD)"
+          notes="$(mktemp)"
+          cat > "$notes" <<EOF
+          提交 \`${commit}\`
+
+          APK \`${apk}\`
+          大小 ${{ steps.apk.outputs.size }} 字节
+          SHA-256 \`${{ steps.apk.outputs.sha }}\`
+
+          个人自用 debug 包，不含 ROM 或 BIOS。此 Release 只在本私有仓库内可见。
+          EOF
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" \
+              --draft=false \
+              --title "$title" \
+              --notes-file "$notes" \
+              --prerelease \
+              --target "$commit"
+            gh release upload "$tag" "$apk" --clobber
+          else
+            gh release create "$tag" "$apk" \
+              --target "$commit" \
+              --title "$title" \
+              --notes-file "$notes" \
+              --prerelease \
+              --latest=false
+          fi
+          rm -f "$notes"
