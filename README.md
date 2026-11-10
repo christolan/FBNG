@@ -20,6 +20,8 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，debug 包大约 100 MB。
 
+也可以不在本机编。推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble debug APK”，都会执行同一条 `./gradlew :app:assembleDebug`。下载的 Artifact 名称是 `FBNG-phase0-debug-<提交短 SHA>`，GitHub 用普通 zip（zlib，和 gzip 同一类，不是 LZMA）包住 `FBNG-phase0-debug-<提交短 SHA>.apk`，保留 14 天。手机和系统自带的解压可以打开。APK 仍然不会提交进仓库。
+
 构建会做两件和页面对齐有关的事：
 
 - 下载的 FBNeo 核心和 LibretroDroid 0.13.2 的 arm64 库都必须是 ELF `PT_LOAD` 对齐至少 16 KB。0.13.2 已经用 `-Wl,-z,max-page-size=16384` 编译；0.14.0 预发布版没有额外的 16 KB 改动，所以这里用稳定版 0.13.2。
