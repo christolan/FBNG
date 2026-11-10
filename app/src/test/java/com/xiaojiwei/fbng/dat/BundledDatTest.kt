@@ -18,7 +18,7 @@ class BundledDatTest {
         assertTrue(datFile.isFile)
         assertEquals(pin.getProperty("fbneo.datSha256"), sha256(datFile))
 
-        val catalog = datFile.reader(Charsets.UTF_8).use { FbneoDat.parse(it.readText()) }
+        val catalog = datFile.reader(Charsets.UTF_8).use { parseCatalog(it.readText()) }
         assertEquals(pin.getProperty("fbneo.datVersion"), catalog.version)
 
         val pgm = catalog.byName.getValue("pgm")
@@ -46,11 +46,7 @@ class BundledDatTest {
         assertEquals(16_384L, asic.size)
         assertEquals(0x0f09a5c1L, asic.crc)
         assertTrue(catalog.inheritedRoms(kovsh).map { it.name }.containsAll(pgm.roms.map { it.name }))
-    }
-
-    private fun repoRoot(): File {
-        val cwd = File(".").canonicalFile
-        return if (cwd.name == "app") cwd.parentFile else cwd
+        assertEquals("Asuka & Asuka (Japan)", catalog.byName.getValue("asukaja").description)
     }
 
     private fun sha256(file: File): String {

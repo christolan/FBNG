@@ -7,6 +7,8 @@
     <string name="importing">正在识别并复制…</string>
     <string name="scanning">正在对照 DAT 校验已导入的文件…</string>
     <string name="loading_dat">正在读取 FBNeo DAT…</string>
+    <string name="dat_error_title">无法读取 FBNeo DAT</string>
+    <string name="dat_error_body">游戏库和 zip 导入已停用。%1$s</string>
     <string name="game_title">《三国战纪：风云再起》</string>
     <string name="game_english">Knights of Valour Super Heroes</string>
     <string name="game_set">套件 kovsh · 中国版 104</string>
