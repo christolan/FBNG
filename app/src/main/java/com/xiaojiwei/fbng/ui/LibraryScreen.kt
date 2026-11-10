@@ -20,10 +20,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,6 +51,7 @@ import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.InstalledSet
 import com.xiaojiwei.fbng.library.LibraryScanner
 import com.xiaojiwei.fbng.library.LibrarySnapshot
+import com.xiaojiwei.fbng.ui.theme.FbngButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,10 +81,14 @@ fun LibraryScreen(
         }
     }
 
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         when (load) {
@@ -135,6 +140,7 @@ fun LibraryScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -193,7 +199,7 @@ private fun IntroColumn(
         )
         Text(stringResource(R.string.legal_notice), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(stringResource(R.string.gamepad_hint), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Button(
+        FbngButton(
             onClick = onImport,
             enabled = !busy,
             modifier = Modifier.fillMaxWidth().height(52.dp),
@@ -201,11 +207,19 @@ private fun IntroColumn(
             Text(stringResource(R.string.import_button))
         }
         if (busy) {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text(stringResource(R.string.importing))
+            LinearProgressIndicator(
+                Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.secondaryContainer,
+            )
+            Text(stringResource(R.string.importing), color = MaterialTheme.colorScheme.onBackground)
         }
         if (reports.isNotEmpty()) {
-            Text(stringResource(R.string.reports_heading), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.reports_heading),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
             reports.forEach { report -> ImportReportBlock(report) }
         }
         Text(
@@ -227,10 +241,13 @@ private fun GameColumn(
     snapshot: LibrarySnapshot,
     onPlay: () -> Unit,
 ) {
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
     Column(
-        modifier
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(20.dp),
+        Modifier.fillMaxWidth().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Box(
@@ -239,7 +256,11 @@ private fun GameColumn(
                 .height(6.dp)
                 .background(MaterialTheme.colorScheme.primary),
         )
-        Text(stringResource(R.string.game_title), style = MaterialTheme.typography.headlineMedium)
+        Text(
+            stringResource(R.string.game_title),
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
         Text(
             stringResource(R.string.game_english),
             style = MaterialTheme.typography.titleMedium,
@@ -260,13 +281,14 @@ private fun GameColumn(
         )
         if (!snapshot.romReady) ProblemBlock(snapshot.kovsh)
         if (!snapshot.biosReady) ProblemBlock(snapshot.pgm)
-        Button(
+        FbngButton(
             onClick = onPlay,
             enabled = snapshot.canLaunch,
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
             Text(stringResource(if (snapshot.canLaunch) R.string.play else R.string.play_blocked))
         }
+    }
     }
 }
 
@@ -303,7 +325,10 @@ private fun ProblemBlock(installed: InstalledSet) {
         return
     }
     if (match != null && !match.isClean) {
-        Text(stringResource(R.string.mismatch_header, installed.expected + ".zip", match.setName))
+        Text(
+            stringResource(R.string.mismatch_header, installed.expected + ".zip", match.setName),
+            color = MaterialTheme.colorScheme.error,
+        )
         ProblemList(match.problems)
     }
 }
@@ -332,7 +357,11 @@ private fun ImportReportBlock(report: ImportReport) {
             InstallOutcome.UNRECOGNIZED -> stringResource(R.string.unrecognized, report.displayName)
             InstallOutcome.UNREADABLE -> stringResource(R.string.not_a_zip, report.displayName)
         }
-        Text(report.displayName, style = MaterialTheme.typography.titleSmall)
+        Text(
+            report.displayName,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
         Text(
             headline,
             color = if (report.outcome == InstallOutcome.INSTALLED) {
@@ -360,7 +389,11 @@ internal fun ProblemList(problems: List<RomProblem>) {
         )
     }
     if (problems.size > shown.size) {
-        Text("+${problems.size - shown.size}", style = MaterialTheme.typography.bodySmall)
+        Text(
+            "+${problems.size - shown.size}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
