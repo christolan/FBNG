@@ -96,7 +96,7 @@ jobs:
           printf '%s\n' "$v1" | grep -q "Verified using v1 scheme (JAR signing): true"
           printf '%s\n' "$v2" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"
           printf '%s\n' "$v3" | grep -q "Verified using v3 scheme (APK Signature Scheme v3): true"
-          cert="$(printf '%s\n' "$v3" | grep "Signer #1 certificate SHA-256 digest:" | head -1)"
+          cert="$(printf '%s\n' "$v3" | grep "certificate SHA-256 digest:" | head -1 || true)"
           {
             echo ""
             echo "### Signature"
