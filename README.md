@@ -12,7 +12,7 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 ## 构建
 
-需要 JDK 21 和 Android SDK，并且已经安装 `platforms/android-37.2` 和 Build-Tools 36。在 `local.properties` 里写 `sdk.dir`，或者设置 `ANDROID_HOME`。
+需要 JDK 21 和 Android SDK，并且已经安装 `platforms/android-37.2`、Build-Tools 36、NDK `28.2.13676358` 和 CMake 3.22.1。NDK 用来编译读取核心画面比例的小库 `libfbng_aspect.so`，它和别的原生库一样要按 16 KB 对齐。在 `local.properties` 里写 `sdk.dir`，或者设置 `ANDROID_HOME`。
 
 本机调试包用仓库里的测试证书：
 
@@ -75,7 +75,7 @@ buildbot 的 `latest` 目录会被替换。摘要、提交和标记写在 `core/
 
 有线和蓝牙手柄走 LibretroDroid 现成的按键和摇杆转发（包含 Android 和 RetroPad 的 A/B、X/Y 对调，以及 `controllerNumber` 分端口）。这一阶段没有映射界面。
 
-折叠和旋转不锁方向。内屏、外屏、横屏、竖屏用窗口宽度和 `FoldingFeature` 切换：窄屏底部放按钮，宽的横屏放在侧面，半折的书本或桌面姿态按铰链把画面和按钮分开。`MainActivity` 自己处理 `configChanges`，游戏画面是同一个 `GLRetroView`，只改它的尺寸，不新建核心。系统如果仍然重建 Activity（比如没列进 `configChanges` 的变化），这次游戏会结束，进度靠槽 1。`GLSurfaceView` 不能跨进程保留，进程死亡后也是先启动游戏再读档。
+折叠和旋转不锁方向。游戏画面铺满安全区内的播放区域，由 LibretroDroid 按核心报告的宽高比居中：比屏幕窄就左右留黑边，比屏幕矮就上下留黑边。比例来自核心的 AV info，运行中如果核心用 `SET_GEOMETRY` 改了比例，黑边会跟着重算。读不到比例时才退回 4:3，画面仍然不缩小。存档、读档、退出画在这些黑边里，左右各一条或上下各一条，不再占一列固定宽度，所以画面保持在正中。黑边薄于 56dp（放不下一个 48dp 按钮加内边距）时，不从画面里挖位置，改在黑边外侧叠一组不改变画面大小的按钮。`MainActivity` 自己处理 `configChanges`，游戏画面是同一个 `GLRetroView`，只改它的尺寸，不新建核心。旋转、折叠、窗口大小、系统栏和挖孔都会重算。系统如果仍然重建 Activity（比如没列进 `configChanges` 的变化），这次游戏会结束，进度靠槽 1。`GLSurfaceView` 不能跨进程保留，进程死亡后也是先启动游戏再读档。游戏库的双栏布局仍按窗口宽度和书本姿态的铰链切换，和游戏中的黑边无关。
 
 ## 测试
 

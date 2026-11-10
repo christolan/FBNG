@@ -110,6 +110,7 @@ dependencies {
 
 android {
     namespace = "com.xiaojiwei.fbng"
+    ndkVersion = "28.2.13676358"
     compileSdk {
         version = release(37) {
             minorApiLevel = 2
@@ -120,8 +121,8 @@ android {
         applicationId = "com.xiaojiwei.fbng"
         minSdk = 33
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.1.2"
+        versionCode = 4
+        versionName = "0.1.3"
         ndk {
             abiFilters += "arm64-v8a"
         }
@@ -132,6 +133,13 @@ android {
         buildConfigField("String", "FBNEO_ZIP_SHA256", "\"${pin("fbneo.zipSha256")}\"")
         buildConfigField("String", "LIBRETRODROID_VERSION", "\"${pin("libretrodroid.version")}\"")
         buildConfigField("String", "FBNEO_DAT_VERSION", "\"${pin("fbneo.datVersion")}\"")
+        externalNativeBuild {
+            cmake {
+                // Link the probe against this copy so the APK library lists liblibretrodroid.so
+                // as NEEDED. Android only lets an app library dlopen another app library it depends on.
+                arguments += "-DLIBRETRODROID_DIR=${layout.buildDirectory.get().asFile.absolutePath}/libretrodroid-jni/arm64-v8a"
+            }
+        }
     }
 
     signingConfigs {
@@ -196,6 +204,13 @@ android {
         buildConfig = true
     }
 
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
+
     packaging {
         jniLibs {
             // Stored uncompressed and 16 KB-aligned. AGP then sets extractNativeLibs=false,
@@ -206,6 +221,30 @@ android {
 
     val jniOut = layout.buildDirectory.dir("fbneo-jni").get().asFile
     sourceSets.getByName("main").jniLibs.directories.add(jniOut.absolutePath)
+}
+
+val extractLibretroJni = tasks.register("extractLibretroJni") {
+    val incoming = libretroAlignment
+    inputs.files(incoming)
+    val outDir = layout.buildDirectory.dir("libretrodroid-jni/arm64-v8a")
+    outputs.dir(outDir)
+    doLast {
+        val aar = incoming.files.single { it.name.endsWith(".aar") }
+        val dest = outDir.get().asFile
+        dest.mkdirs()
+        ZipFile(aar).use { zip ->
+            val entry = zip.getEntry("jni/arm64-v8a/liblibretrodroid.so")
+                ?: throw GradleException("LibretroDroid AAR has no arm64 library: ${aar.name}")
+            val out = dest.resolve("liblibretrodroid.so")
+            zip.getInputStream(entry).use { input -> out.outputStream().use { input.copyTo(it) } }
+        }
+    }
+}
+
+tasks.configureEach {
+    if (name.startsWith("configureCMake")) {
+        dependsOn(extractLibretroJni)
+    }
 }
 
 tasks.named("preBuild").configure {
