@@ -3,6 +3,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 plugins {
@@ -23,6 +24,15 @@ val fbngDebugKey = Properties().apply {
 
 fun debugKey(name: String): String =
     fbngDebugKey.getProperty(name) ?: error("keystore/fbng-debug.properties is missing $name")
+
+// Release signing material stays in Actions secrets. CI decodes the PKCS12
+// keystore to FBNG_RELEASE_STORE_FILE and passes the other three values.
+// A blank path keeps local release builds unsigned; debug still uses the test key.
+val releaseStoreFile = System.getenv("FBNG_RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
+val releaseStorePassword = System.getenv("FBNG_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = System.getenv("FBNG_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("FBNG_RELEASE_KEY_PASSWORD")
+val fbneoCoreZipEntry = "lib/arm64-v8a/libfbneo_libretro_android.so"
 
 val fbneoZipUrl = pin("fbneo.zipUrl")
 val fbneoZipSha256 = pin("fbneo.zipSha256")
@@ -110,8 +120,8 @@ android {
         applicationId = "com.xiaojiwei.fbng"
         minSdk = 33
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
         ndk {
             abiFilters += "arm64-v8a"
         }
@@ -136,6 +146,28 @@ android {
             enableV2Signing = true
             enableV3Signing = true
         }
+        val storePath = releaseStoreFile
+        val storePasswordValue = releaseStorePassword.orEmpty()
+        val aliasValue = releaseKeyAlias.orEmpty()
+        val keyPasswordValue = releaseKeyPassword.orEmpty()
+        if (!storePath.isNullOrEmpty()) {
+            if (storePasswordValue.isEmpty() || aliasValue.isEmpty() || keyPasswordValue.isEmpty()) {
+                throw GradleException(
+                    "FBNG_RELEASE_STORE_FILE is set, but FBNG_RELEASE_STORE_PASSWORD, " +
+                        "FBNG_RELEASE_KEY_ALIAS, or FBNG_RELEASE_KEY_PASSWORD is empty.",
+                )
+            }
+            create("release") {
+                storeFile = file(storePath)
+                storePassword = storePasswordValue
+                keyAlias = aliasValue
+                keyPassword = keyPasswordValue
+                storeType = "PKCS12"
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
     }
 
     buildTypes {
@@ -144,6 +176,9 @@ android {
         }
         release {
             isMinifyEnabled = false
+            if (releaseStoreFile != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -163,6 +198,8 @@ android {
 
     packaging {
         jniLibs {
+            // Stored uncompressed and 16 KB-aligned. AGP then sets extractNativeLibs=false,
+            // so the installer does not copy the core into nativeLibraryDir.
             useLegacyPackaging = false
         }
     }
@@ -213,53 +250,80 @@ val androidSdkDir: File = run {
     }
 }
 
-val verify16k = tasks.register("verify16kPageAlignment") {
-    val apkDir = layout.buildDirectory.dir("outputs/apk/debug")
-    val sdkDir = androidSdkDir
-    doLast {
-        val apk = apkDir.get().asFile.walkTopDown().firstOrNull { it.extension == "apk" }
-            ?: throw GradleException("No debug APK under ${apkDir.get().asFile}")
-        ZipFile(apk).use { zip ->
-            val libs = zip.entries().asSequence()
-                .filter { !it.isDirectory && it.name.startsWith("lib/arm64-v8a/") && it.name.endsWith(".so") }
-                .toList()
-            if (libs.isEmpty()) {
-                throw GradleException("APK ${apk.name} contains no arm64 native libraries")
+fun registerApkCheck(variant: String) =
+    tasks.register("verify${variant.replaceFirstChar { it.uppercase() }}Apk") {
+        val apkDir = layout.buildDirectory.dir("outputs/apk/$variant")
+        val sdkDir = androidSdkDir
+        doLast {
+            val dir = apkDir.get().asFile
+            val apks = dir.walkTopDown().filter { it.isFile && it.extension == "apk" }.toList()
+            val signed = apks.filterNot { it.name.endsWith("-unsigned.apk") }
+            val apk = when {
+                signed.size == 1 -> signed.single()
+                signed.isEmpty() && apks.size == 1 -> apks.single()
+                else -> throw GradleException("Expected one APK under $dir, found ${apks.map { it.name }}")
             }
-            libs.forEach { entry ->
-                val temp = File.createTempFile("apkso", ".so")
-                try {
-                    zip.getInputStream(entry).use { input -> temp.outputStream().use { input.copyTo(it) } }
-                    val align = minLoadAlign(temp)
-                    if (align < 16 * 1024) {
-                        throw GradleException("${entry.name} PT_LOAD align is $align, expected >= 16384")
-                    }
-                    logger.lifecycle("${entry.name} PT_LOAD align $align")
-                } finally {
-                    temp.delete()
+            ZipFile(apk).use { zip ->
+                val libs = zip.entries().asSequence()
+                    .filter { !it.isDirectory && it.name.startsWith("lib/arm64-v8a/") && it.name.endsWith(".so") }
+                    .toList()
+                if (libs.isEmpty()) {
+                    throw GradleException("APK ${apk.name} contains no arm64 native libraries")
                 }
+                val core = libs.singleOrNull { it.name == fbneoCoreZipEntry }
+                    ?: throw GradleException("APK ${apk.name} is missing $fbneoCoreZipEntry")
+                if (core.method != ZipEntry.STORED) {
+                    throw GradleException("$fbneoCoreZipEntry must be stored uncompressed so dlopen can map it from the APK")
+                }
+                if (core.size <= 0L) {
+                    throw GradleException("$fbneoCoreZipEntry is empty")
+                }
+                libs.forEach { entry ->
+                    val temp = File.createTempFile("apkso", ".so")
+                    try {
+                        zip.getInputStream(entry).use { input -> temp.outputStream().use { input.copyTo(it) } }
+                        val align = minLoadAlign(temp)
+                        if (align < 16 * 1024) {
+                            throw GradleException("${entry.name} PT_LOAD align is $align, expected >= 16384")
+                        }
+                        if (entry.name == fbneoCoreZipEntry && !fileContainsAscii(temp, fbneoEmbeddedMarker)) {
+                            throw GradleException("$fbneoCoreZipEntry does not contain marker $fbneoEmbeddedMarker")
+                        }
+                        logger.lifecycle("${entry.name} PT_LOAD align $align")
+                    } finally {
+                        temp.delete()
+                    }
+                }
+                logger.lifecycle(
+                    "FBNeo core packaged: $fbneoCoreZipEntry (${core.size} bytes, stored uncompressed)",
+                )
             }
+            val zipalign = sdkDir.resolve("build-tools").listFiles().orEmpty()
+                .map { it.resolve("zipalign") }
+                .filter { it.canExecute() }
+                .maxByOrNull { it.parentFile.name }
+                ?: throw GradleException("zipalign not found under $sdkDir/build-tools")
+            val process = ProcessBuilder(zipalign.absolutePath, "-c", "-P", "16", "4", apk.absolutePath)
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().readText()
+            val code = process.waitFor()
+            if (code != 0) {
+                throw GradleException("zipalign -P 16 failed for ${apk.name} (exit $code)\n$output")
+            }
+            logger.lifecycle("zipalign -P 16 passed for ${apk.name}")
         }
-        val zipalign = sdkDir.resolve("build-tools").listFiles().orEmpty()
-            .map { it.resolve("zipalign") }
-            .filter { it.canExecute() }
-            .maxByOrNull { it.parentFile.name }
-            ?: throw GradleException("zipalign not found under $sdkDir/build-tools")
-        val process = ProcessBuilder(zipalign.absolutePath, "-c", "-P", "16", "4", apk.absolutePath)
-            .redirectErrorStream(true)
-            .start()
-        val output = process.inputStream.bufferedReader().readText()
-        val code = process.waitFor()
-        if (code != 0) {
-            throw GradleException("zipalign -P 16 failed for ${apk.name} (exit $code)\n$output")
-        }
-        logger.lifecycle("zipalign -P 16 passed for ${apk.name}")
     }
-}
+
+val verifyDebugApk = registerApkCheck("debug")
+val verifyReleaseApk = registerApkCheck("release")
 
 tasks.configureEach {
     if (name == "assembleDebug") {
-        finalizedBy(verify16k)
+        finalizedBy(verifyDebugApk)
+    }
+    if (name == "assembleRelease") {
+        finalizedBy(verifyReleaseApk)
     }
 }
 

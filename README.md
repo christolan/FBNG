@@ -10,22 +10,33 @@ FBNeo Next Generation。这是一个只给自己用的 Android 街机前端，Ph
 
 FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPLv3。这个应用只供个人使用，不收费、不接受捐赠、不发布到应用商店。
 
-## 构建 debug APK
+## 构建
 
 需要 JDK 21 和 Android SDK，并且已经安装 `platforms/android-37.2` 和 Build-Tools 36。在 `local.properties` 里写 `sdk.dir`，或者设置 `ANDROID_HOME`。
+
+本机调试包用仓库里的测试证书：
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，debug 包大约 100 MB。
+产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，包大约 100 MB。测试证书和口令只放在私有仓库的 `keystore/`，APK 本身仍然不会提交。
 
-也可以不在本机编。推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble debug APK”，都会执行同一条 `./gradlew :app:assembleDebug`。Actions 里仍会留下名为 `FBNG-phase0-debug-<提交短 SHA>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本私有仓库的 Releases 里发一个 prerelease，tag 是 `debug-<提交短 SHA>`，直接挂裸的 `FBNG-phase0-debug-<提交短 SHA>.apk`，不再套一层 zip。GitHub App 的 Releases 页能看到它。APK 用仓库里的同一把测试证书签名（v1、v2、v3），所以后一个 debug 包可以覆盖安装。证书和口令只放在私有仓库的 `keystore/`，APK 本身仍然不会提交。
+要打 Release 包，把 PKCS12 证书留在仓库外面，设置四个环境变量后再执行 `./gradlew :app:assembleRelease`：
+
+- `FBNG_RELEASE_STORE_FILE`：keystore 文件路径
+- `FBNG_RELEASE_STORE_PASSWORD`
+- `FBNG_RELEASE_KEY_ALIAS`（这把钥匙的别名是 `fbng`）
+- `FBNG_RELEASE_KEY_PASSWORD`
+
+产物是 `app/build/outputs/apk/release/app-release.apk`，签名是 v1、v2 和 v3。没有这四个变量时，Release 构建不使用 debug 测试证书。
+
+推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble release APK”，都会执行 `./gradlew :app:testDebugUnitTest :app:assembleRelease`。Actions 用上面同名的四个仓库 secrets 签名；keystore 的 secret 是 PKCS12 文件的 base64，解码后不进 git。如果 APK 里没有未压缩的 `lib/arm64-v8a/libfbneo_libretro_android.so`，构建会失败。`apksigner` 核对 v1、v2、v3，`zipalign -P 16` 核对 16 KB 对齐。Actions 里留下名为 `FBNG-<versionName>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本私有仓库的 Releases 里发一个版本号 Release：标题 `FBNG <versionName>`，tag `v<versionName>`，附件 `FBNG-<versionName>.apk`。0.x 仍是 prerelease，名字里不再带 debug。
 
 构建会做两件和页面对齐有关的事：
 
 - 下载的 FBNeo 核心和 LibretroDroid 0.13.2 的 arm64 库都必须是 ELF `PT_LOAD` 对齐至少 16 KB。0.13.2 已经用 `-Wl,-z,max-page-size=16384` 编译；0.14.0 预发布版没有额外的 16 KB 改动，所以这里用稳定版 0.13.2。
-- 原生库以未压缩的形式打进 APK，并用 `zipalign -P 16` 检查 16 KB 对齐。`assembleDebug` 结束时会跑这项检查。
+- 原生库以未压缩的形式打进 APK，并用 `zipalign -P 16` 检查 16 KB 对齐。`assembleDebug` 和 `assembleRelease` 结束时都会跑这项检查。
 
 ## 固定的 FBNeo 核心
 
@@ -41,11 +52,11 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 buildbot 的 `latest` 目录会被替换。摘要、提交和标记写在 `core/fbneo.pin.properties`。文件一变，构建就会失败，需要同时更新这三项和对应的 DAT，不能只换其中一个。核心打进本地 APK 可以，不要把 `.so` 提交进 git。
 
-应用运行时从 `nativeLibraryDir/libfbneo_libretro_android.so` 加载它。
+`useLegacyPackaging` 是 false，安装清单里的 `extractNativeLibs` 也是 false，所以系统不会把核心复制到 `nativeLibraryDir`。应用如果在那个目录里找到已解压的文件，就直接用它；否则把 `base.apk!/lib/arm64-v8a/libfbneo_libretro_android.so` 交给 LibretroDroid。`dlopen` 从 API 23 起可以打开这种未压缩且按页对齐的 zip 条目。
 
 ## 导入两个 zip
 
-1. 安装 debug APK，打开 FBNG。
+1. 安装 Release APK，打开 FBNG。
 2. 点「导入 zip」，用系统文件选择器选一个或多个 zip。可以同时选，也可以分两次。外层文件名无所谓。
 3. 应用按 FBNeo DAT 核对 zip **里面**每个文件的文件名、大小和 CRC-32。
    - `kovsh` 是 12 个游戏文件，其中 `pgm_p0605_v104.u1` 的 CRC 是 `7c78e5f3`，`kovsh_v100_china.asic` 的 CRC 是 `0f09a5c1`。DAT 里这个套件还列出了 6 个 PGM BIOS 文件，那些文件属于 `pgm`，不必打进 `kovsh.zip`。
