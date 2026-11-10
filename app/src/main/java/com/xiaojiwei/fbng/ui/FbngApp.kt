@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.xiaojiwei.fbng.dat.DatCatalog
+import com.xiaojiwei.fbng.dat.DatParse
 import com.xiaojiwei.fbng.dat.FbneoDat
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.importing.ImportReport
@@ -23,6 +24,7 @@ import com.xiaojiwei.fbng.library.LibraryScanner
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,32 +36,34 @@ private sealed interface Screen {
     data object Game : Screen
 }
 
+sealed interface CatalogLoad {
+    data object Loading : CatalogLoad
+    data class Ready(val catalog: DatCatalog) : CatalogLoad
+    data class Failed(val message: String) : CatalogLoad
+}
+
 @Composable
 fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current
     val storage = remember { AppStorage(context.filesDir).also(AppStorage::ensure) }
-    val catalog by produceState<DatCatalog?>(initialValue = null, context) {
-        value = withContext(Dispatchers.IO) {
-            context.assets.open(DAT_ASSET).bufferedReader(Charsets.UTF_8).use { reader ->
-                FbneoDat.parse(reader.readText())
-            }
-        }
+    val load by produceState<CatalogLoad>(CatalogLoad.Loading, context) {
+        value = withContext(Dispatchers.IO) { loadBundledCatalog(context) }
     }
     var snapshot by remember { mutableStateOf<LibrarySnapshot?>(null) }
     var reports by remember { mutableStateOf<List<ImportReport>>(emptyList()) }
     var screen by remember { mutableStateOf<Screen>(Screen.Library) }
 
-    LaunchedEffect(catalog) {
-        val loaded = catalog ?: return@LaunchedEffect
+    LaunchedEffect(load) {
+        val ready = load as? CatalogLoad.Ready ?: return@LaunchedEffect
         if (snapshot == null) {
-            snapshot = withContext(Dispatchers.IO) { LibraryScanner(storage, loaded).scan() }
+            snapshot = withContext(Dispatchers.IO) { LibraryScanner(storage, ready.catalog).scan() }
         }
     }
 
     FbngTheme {
         when (screen) {
             Screen.Library -> LibraryScreen(
-                catalog = catalog,
+                load = load,
                 snapshot = snapshot,
                 reports = reports,
                 onImported = { imported, refreshed ->
@@ -104,6 +108,27 @@ internal suspend fun importUris(
         } finally {
             temp.delete()
         }
+    }
+}
+
+private fun loadBundledCatalog(context: Context): CatalogLoad {
+    return try {
+        val text = context.assets.open(DAT_ASSET).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        when (val parsed = FbneoDat.parse(text)) {
+            is DatParse.Ok -> {
+                Log.i(TAG, "DAT ${parsed.catalog.version}: ${parsed.catalog.games.size} games")
+                CatalogLoad.Ready(parsed.catalog)
+            }
+            is DatParse.Error -> {
+                Log.e(TAG, "DAT parse failed: ${parsed.message}")
+                CatalogLoad.Failed(parsed.message)
+            }
+        }
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Log.e(TAG, "DAT load failed", error)
+        CatalogLoad.Failed("找不到内置的 FBNeo DAT，游戏库无法打开。")
     }
 }
 

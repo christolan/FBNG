@@ -5,6 +5,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -41,7 +42,6 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.dat.ProblemKind
 import com.xiaojiwei.fbng.dat.RomProblem
 import com.xiaojiwei.fbng.dat.crcHex
@@ -57,13 +57,14 @@ import kotlinx.coroutines.withContext
 
 @Composable
 fun LibraryScreen(
-    catalog: DatCatalog?,
+    load: CatalogLoad,
     snapshot: LibrarySnapshot?,
     reports: List<ImportReport>,
     storage: AppStorage,
     onImported: (List<ImportReport>, LibrarySnapshot) -> Unit,
     onPlay: () -> Unit,
 ) {
+    val catalog = (load as? CatalogLoad.Ready)?.catalog
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -85,20 +86,21 @@ fun LibraryScreen(
             .background(MaterialTheme.colorScheme.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
-        if (catalog == null || snapshot == null) {
-            Column(
-                modifier = Modifier.align(Alignment.Center),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    stringResource(if (catalog == null) R.string.loading_dat else R.string.scanning),
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
+        when (load) {
+            is CatalogLoad.Failed -> {
+                DatError(load.message)
+                return@Box
             }
-            return@Box
+            CatalogLoad.Loading -> {
+                LoadingColumn(stringResource(R.string.loading_dat))
+                return@Box
+            }
+            is CatalogLoad.Ready -> if (snapshot == null) {
+                LoadingColumn(stringResource(R.string.scanning))
+                return@Box
+            }
         }
+        val readySnapshot = snapshot
 
         val fold = rememberFoldSnapshot()
         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -116,7 +118,7 @@ fun LibraryScreen(
                     )
                     GameColumn(
                         modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        snapshot = snapshot,
+                        snapshot = readySnapshot,
                         onPlay = onPlay,
                     )
                 }
@@ -129,10 +131,45 @@ fun LibraryScreen(
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
                     IntroColumn(Modifier.fillMaxWidth(), busy, reports) { launcher.launch(ZIP_MIME) }
-                    GameColumn(Modifier.fillMaxWidth(), snapshot, onPlay)
+                    GameColumn(Modifier.fillMaxWidth(), readySnapshot, onPlay)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BoxScope.LoadingColumn(message: String) {
+    Column(
+        modifier = Modifier.align(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(16.dp))
+        Text(message, color = MaterialTheme.colorScheme.onBackground)
+    }
+}
+
+@Composable
+private fun DatError(message: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "FBNG",
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            stringResource(R.string.dat_error_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
+        Text(stringResource(R.string.dat_error_body, message), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 

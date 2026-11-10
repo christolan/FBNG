@@ -24,7 +24,7 @@ class RomIdentificationTest {
     private val asic = bytes(0x01, 0x02, 0x03, 0x04)
     private val bios = bytes(0xAA, 0xBB, 0xCC, 0xDD)
 
-    private val catalog = FbneoDat.parse(
+    private val catalog = parseCatalog(
         """
         <datafile>
           <header><version>test</version></header>
