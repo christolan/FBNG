@@ -48,6 +48,7 @@ import com.swordfish.libretrodroid.ShaderConfig
 import com.swordfish.libretrodroid.Variable
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SessionLifecycleOwner
@@ -73,18 +74,28 @@ fun GameScreen(
 ) {
     val context = LocalContext.current
     val activity = context.findActivity()
-    val coreFile = remember {
-        File(activity.applicationInfo.nativeLibraryDir, "libfbneo_libretro_android.so")
+    val corePath = remember {
+        val info = activity.applicationInfo
+        val apks = ArrayList<File>(1 + (info.splitSourceDirs?.size ?: 0))
+        apks.add(File(info.sourceDir))
+        info.splitSourceDirs?.forEach { apks.add(File(it)) }
+        FbneoCore.resolveLoadPath(File(info.nativeLibraryDir), apks)
     }
     BackHandler(onBack = onQuit)
-    if (!coreFile.isFile) {
+    if (corePath == null) {
+        LaunchedEffect(activity) {
+            Log.e(
+                TAG,
+                "no ${FbneoCore.FILE_NAME} in ${activity.applicationInfo.nativeLibraryDir} and no stored ${FbneoCore.ZIP_ENTRY}",
+            )
+        }
         MissingCore(onQuit)
         return
     }
 
-    val session = remember(coreFile.absolutePath, storage.kovshZip.absolutePath) {
+    val session = remember(corePath, storage.kovshZip.absolutePath) {
         val data = GLRetroViewData(activity).apply {
-            coreFilePath = coreFile.absolutePath
+            coreFilePath = corePath
             gameFilePath = storage.kovshZip.absolutePath
             systemDirectory = storage.systemDir.absolutePath
             savesDirectory = storage.savesDir.absolutePath
@@ -102,7 +113,7 @@ fun GameScreen(
         life.create()
         Log.i(
             TAG,
-            "core ${coreFile.absolutePath} game ${storage.kovshZip.absolutePath} system ${storage.systemDir}",
+            "core $corePath game ${storage.kovshZip.absolutePath} system ${storage.systemDir}",
         )
         RunningSession(view, life)
     }

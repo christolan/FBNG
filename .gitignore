@@ -9,6 +9,8 @@ captures/
 *.apk
 *.aab
 *.ap_
+*.p12
+*.jks
 *.so
 *.zip
 !gradle/wrapper/gradle-wrapper.jar

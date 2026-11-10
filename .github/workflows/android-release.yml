@@ -1,0 +1,253 @@
+# Builds the personal release APK.
+# Actions artifact: zlib zip (not LZMA), kept for 14 days.
+# Push to main and workflow_dispatch also publish a prerelease in this private repo,
+# with the raw APK attached. Pull requests only upload the artifact.
+# 0.x stays a prerelease. The tag, title, and asset use the version, not "debug".
+name: Assemble release APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble-release:
+    name: assembleRelease
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Job permissions replace the workflow permissions. contents: write publishes
+    # the private prerelease; actions: write keeps the artifact upload.
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # pull_request builds the branch head, so the artifact name matches that commit.
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          # This cmdline-tools build can see platforms;android-37.2.
+          cmdline-tools-version: "16111833"
+          packages: platform-tools platforms;android-37.2 build-tools;36.0.0
+
+      - name: Decode release keystore
+        env:
+          FBNG_RELEASE_KEYSTORE_BASE64: ${{ secrets.FBNG_RELEASE_KEYSTORE_BASE64 }}
+          FBNG_RELEASE_STORE_PASSWORD: ${{ secrets.FBNG_RELEASE_STORE_PASSWORD }}
+          FBNG_RELEASE_KEY_ALIAS: ${{ secrets.FBNG_RELEASE_KEY_ALIAS }}
+          FBNG_RELEASE_KEY_PASSWORD: ${{ secrets.FBNG_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in FBNG_RELEASE_KEYSTORE_BASE64 FBNG_RELEASE_STORE_PASSWORD FBNG_RELEASE_KEY_ALIAS FBNG_RELEASE_KEY_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing Actions secret: ${name}"
+              missing=1
+            else
+              echo "Actions secret present: ${name}"
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "assembleRelease needs the four FBNG_RELEASE_* repository secrets. No secret values are printed."
+            exit 1
+          fi
+          umask 077
+          dest="${RUNNER_TEMP}/fbng-release.p12"
+          printf '%s' "$FBNG_RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$dest"
+          python3 - "$dest" <<'PY'
+          import base64, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          data = path.read_bytes()
+          if data.startswith(b"-----BEGIN"):
+              body = b"".join(
+                  line.strip()
+                  for line in data.splitlines()
+                  if line.strip() and not line.startswith(b"-----")
+              )
+              data = base64.b64decode(body)
+              path.write_bytes(data)
+          if len(data) < 128 or data[0] != 0x30:
+              sys.exit(
+                  "Decoded FBNG_RELEASE_KEYSTORE_BASE64 is not a PKCS#12 object. "
+                  "Expected the base64 of the binary keystore."
+              )
+          print(f"Decoded PKCS#12 release keystore ({len(data)} bytes).")
+          PY
+
+      - name: Unit tests and assemble release APK
+        env:
+          FBNG_RELEASE_STORE_FILE: ${{ runner.temp }}/fbng-release.p12
+          FBNG_RELEASE_STORE_PASSWORD: ${{ secrets.FBNG_RELEASE_STORE_PASSWORD }}
+          FBNG_RELEASE_KEY_ALIAS: ${{ secrets.FBNG_RELEASE_KEY_ALIAS }}
+          FBNG_RELEASE_KEY_PASSWORD: ${{ secrets.FBNG_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace
+
+      - name: Name the APK and record its size and SHA-256
+        id: apk
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, pathlib, zipfile, sys
+          meta = json.loads(pathlib.Path("app/build/outputs/apk/release/output-metadata.json").read_text())
+          elements = meta["elements"]
+          if len(elements) != 1:
+              sys.exit(f"Expected one release APK element, found {len(elements)}")
+          element = elements[0]
+          version = element["versionName"]
+          code = element["versionCode"]
+          if not isinstance(version, str) or not __import__("re").fullmatch(r"[0-9]+(?:\.[0-9]+){1,3}", version):
+              sys.exit(f"Refusing versionName {version!r}")
+          src = pathlib.Path("app/build/outputs/apk/release") / element["outputFile"]
+          if not src.is_file():
+              sys.exit(f"Missing {src}")
+          entry = "lib/arm64-v8a/libfbneo_libretro_android.so"
+          with zipfile.ZipFile(src) as archive:
+              try:
+                  info = archive.getinfo(entry)
+              except KeyError:
+                  sys.exit(f"{src.name} is missing {entry}")
+              if info.compress_type != zipfile.ZIP_STORED or info.file_size <= 0:
+                  sys.exit(f"{entry} must be a non-empty stored entry, got method {info.compress_type} size {info.file_size}")
+              print(f"Packaged {entry}: {info.file_size} bytes, stored uncompressed")
+          dest = pathlib.Path(f"FBNG-{version}.apk")
+          src.replace(dest)
+          pathlib.Path(os.environ["GITHUB_OUTPUT"]).open("a").write(
+              f"version={version}\ncode={code}\npath={dest}\nsize={dest.stat().st_size}\n"
+          )
+          sha = __import__("hashlib").sha256(dest.read_bytes()).hexdigest()
+          pathlib.Path(os.environ["GITHUB_OUTPUT"]).open("a").write(f"sha={sha}\n")
+          summary = pathlib.Path(os.environ["GITHUB_STEP_SUMMARY"])
+          summary.open("a").write(
+              "\n".join([
+                  "### Release APK",
+                  "",
+                  "| | |",
+                  "| --- | --- |",
+                  f"| File | `{dest.name}` |",
+                  f"| versionName | `{version}` |",
+                  f"| versionCode | `{code}` |",
+                  f"| Size | {dest.stat().st_size} bytes |",
+                  f"| SHA-256 | `{sha}` |",
+                  f"| Core | `{entry}` stored uncompressed |",
+                  f"| Commit | `{__import__('subprocess').check_output(['git','rev-parse','HEAD'], text=True).strip()}` |",
+                  "",
+              ])
+          )
+          PY
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          apk="${{ steps.apk.outputs.path }}"
+          signer="$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -1)"
+          test -x "$signer"
+          # apksigner reports a scheme as true only on API levels that still use it.
+          # v1 is checked at 21, v2 at 24, v3 at the app minSdk 33.
+          v1="$("$signer" verify --min-sdk-version 21 --verbose "$apk")"
+          v2="$("$signer" verify --min-sdk-version 24 --verbose "$apk")"
+          v3="$("$signer" verify --min-sdk-version 33 --verbose --print-certs "$apk")"
+          printf '%s\n' "$v1" "$v2" "$v3"
+          printf '%s\n' "$v1" | grep -q "Verified using v1 scheme (JAR signing): true"
+          printf '%s\n' "$v2" | grep -q "Verified using v2 scheme (APK Signature Scheme v2): true"
+          printf '%s\n' "$v3" | grep -q "Verified using v3 scheme (APK Signature Scheme v3): true"
+          cert="$(printf '%s\n' "$v3" | grep "certificate SHA-256 digest:" | head -1 || true)"
+          {
+            echo ""
+            echo "### Signature"
+            echo ""
+            echo "- v1 at API 21: true"
+            echo "- v2 at API 24: true"
+            echo "- v3 at API 33: true"
+            echo "- ${cert}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: FBNG-${{ steps.apk.outputs.version }}
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+          retention-days: 14
+          # zlib level 6, the same family as gzip. Not LZMA.
+          compression-level: 6
+          overwrite: true
+
+      - name: Publish versioned prerelease
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.apk.outputs.version }}
+          CODE: ${{ steps.apk.outputs.code }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+          APK_SIZE: ${{ steps.apk.outputs.size }}
+          APK_SHA: ${{ steps.apk.outputs.sha }}
+        run: |
+          set -euo pipefail
+          tag="v${VERSION}"
+          title="FBNG ${VERSION}"
+          commit="$(git rev-parse HEAD)"
+          notes="$(mktemp)"
+          VERSION="$VERSION" CODE="$CODE" APK_NAME="$(basename "$APK_PATH")" APK_SIZE="$APK_SIZE" APK_SHA="$APK_SHA" COMMIT="$commit" NOTES_FILE="$notes" python3 - <<'PY'
+          import os
+          from pathlib import Path
+          Path(os.environ["NOTES_FILE"]).write_text(
+              "\n".join([
+                  "这一版从 APK 里直接加载未解压的 FBNeo 核心。",
+                  "",
+                  f"版本 {os.environ['VERSION']}（versionCode {os.environ['CODE']}）",
+                  f"提交 `{os.environ['COMMIT']}`",
+                  "",
+                  f"APK `{os.environ['APK_NAME']}`",
+                  f"大小 {os.environ['APK_SIZE']} 字节",
+                  f"SHA-256 `{os.environ['APK_SHA']}`",
+                  "",
+                  "个人使用的 Release 包，使用仓库里的 Release 证书签名（v1、v2、v3）。不含 ROM 或 BIOS。此 Release 只在本私有仓库内可见。",
+                  "",
+              ])
+          )
+          PY
+          prerelease=(--prerelease)
+          if [[ "${VERSION}" != 0.* ]]; then
+            prerelease=()
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" \
+              --draft=false \
+              --title "$title" \
+              --notes-file "$notes" \
+              "${prerelease[@]}" \
+              --target "$commit"
+            gh release upload "$tag" "$APK_PATH" --clobber
+          else
+            gh release create "$tag" "$APK_PATH" \
+              --target "$commit" \
+              --title "$title" \
+              --notes-file "$notes" \
+              "${prerelease[@]}"
+          fi
+          rm -f "$notes"
+
+      - name: Remove release keystore
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/fbng-release.p12"

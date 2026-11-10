@@ -30,7 +30,7 @@
     <string name="load_missing">存档槽 1 是空的。</string>
     <string name="load_fail">读档失败。这个槽可能是用别的核心版本写的。</string>
     <string name="load_version_warn">这个存档来自核心 %1$s，当前核心是 %2$s，可能不兼容。</string>
-    <string name="core_missing">安装包里没有 FBNeo 核心。请重新执行 assembleDebug，让 Gradle 下载并打进 APK。</string>
+    <string name="core_missing">安装包里没有 FBNeo 核心，无法启动。请重新安装带有该核心的版本。</string>
     <string name="core_not_ready">核心还在启动，稍后再存档或读档。</string>
     <string name="not_a_zip">%1$s 不是有效的 zip。</string>
     <string name="installed_as">已保存为 %1$s。</string>
