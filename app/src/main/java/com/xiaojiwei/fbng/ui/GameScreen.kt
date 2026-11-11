@@ -69,7 +69,7 @@ import kotlinx.coroutines.withContext
 private const val TAG = "FBNG"
 
 /** 48dp touch target plus 4dp of padding on each side of the bar. */
-private val MinHudBar = 56.dp
+internal val MinHudBar = 56.dp
 
 private class RunningSession(
     val view: GLRetroView,
@@ -292,7 +292,7 @@ fun GameScreen(
 }
 
 @Composable
-private fun BoxScope.GameHud(
+internal fun BoxScope.GameHud(
     layout: GameHudLayout,
     ready: Boolean,
     busy: Boolean,
@@ -573,7 +573,7 @@ private fun Modifier.barSlot(widthPx: Int? = null, heightPx: Int? = null): Modif
 }
 
 @Composable
-private fun MissingCore(onQuit: () -> Unit) {
+internal fun MissingCore(onQuit: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,

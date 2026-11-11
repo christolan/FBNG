@@ -9,6 +9,7 @@ import java.util.zip.ZipFile
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.roborazzi)
 }
 
 val fbneoPin = Properties().apply {
@@ -44,6 +45,23 @@ val fetchFbneoCore = tasks.register("fetchFbneoCore") {
     inputs.property("sha256", fbneoZipSha256)
     inputs.property("marker", fbneoEmbeddedMarker)
     outputs.dir(fbneoJniDir)
+    // Unit tests and screenshot verification never package the APK, so they must
+    // not download buildbot's moving nightly. Assemble and package still do.
+    onlyIf {
+        val packsCore = setOf(
+            "assembleDebug",
+            "assembleRelease",
+            "packageDebug",
+            "packageRelease",
+            "mergeDebugNativeLibs",
+            "mergeReleaseNativeLibs",
+            "mergeDebugJniLibFolders",
+            "mergeReleaseJniLibFolders",
+        )
+        gradle.taskGraph.allTasks.any { task ->
+            task.project == project && task.name in packsCore
+        }
+    }
     doLast {
         val abiDir = fbneoJniDir.get().asFile.resolve("arm64-v8a")
         abiDir.mkdirs()
@@ -106,6 +124,9 @@ dependencies {
     implementation(libs.libretrodroid)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }
 
 android {
@@ -204,6 +225,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -250,6 +275,11 @@ tasks.configureEach {
 tasks.named("preBuild").configure {
     dependsOn(fetchFbneoCore)
     dependsOn("verifyLibretroDroidAlignment")
+}
+
+// Goldens live in src so they can be committed. Comparison images stay under build/.
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 tasks.register("verifyLibretroDroidAlignment") {
