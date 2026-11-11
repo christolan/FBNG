@@ -1,33 +1,66 @@
 package com.xiaojiwei.fbng.ui.theme
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+
+enum class FbngButtonKind {
+    /** Electric-blue fill. The focus ring is onPrimary, because primary-on-primary disappears. */
+    Filled,
+
+    /** Charcoal fill and a thin electric-blue stroke. Used on the black letterbox bars. */
+    Outline,
+}
 
 @Composable
 fun FbngButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    kind: FbngButtonKind = FbngButtonKind.Filled,
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = scheme.primary,
-            contentColor = scheme.onPrimary,
-            // Material3 fades the disabled label to 38% and the fill to 10%.
-            // On this ink that composite is about 2.2:1, so the blocked play
-            // label and the not-ready save/load labels were dark on dark.
-            disabledContainerColor = scheme.surfaceContainerHighest,
-            disabledContentColor = scheme.onSurfaceVariant,
-        ),
+    val shape = RoundedCornerShape(FbngDimens.cardRadius)
+    val container = when {
+        !enabled -> scheme.surfaceContainerHighest
+        kind == FbngButtonKind.Outline -> scheme.surfaceContainer
+        else -> scheme.primary
+    }
+    val resting = if (kind == FbngButtonKind.Outline && enabled) scheme.primary else Color.Transparent
+    val focused = if (kind == FbngButtonKind.Filled) scheme.onPrimary else scheme.primary
+    val contentColor = when {
+        !enabled -> scheme.onSurfaceVariant
+        kind == FbngButtonKind.Outline -> scheme.onSurface
+        else -> scheme.onPrimary
+    }
+    CompositionLocalProvider(LocalContentColor provides contentColor) {
+    Row(
+        modifier = modifier
+            .fbngFocusTarget(
+                onClick = onClick,
+                container = container,
+                shape = shape,
+                enabled = enabled,
+                restingStroke = resting,
+                focusedStroke = focused,
+            )
+            .heightIn(min = FbngDimens.buttonHeight)
+            .padding(PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8)),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
         content = content,
     )
+    }
 }

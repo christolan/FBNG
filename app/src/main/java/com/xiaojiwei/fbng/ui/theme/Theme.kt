@@ -60,7 +60,11 @@ private val Scheme = darkColorScheme(
 
 @Composable
 fun FbngTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = Scheme) {
+    MaterialTheme(
+        colorScheme = Scheme,
+        typography = FbngTypography,
+        shapes = FbngShapes,
+    ) {
         // Text with no explicit color uses LocalContentColor, whose default is black.
         // These screens draw their own backgrounds instead of a root Surface, so without
         // this the titles and status lines were black on ink.

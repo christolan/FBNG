@@ -42,6 +42,18 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [33], qualifiers = "mdpi")
 class UiScreenshots {
     @Test
+    fun libraryPhonePortraitShowsTheBottomBar() {
+        assertFalse(shellUsesNavigationRail(400, null))
+        assertEquals(ShellWidth.Compact, shellWidth(400))
+        capture("library_phone_portrait", 400, 800) {
+            LibraryShot(
+                load = readyCatalog(),
+                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+            )
+        }
+    }
+
+    @Test
     fun libraryPhonePortraitShowsImportResult() {
         assertFalse(libraryUsesTwoPanes(400, null))
         capture("library_phone_portrait_import", 400, 800) {
@@ -71,6 +83,31 @@ class UiScreenshots {
             LibraryShot(
                 load = readyCatalog(),
                 snapshot = LibrarySnapshot(clean(RomInstaller.KOVSH, bios = false), clean(RomInstaller.PGM, bios = true)),
+            )
+        }
+    }
+
+    @Test
+    fun syncExpandedIsAnEmptyState() {
+        assertTrue(shellUsesNavigationRail(900, null))
+        assertEquals(ShellWidth.Expanded, shellWidth(900))
+        capture("shell_sync_expanded", 900, 640) {
+            LibraryShot(
+                load = readyCatalog(),
+                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                initialSection = ShellSection.Sync,
+            )
+        }
+    }
+
+    @Test
+    fun settingsCompactShowsRealInfoOnly() {
+        assertFalse(shellUsesNavigationRail(400, null))
+        capture("shell_settings_compact", 400, 800) {
+            LibraryShot(
+                load = readyCatalog(),
+                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                initialSection = ShellSection.Settings,
             )
         }
     }
@@ -138,6 +175,7 @@ private fun LibraryShot(
     load: CatalogLoad,
     snapshot: LibrarySnapshot?,
     reports: List<ImportReport> = emptyList(),
+    initialSection: ShellSection = ShellSection.Library,
 ) {
     FbngTheme {
         LibraryContent(
@@ -148,6 +186,7 @@ private fun LibraryShot(
             readFold = { null },
             onImport = {},
             onPlay = {},
+            initialSection = initialSection,
         )
     }
 }

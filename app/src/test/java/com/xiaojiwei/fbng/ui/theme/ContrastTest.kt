@@ -3,15 +3,27 @@ package com.xiaojiwei.fbng.ui.theme
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * WCAG 2.x contrast for the pairs the UI actually paints.
- * Body text needs 4.5:1. Large text and non-text marks (the cinnabar control, the
- * progress indicator, the outline) need 3:1.
+ * Body text needs 4.5:1. Large text and non-text marks (the electric-blue control,
+ * the progress indicator, the outline) need 3:1.
  */
 class ContrastTest {
+    @Test
+    fun electricBlueTokensMatchTheStyleGuide() {
+        assertEquals(0xFF101318L, FbngPalette.background)
+        assertEquals(0xFF171C24L, FbngPalette.surface)
+        assertEquals(0xFFF4F7FBL, FbngPalette.onSurface)
+        assertEquals(0xFFD5DCE6L, FbngPalette.onSurfaceVariant)
+        assertEquals(0xFF206AFBL, FbngPalette.primary)
+        assertEquals(0xFFFFFFFFL, FbngPalette.onPrimary)
+        assertEquals(0xFFA9C4FFL, FbngPalette.secondary)
+    }
+
     @Test
     fun bodyTextClearsAaOnEverySurfaceItSitsOn() {
         val surfaces = listOf(

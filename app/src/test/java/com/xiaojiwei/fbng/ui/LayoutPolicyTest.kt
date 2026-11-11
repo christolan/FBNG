@@ -195,6 +195,25 @@ class LayoutPolicyTest {
         assertTrue(libraryUsesTwoPanes(400, book))
     }
 
+    @Test
+    fun shellWidthUsesTheWindowSizeClassBreakpoints() {
+        assertEquals(ShellWidth.Compact, shellWidth(599))
+        assertEquals(ShellWidth.Medium, shellWidth(SHELL_MEDIUM_DP))
+        assertEquals(ShellWidth.Medium, shellWidth(SHELL_EXPANDED_DP - 1))
+        assertEquals(ShellWidth.Expanded, shellWidth(SHELL_EXPANDED_DP))
+    }
+
+    @Test
+    fun navigationRailStartsAtMediumAndOnABookFold() {
+        assertFalse(shellUsesNavigationRail(599, null))
+        assertTrue(shellUsesNavigationRail(SHELL_MEDIUM_DP, null))
+        assertTrue(shellUsesNavigationRail(SHELL_EXPANDED_DP, null))
+        val book = FoldSnapshot(orientationVertical = true, separating = true, hingeStartPx = 400, hingeEndPx = 480)
+        assertTrue(shellUsesNavigationRail(400, book))
+        val tabletop = FoldSnapshot(orientationVertical = false, separating = true, hingeStartPx = 400, hingeEndPx = 480)
+        assertFalse(shellUsesNavigationRail(400, tabletop))
+    }
+
     private fun assertCentered(layout: GameHudLayout, screenWidth: Int, screenHeight: Int) {
         val right = screenWidth - layout.gameLeftPx - layout.gameWidthPx
         val bottom = screenHeight - layout.gameTopPx - layout.gameHeightPx
