@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,7 +33,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.focusable
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +66,7 @@ import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SessionLifecycleOwner
 import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.ui.theme.FbngButton
+import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import java.io.File
 import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
@@ -371,7 +378,7 @@ private fun StatusDock(
                     .padding(4.dp)
                     .fillMaxWidth()
                     .heightIn(max = maxHeight - 8.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 Column(
@@ -440,7 +447,7 @@ private fun ButtonDock(
                         },
                     )
                     .heightIn(max = maxHeight - 8.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 if (vertical) {
@@ -450,9 +457,9 @@ private fun ButtonDock(
                             .padding(horizontal = 2.dp, vertical = 4.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        ActionButton(stringResource(R.string.save), enabled = ready && !busy, onClick = onSave)
-                        ActionButton(stringResource(R.string.load), enabled = ready && !busy, onClick = onLoad)
-                        ActionButton(stringResource(R.string.quit), enabled = !busy, onClick = onQuit)
+                        ActionButton(stringResource(R.string.save), ShellTags.Save, enabled = ready && !busy, onClick = onSave)
+                        ActionButton(stringResource(R.string.load), ShellTags.Load, enabled = ready && !busy, onClick = onLoad)
+                        ActionButton(stringResource(R.string.quit), ShellTags.Quit, enabled = !busy, onClick = onQuit)
                     }
                 } else {
                     Row(
@@ -462,18 +469,21 @@ private fun ButtonDock(
                     ) {
                         ActionButton(
                             stringResource(R.string.save),
+                            ShellTags.Save,
                             enabled = ready && !busy,
                             onClick = onSave,
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         )
                         ActionButton(
                             stringResource(R.string.load),
+                            ShellTags.Load,
                             enabled = ready && !busy,
                             onClick = onLoad,
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                         )
                         ActionButton(
                             stringResource(R.string.quit),
+                            ShellTags.Quit,
                             enabled = !busy,
                             onClick = onQuit,
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
@@ -503,7 +513,7 @@ private fun BoxScope.OverlayDock(
     }
     Surface(
         modifier = Modifier.align(align).padding(8.dp).widthIn(max = 420.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
@@ -513,18 +523,21 @@ private fun BoxScope.OverlayDock(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ActionButton(
                     stringResource(R.string.save),
+                    ShellTags.Save,
                     enabled = ready && !busy,
                     onClick = onSave,
                     modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
                 )
                 ActionButton(
                     stringResource(R.string.load),
+                    ShellTags.Load,
                     enabled = ready && !busy,
                     onClick = onLoad,
                     modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
                 )
                 ActionButton(
                     stringResource(R.string.quit),
+                    ShellTags.Quit,
                     enabled = !busy,
                     onClick = onQuit,
                     modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
@@ -551,6 +564,7 @@ private fun BoxScope.OverlayDock(
 @Composable
 private fun ActionButton(
     label: String,
+    tag: String,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -558,7 +572,8 @@ private fun ActionButton(
     FbngButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier,
+        kind = FbngButtonKind.Outline,
+        modifier = modifier.testTag(tag),
     ) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -574,6 +589,20 @@ private fun Modifier.barSlot(widthPx: Int? = null, heightPx: Int? = null): Modif
 
 @Composable
 internal fun MissingCore(onQuit: () -> Unit) {
+    val quit = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        repeat(4) {
+            val focused = try {
+                quit.requestFocus(FocusDirection.Enter)
+            } catch (_: IllegalArgumentException) {
+                false
+            } catch (_: IllegalStateException) {
+                false
+            }
+            if (focused) return@LaunchedEffect
+            withFrameNanos { }
+        }
+    }
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -586,8 +615,21 @@ internal fun MissingCore(onQuit: () -> Unit) {
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
-            Text(stringResource(R.string.core_missing), color = MaterialTheme.colorScheme.onBackground)
-            FbngButton(onClick = onQuit) { Text(stringResource(R.string.quit)) }
+            Text(
+                stringResource(R.string.core_missing),
+                modifier = Modifier
+                    .testTag(ShellTags.CoreMissing)
+                    .focusable(),
+                color = MaterialTheme.colorScheme.onBackground,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            FbngButton(
+                onClick = onQuit,
+                modifier = Modifier
+                    .testTag(ShellTags.Quit)
+                    .heightIn(min = 48.dp)
+                    .focusRequester(quit),
+            ) { Text(stringResource(R.string.quit)) }
         }
     }
 }

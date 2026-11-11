@@ -4,20 +4,23 @@
 
 下面的字号、缩放、圆角、边距是建议起点，不是官方硬性标准。改它们之前先看现有界面，不要为了凑齐这些数字去重画一版。
 
-## 视觉风格（待定）
+## 视觉风格（B：极简主机启动器）
 
-风格方向还没定，由使用者之后重新决定。定下来之前，不要把某一种「AI 默认风」写成禁止项，也不要主动换成另一套配色或字体。
+界面是主机启动器：炭灰底、圆角卡片、无衬线字。唯一强调色是电光蓝，用来做实心按钮、焦点描边、选中标记和进度。没有第二套强调色（原来的朱砂 `#C24223` 和黄铜已去掉）。错误仍用独立的浅红色，避免和「可以开始」混成同一个蓝。只有深色。`MainActivity` 用深色系统栏，`FbngTheme` 只套 `darkColorScheme`，没有动态色。
 
-当前主题（以代码为准，不是目标稿）：
+色值只写在 `ui/theme/FbngPalette.kt`，经 `Theme.kt` 进 `ColorScheme`。字号在 `FbngType.kt`，间距、圆角和焦点缩放在 `FbngDimens.kt`。按钮用 `ui/theme/Controls.kt` 的 `FbngButton`。
 
-- 只有深色。`MainActivity` 用深色系统栏，`FbngTheme` 只套 `darkColorScheme`，没有动态色。
-- 墨色背景 `FbngPalette.background` = `#12140F`。
-- 正文是 `onBackground` / `onSurface` = `#F3F0E6`。按钮文字 `onPrimary` 和 `inverseSurface` 是奶油色 `#F6F3EA`。
-- 按钮是朱砂 `primary` = `#C24223`，次要强调是黄铜 `secondary` = `#E0B15A`。
-- 色值只写在 `ui/theme/FbngPalette.kt`，经 `Theme.kt` 进 `ColorScheme`。按钮用 `ui/theme/Controls.kt` 的 `FbngButton`。
-- 还没有单独的字号、圆角、间距、动效文件。字号用 `MaterialTheme.typography`。
-
-这一节更新之前，新界面沿用上面这套 token，不要另起一套。
+- 背景 `background` = `#101318`。表面 `surface` = `#171C24`。更高一层是 `surfaceContainerHigh` = `#1E2530`，再往上是 `surfaceContainerHighest` = `#293140`。最亮的表面 `surfaceBright` = `#313A4A`。不要在这些深色上用深色字。
+- 正文 `onBackground` / `onSurface` = `#F4F7FB`。次要正文 `onSurfaceVariant` = `#D5DCE6`。这两级在 `surfaceBright` 上仍超过 4.5:1。
+- 电光蓝按钮 `primary` = `#206AFB`，按钮文字 `onPrimary` = `#FFFFFF`（约 4.65:1）。
+- 电光蓝文字（选中的导航、已通过校验的状态）用 `secondary` = `#A9C4FF`。`primary` 贴在炭灰上大约只有 4:1，不够当正文，所以蓝色正文用 `secondary`，蓝色色块和描边用 `primary`。
+- 焦点描边是 2dp 的 `primary`。实心 `primary` 按钮上改用 `onPrimary` 亮边，否则蓝边贴着蓝底看不见。焦点缩放：普通控件 1.05，大卡片 1.025；按下回到 1.0。缩放立即到位，不在页面加载时逐块淡入。
+- 字体是无衬线（`FontFamily.SansSerif`）。正文和按钮 16sp，作为焦点标题的字不小于 20sp。
+- 圆角：小控件 8dp，卡片 12dp，Banner 和空状态面板 24dp。手柄按键提示的 A/B 是圆形键帽。
+- 导航：窗口宽度 ≥ 600dp，或竖直且分开的书本铰链，用左侧导航栏。宽度 < 600dp 且不是书本铰链，用底部导航栏。外边距 compact 16dp、medium 24dp、expanded 32dp，断点是 600dp 和 840dp（`shellWidth` / `shellUsesNavigationRail`）。列数按可用宽度算，不写死。medium 和 expanded 都是左侧栏，expanded 只把栏加宽、外边距加大，不把手机底栏拉宽。
+- 导航只有四项。游戏库和导入是现有功能。同步没有云同步，页面只写「即将推出」。设置没有开关，只放核心版本、许可和「没有按键映射」。封面和 Banner 没有图，用游戏名文字卡片。不要画假游戏，也不要放 ROM 画面。搜索只在窄屏游戏库里，按名称过滤这一款。
+- 游戏中的黑边仍由 `layoutGameHud` 计算，不改那套公式。黑边上的存档 / 读档 / 退出是炭灰底、电光蓝细边的圆角按钮。画面背后继续用纯黑。
+- 游戏运行时方向键、摇杆和 A/B/X/Y 仍交给核心，壳层不抢。壳层（游戏库、导入、同步、设置、缺核心）里，方向键和摇杆一次一格移动焦点，A 确认，B 返回。文本框里 B 只退出编辑。游戏库根页上的 B 不退出应用。
 
 ## Token
 
@@ -28,7 +31,7 @@
 - 间距以 4dp 为基准，新间距只用 4 / 8 / 12 / 16 / 24 / 32 / 48。屏幕外边距的起点是 compact 16dp、medium 24dp、expanded 32dp。
 - 圆角按层级区分：小控件 8dp，卡片 12dp，面板和对话框 24dp。不要整屏同一个圆角。
 - 层级用色调表面（surface container），不要给每张卡片铺同一块灰阴影。同屏最多两级。
-- 现在库页外边距是单列 20dp、双列 24dp，按钮高 52dp，HUD 黑边门槛是 `MinHudBar`（56dp，够放 48dp 触控再加 4dp 内边距）。这些先留着。改那个界面的布局时再收进 `ui/theme` 的命名 token，不要顺手重排。
+- 壳层外边距是 compact 16dp、medium 24dp、expanded 32dp，按钮最小高度 48dp，都在 `FbngDimens`。HUD 黑边门槛仍是 `MinHudBar`（56dp，够放 48dp 触控再加 4dp 内边距），不因为换样式去改。
 - 游戏画面后面的纯黑是黑边底，不是表面色。继续用黑色，不要换成 `surface`。
 - 动效不要在页面加载时逐块淡入上滑。这个工程的 Compose BOM `2026.09.00` 解析到的是 Material 3 **1.4.0**，没有稳定的 `MaterialExpressiveTheme`。不要为了动效去开实验 API。系统开了「移除动画」时，动画时长应为 0。
 
@@ -52,7 +55,7 @@
 - 摇杆和 HAT 不自动变成焦点移动。若要支持，在 Activity 里对 `AXIS_HAT_X/Y` 和左摇杆做边沿检测，一次推动只走一格，回中才能再走。游戏运行中不做这件事。
 - 焦点态要隔一米能看见：focused 约为 1.05 倍（大卡约 1.025）并加 2–3dp 的 primary 描边或发光；pressed 回到 1.0；disabled 降低不透明度。不要只靠默认 ripple。同一时刻只有一个焦点。
 - 方向优先用默认空间搜索。只对走错的边用 `focusProperties`。焦点项要滚进可视区，不要贴死边缘。
-- 每个新界面或改过焦点的界面，加一个 Compose 测试：`performKeyInput { pressKey(Key.DirectionDown) }` 然后 `assertIsFocused()`。现在的库页和 HUD 还没有自绘焦点，不要在无关改动里补上。
+- 每个新界面或改过焦点的界面，加一个 Compose 测试：`performKeyInput { pressKey(Key.DirectionDown) }` 然后 `assertIsFocused()`。壳层和缺核心页面有自绘焦点。游戏运行中 HUD 按钮带同样的焦点样式，但方向键被 `GamepadBridge` 交给核心；焦点测试直接组合 `GameHud`，不经过那座桥。
 
 ## 窗口与折叠
 
@@ -64,7 +67,7 @@
 
 列数用可用宽度算（例如 `GridCells.Adaptive`），不写死列数。
 
-现在的代码还没接 `WindowSizeClass`。`libraryUsesTwoPanes`（`LayoutPolicy.kt`）在宽度 ≥ 600dp，或竖直且 `isSeparating` 的铰链（书本姿态）时用双栏。游戏中的 HUD 不看窗口宽度，只看 `layoutGameHud`：画面按核心宽高比在安全区内居中，黑边够 56dp 就把存档 / 读档 / 退出放进黑边，不够就叠在外侧，不缩小画面。改布局时按上面的 600 / 840 做；不要为了这条规则单独把现有双栏从 600 改到 840。
+壳层用 `shellWidth` / `shellUsesNavigationRail`（`LayoutPolicy.kt`）读取上面的 600dp 和 840dp，没有改用还在实验阶段的 adaptive API。`libraryUsesTwoPanes` 仍是「左侧栏」的判定：宽度 ≥ 600dp，或竖直且 `isSeparating` 的铰链（书本姿态）。水平的桌面铰链不会因此打开左侧栏。游戏中的 HUD 不看窗口宽度，只看 `layoutGameHud`：画面按核心宽高比在安全区内居中，黑边够 56dp 就把存档 / 读档 / 退出放进黑边，不够就叠在外侧，不缩小画面。
 
 桌面模式（tabletop）以真实铰链边界为准。半折且铰链水平时，上半屏是画面，下半屏是控制。用 `FoldingFeature.bounds` 换算到本地坐标（`rememberFoldSnapshot` 已经记下 `hingeStartPx` / `hingeEndPx`），禁止假设上下各一半，控件不要压在铰链上。折叠和展开时保留当前焦点、滚动位置和正在运行的游戏。`MainActivity` 已处理 `configChanges`，游戏中的 `GLRetroView` 不要为了旋转或折叠新建一份。
 
