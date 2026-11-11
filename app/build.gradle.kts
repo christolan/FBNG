@@ -1,6 +1,4 @@
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URI
 import java.security.MessageDigest
 import java.util.Properties
 import java.util.zip.ZipEntry
@@ -9,6 +7,7 @@ import java.util.zip.ZipFile
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.roborazzi)
 }
 
 val fbneoPin = Properties().apply {
@@ -34,52 +33,45 @@ val releaseKeyAlias = System.getenv("FBNG_RELEASE_KEY_ALIAS")
 val releaseKeyPassword = System.getenv("FBNG_RELEASE_KEY_PASSWORD")
 val fbneoCoreZipEntry = "lib/arm64-v8a/libfbneo_libretro_android.so"
 
-val fbneoZipUrl = pin("fbneo.zipUrl")
 val fbneoZipSha256 = pin("fbneo.zipSha256")
+val fbneoSoFile = rootProject.file(pin("fbneo.soFile"))
+val fbneoSoSha256 = pin("fbneo.soSha256")
 val fbneoEmbeddedMarker = pin("fbneo.embeddedMarker")
 val fbneoJniDir = layout.buildDirectory.dir("fbneo-jni")
 
 val fetchFbneoCore = tasks.register("fetchFbneoCore") {
-    inputs.property("url", fbneoZipUrl)
-    inputs.property("sha256", fbneoZipSha256)
+    inputs.file(fbneoSoFile)
+    inputs.property("sha256", fbneoSoSha256)
+    inputs.property("zipSha256", fbneoZipSha256)
     inputs.property("marker", fbneoEmbeddedMarker)
     outputs.dir(fbneoJniDir)
     doLast {
         val abiDir = fbneoJniDir.get().asFile.resolve("arm64-v8a")
         abiDir.mkdirs()
         val so = abiDir.resolve("libfbneo_libretro_android.so")
-        val zip = File.createTempFile("fbneo-core", ".zip")
-        try {
-            download(fbneoZipUrl, zip)
-            val actual = sha256(zip)
-            if (actual != fbneoZipSha256.lowercase()) {
-                throw GradleException(
-                    "FBNeo core SHA-256 mismatch.\n  url:      $fbneoZipUrl\n  expected: $fbneoZipSha256\n  actual:   $actual\n" +
-                        "buildbot's latest file moved. Update core/fbneo.pin.properties with the new digest, build date, and commit.",
-                )
-            }
-            ZipFile(zip).use { archive ->
-                val entry = archive.getEntry("fbneo_libretro_android.so")
-                    ?: throw GradleException("Zip has no fbneo_libretro_android.so")
-                archive.getInputStream(entry).use { input ->
-                    so.outputStream().use { output -> input.copyTo(output) }
-                }
-            }
-            val align = minLoadAlign(so)
-            if (align < 16 * 1024) {
-                so.delete()
-                throw GradleException("FBNeo core PT_LOAD align is $align, expected >= 16384")
-            }
-            if (!fileContainsAscii(so, fbneoEmbeddedMarker)) {
-                so.delete()
-                throw GradleException("FBNeo core does not contain marker $fbneoEmbeddedMarker")
-            }
-            logger.lifecycle(
-                "Fetched FBNeo core ${so.length()} bytes, PT_LOAD align $align, marker $fbneoEmbeddedMarker",
-            )
-        } finally {
-            zip.delete()
+        if (!fbneoSoFile.isFile) {
+            throw GradleException("Missing pinned FBNeo core ${fbneoSoFile}. It is the library from FBNG 0.1.3.")
         }
+        val actual = sha256(fbneoSoFile)
+        if (actual != fbneoSoSha256.lowercase()) {
+            throw GradleException(
+                "FBNeo core SHA-256 mismatch.\n  file:     $fbneoSoFile\n  expected: $fbneoSoSha256\n  actual:   $actual\n" +
+                    "This must stay the core shipped in FBNG 0.1.3 (buildbot zip $fbneoZipSha256). Do not replace it with a newer nightly.",
+            )
+        }
+        fbneoSoFile.copyTo(so, overwrite = true)
+        val align = minLoadAlign(so)
+        if (align < 16 * 1024) {
+            so.delete()
+            throw GradleException("FBNeo core PT_LOAD align is $align, expected >= 16384")
+        }
+        if (!fileContainsAscii(so, fbneoEmbeddedMarker)) {
+            so.delete()
+            throw GradleException("FBNeo core does not contain marker $fbneoEmbeddedMarker")
+        }
+        logger.lifecycle(
+            "Pinned FBNeo core ${so.length()} bytes, PT_LOAD align $align, marker $fbneoEmbeddedMarker",
+        )
     }
 }
 
@@ -106,6 +98,9 @@ dependencies {
     implementation(libs.libretrodroid)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
 }
 
 android {
@@ -204,6 +199,10 @@ android {
         buildConfig = true
     }
 
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -250,6 +249,11 @@ tasks.configureEach {
 tasks.named("preBuild").configure {
     dependsOn(fetchFbneoCore)
     dependsOn("verifyLibretroDroidAlignment")
+}
+
+// Goldens live in src so they can be committed. Comparison images stay under build/.
+roborazzi {
+    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 tasks.register("verifyLibretroDroidAlignment") {
@@ -363,24 +367,6 @@ tasks.configureEach {
     }
     if (name == "assembleRelease") {
         finalizedBy(verifyReleaseApk)
-    }
-}
-
-private fun download(url: String, dest: File) {
-    val connection = (URI(url).toURL().openConnection() as HttpURLConnection).apply {
-        instanceFollowRedirects = true
-        connectTimeout = 30_000
-        readTimeout = 180_000
-        setRequestProperty("User-Agent", "FBNG-gradle")
-    }
-    try {
-        val code = connection.responseCode
-        if (code !in 200..299) {
-            throw GradleException("Download failed HTTP $code for $url")
-        }
-        connection.inputStream.use { input -> dest.outputStream().use { output -> input.copyTo(output) } }
-    } finally {
-        connection.disconnect()
     }
 }
 

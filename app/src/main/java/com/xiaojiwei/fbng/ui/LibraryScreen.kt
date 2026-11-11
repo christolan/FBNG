@@ -81,6 +81,27 @@ fun LibraryScreen(
         }
     }
 
+    LibraryContent(
+        load = load,
+        snapshot = snapshot,
+        reports = reports,
+        busy = busy,
+        readFold = { rememberFoldSnapshot() },
+        onImport = { launcher.launch(ZIP_MIME) },
+        onPlay = onPlay,
+    )
+}
+
+@Composable
+internal fun LibraryContent(
+    load: CatalogLoad,
+    snapshot: LibrarySnapshot?,
+    reports: List<ImportReport>,
+    busy: Boolean,
+    readFold: @Composable () -> FoldSnapshot?,
+    onImport: () -> Unit,
+    onPlay: () -> Unit,
+) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -107,7 +128,7 @@ fun LibraryScreen(
         }
         val readySnapshot = snapshot
 
-        val fold = rememberFoldSnapshot()
+        val fold = readFold()
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val twoPanes = libraryUsesTwoPanes(maxWidth.value.toInt(), fold)
             if (twoPanes) {
@@ -119,7 +140,7 @@ fun LibraryScreen(
                         modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
                         busy = busy,
                         reports = reports,
-                        onImport = { launcher.launch(ZIP_MIME) },
+                        onImport = onImport,
                     )
                     GameColumn(
                         modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
@@ -135,7 +156,7 @@ fun LibraryScreen(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp),
                 ) {
-                    IntroColumn(Modifier.fillMaxWidth(), busy, reports) { launcher.launch(ZIP_MIME) }
+                    IntroColumn(Modifier.fillMaxWidth(), busy, reports, onImport)
                     GameColumn(Modifier.fillMaxWidth(), readySnapshot, onPlay)
                 }
             }
