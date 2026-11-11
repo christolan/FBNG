@@ -12,6 +12,7 @@ captures/
 *.p12
 *.jks
 *.so
+!core/fbneo/libfbneo_libretro_android.so
 *.zip
 !gradle/wrapper/gradle-wrapper.jar
 output/

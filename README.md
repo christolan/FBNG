@@ -6,7 +6,7 @@ FBNeo Next Generation。这是一个只给自己用的 Android 街机前端，Ph
 
 ## ROM 和 BIOS 不在这里
 
-仓库、源代码和构建出的 APK 都不包含任何游戏 ROM 或 BIOS，包括 `kovsh.zip` 和 `pgm.zip`。没有占位 dump。这两个文件只能由你自己导入。核心 `.so` 也不进 git：Gradle 在构建时按下面的摘要下载，校验失败就停止。
+仓库、源代码和构建出的 APK 都不包含任何游戏 ROM 或 BIOS，包括 `kovsh.zip` 和 `pgm.zip`。没有占位 dump。这两个文件只能由你自己导入。FBNeo 核心是已经核对过的那一份，放在 `core/fbneo/libfbneo_libretro_android.so`。构建复制它之前会核对 SHA-256、二进制标记和 16 KB 对齐，对不上就停止。
 
 FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPLv3。这个应用只供个人使用，不收费、不接受捐赠、不发布到应用商店。
 
@@ -35,22 +35,23 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 构建会做两件和页面对齐有关的事：
 
-- 下载的 FBNeo 核心和 LibretroDroid 0.13.2 的 arm64 库都必须是 ELF `PT_LOAD` 对齐至少 16 KB。0.13.2 已经用 `-Wl,-z,max-page-size=16384` 编译；0.14.0 预发布版没有额外的 16 KB 改动，所以这里用稳定版 0.13.2。
+- 仓库里的 FBNeo 核心和 LibretroDroid 0.13.2 的 arm64 库都必须是 ELF `PT_LOAD` 对齐至少 16 KB。0.13.2 已经用 `-Wl,-z,max-page-size=16384` 编译；0.14.0 预发布版没有额外的 16 KB 改动，所以这里用稳定版 0.13.2。
 - 原生库以未压缩的形式打进 APK，并用 `zipalign -P 16` 检查 16 KB 对齐。`assembleDebug` 和 `assembleRelease` 结束时都会跑这项检查。
 
 ## 固定的 FBNeo 核心
 
 | 项目 | 值 |
 | --- | --- |
-| 下载地址 | `https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/fbneo_libretro_android.so.zip` |
-| 构建时间 | 2026-11-09 06:44 UTC（zip 内文件的时间戳） |
+| 仓库里的文件 | `core/fbneo/libfbneo_libretro_android.so`（73,811,312 字节，从 FBNG 0.1.3 的 APK 原样抽出） |
+| 文件 SHA-256 | `6d3994f4539e2d11131d54969eee55fee3c8ac97d97659077ded230c17355bc8` |
+| 构建时间 | 2026-11-09 06:44 UTC |
 | 提交 | [`77016b4dff6c76beba08d24ea1c61ed2750bc0a7`](https://github.com/libretro/FBNeo/commit/77016b4dff6c76beba08d24ea1c61ed2750bc0a7) |
 | 二进制里的标记 | `GIT77016b4` |
-| zip SHA-256 | `7100778698fe9c4b9bd42f49de3683bd7999971b1ebb2df4ef43298e2b116bf1` |
+| 当初的 zip SHA-256 | `7100778698fe9c4b9bd42f49de3683bd7999971b1ebb2df4ef43298e2b116bf1` |
 | DAT | `libretro/FBNeo` 同一提交下的 `dats/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat`，版本 1.0.0.03 |
 | DAT SHA-256 | `9484cce16c1f37f5de5fd6d92a300a57d037c68b77744686dc0c3cff01c169d2` |
 
-buildbot 的 `latest` 目录会被替换。摘要、提交和标记写在 `core/fbneo.pin.properties`。文件一变，构建就会失败，需要同时更新这三项和对应的 DAT，不能只换其中一个。核心打进本地 APK 可以，不要把 `.so` 提交进 git。
+这一个 `.so` 进 git，是因为 buildbot 的 `latest` 地址后来换成了另一份文件，原来的 zip 已经下不到。0.1.3 的 APK 里这份库和那个 zip 是同一次构建打进去的，DAT 也还是仓库里同一份。不要把它换成更新的 nightly，否则已经核对过的 `kovsh` / `pgm` 可能对不上。摘要、提交和标记写在 `core/fbneo.pin.properties`。文件一对不上，构建就会失败。
 
 `useLegacyPackaging` 是 false，安装清单里的 `extractNativeLibs` 也是 false，所以系统不会把核心复制到 `nativeLibraryDir`。应用如果在那个目录里找到已解压的文件，就直接用它；否则把 `base.apk!/lib/arm64-v8a/libfbneo_libretro_android.so` 交给 LibretroDroid。`dlopen` 从 API 23 起可以打开这种未压缩且按页对齐的 zip 条目。
 
