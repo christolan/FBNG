@@ -55,7 +55,7 @@
 - 摇杆和 HAT 不自动变成焦点移动。若要支持，在 Activity 里对 `AXIS_HAT_X/Y` 和左摇杆做边沿检测，一次推动只走一格，回中才能再走。游戏运行中不做这件事。
 - 焦点态要隔一米能看见：focused 约为 1.05 倍（大卡约 1.025）并加 2–3dp 的 primary 描边或发光；pressed 回到 1.0；disabled 降低不透明度。不要只靠默认 ripple。同一时刻只有一个焦点。
 - 方向优先用默认空间搜索。只对走错的边用 `focusProperties`。焦点项要滚进可视区，不要贴死边缘。
-- 每个新界面或改过焦点的界面，加一个 Compose 测试：`performKeyInput { pressKey(Key.DirectionDown) }` 然后 `assertIsFocused()`。壳层和缺核心页面有自绘焦点。游戏运行中 HUD 按钮带同样的焦点样式，但方向键被 `GamepadBridge` 交给核心；焦点测试直接组合 `GameHud`，不经过那座桥。
+- 壳层和缺核心页面有自绘焦点。游戏运行中 HUD 按钮带同样的焦点样式，方向键由 `GamepadBridge` 交给核心。
 
 ## 窗口与折叠
 
@@ -75,14 +75,20 @@ Compose UI 1.12.1 里的 `mediaQuery { windowPosture == Posture.Tabletop }` 仍�
 
 Find N6 内外屏在默认「显示大小」下的实际 dp 还没在真机上量过。不要把像素和 ppi 换算的结果写成已测的 WindowSizeClass。量到之后把两个屏的宽度 dp 写进这一节。
 
-## 改 UI 的完成定义
+## 改 UI 的说明
 
-1. 先写 3 到 6 行：这个界面做什么、唯一的记忆点、用哪些 token、哪些交互约束被检查过。有参考图时写明学哪一点。
-2. `@Preview` 覆盖 loading、empty（无 ROM）、error（DAT 或核心缺失）、正常这四态，并覆盖这次改动实际会走到的宽度（compact，以及 medium 或 expanded）。深色即可，这个应用没有浅色主题。动到文字时加一档 `fontScale = 1.5`。
-3. 渲染自查：`./gradlew :app:recordRoborazziDebug`。打开 `app/src/test/screenshots/` 里新生成的 PNG 看一遍，按「元素 / 期望 / 实际 / 修复」列差异，最多改三轮。要证明间距或对齐变了，加 `-Proborazzi.dumpUiTree=true`，用生成的 `.uitree.json` 里的 bounds，不要只靠肉眼。
-4. 有真机或折叠模拟器时，外屏、内屏、tabletop 各留一张，并用手柄从进入页面走完主流程，留下焦点态。没有设备就在结果里写明没拍。
-5. `./gradlew :app:verifyRoborazziDebug` 必须通过。有意的视觉变化要重新 record，并在 PR 里说明改了哪几张。
-6. 汇报命令、输出和截图路径。没有截图不算改完。
+先用 3 到 6 行说明界面用途、唯一的记忆点、使用的 token 和涉及的交互约束。有参考图时写明学哪一点。
+
+## UI 验证（仅在用户明确要求时执行）
+
+Preview 覆盖、Compose 焦点测试、截图录制与比对、设备实测和验证报告均按用户要求执行。用户只要求其中一项时，按指定范围验证。
+
+1. `@Preview` 覆盖 loading、empty（无 ROM）、error（DAT 或核心缺失）、正常这四态，并覆盖这次改动实际会走到的宽度（compact，以及 medium 或 expanded）。使用深色。动到文字时加一档 `fontScale = 1.5`。
+2. 验证新界面或改过的焦点时，添加并运行 Compose 测试，用 `performKeyInput { pressKey(Key.DirectionDown) }` 移动焦点，再用 `assertIsFocused()` 断言。HUD 焦点测试直接组合 `GameHud`。
+3. 用 `./gradlew :app:recordRoborazziDebug` 录制截图。打开 `app/src/test/screenshots/` 里新生成的 PNG，按「元素 / 期望 / 实际 / 修复」列差异，最多改三轮。要证明间距或对齐变了，加 `-Proborazzi.dumpUiTree=true`，检查生成的 `.uitree.json` 里的 bounds。
+4. 做设备实测时，有真机或折叠模拟器就给外屏、内屏、tabletop 各留一张截图，并用手柄走完主流程，留下焦点态。没有设备就在结果里说明。
+5. 用 `./gradlew :app:verifyRoborazziDebug` 比对截图。对有意的视觉变化重新录制基线，并在 PR 里说明更新了哪些截图。
+6. 汇报已执行的命令、结果和生成的截图路径。
 
 基线在 `app/src/test/screenshots/`。对比失败时的差异图在 `app/build/outputs/roborazzi/`，报告在 `app/build/reports/roborazzi/index.html`。普通的 `testDebugUnitTest` 会跑这些测试里的布局断言，但不会比对图片；比对只在 `verifyRoborazziDebug`。
 
