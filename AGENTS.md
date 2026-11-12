@@ -87,3 +87,30 @@ Find N6 内外屏在默认「显示大小」下的实际 dp 还没在真机上�
 基线在 `app/src/test/screenshots/`。对比失败时的差异图在 `app/build/outputs/roborazzi/`，报告在 `app/build/reports/roborazzi/index.html`。普通的 `testDebugUnitTest` 会跑这些测试里的布局断言，但不会比对图片；比对只在 `verifyRoborazziDebug`。
 
 不要把加载中的圆形或条形进度画进基线，它们每一帧都不一样。现有基线是静帧：库页导入结果（手机竖屏）、库页双栏（手机横屏和展开宽屏）、DAT 错误、HUD 的上下黑边 / 左右黑边 / 黑边太薄时的叠加、以及缺少核心。不是 9 种尺寸乘全部状态。
+
+## 本地构建签名 Release APK
+
+以下签名配置仅用于本地构建。GitHub Actions 从仓库 Secrets 读取签名材料，并在 runner 上解码密钥库，无需本地配置文件或手动设置环境变量。流程见 [android-release.yml](.github/workflows/android-release.yml)。
+
+1. 准备 Android SDK 37.2、Build-Tools 36.0.0、NDK 28.2.13676358 和 CMake 3.22.1。通过 `local.properties` 的 `sdk.dir` 或 `ANDROID_HOME` 指定 SDK。Gradle 的 Java 版本以 `gradle/gradle-daemon-jvm.properties` 为准，本机可用 Android Studio 自带的 Java 25。
+2. 把 PKCS#12 发布密钥库和 `release-signing.env` 放在仓库外的 `~/.config/fbng/`，文件权限设为 `600`。环境文件导出 `JAVA_HOME`、`FBNG_RELEASE_STORE_FILE`、`FBNG_RELEASE_STORE_PASSWORD`、`FBNG_RELEASE_KEY_ALIAS` 和 `FBNG_RELEASE_KEY_PASSWORD`。`FBNG_RELEASE_STORE_FILE` 指向密钥库的绝对路径。
+3. 在仓库根目录加载配置、构建并验签。若 SDK 装在其他位置，按实际路径设置 `ANDROID_HOME`。
+
+   ```bash
+   (
+     set -e
+     source "$HOME/.config/fbng/release-signing.env"
+     ./gradlew :app:assembleRelease --no-daemon --no-configuration-cache
+
+     tools="${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/36.0.0"
+     apk="app/build/outputs/apk/release/app-release.apk"
+     "$tools/apksigner" verify --min-sdk-version 21 --verbose "$apk"
+     "$tools/apksigner" verify --min-sdk-version 24 --verbose "$apk"
+     "$tools/apksigner" verify --min-sdk-version 33 --verbose --print-certs "$apk"
+     "$tools/zipalign" -c -P 16 4 "$apk"
+   )
+   ```
+
+   分别确认 API 21、24、33 的输出中 v1、v2、v3 签名为 `true`，证书 SHA-256 与发布证书一致，且 16 KB 对齐检查通过。
+
+如果本机仅因 Release Lint 依赖未缓存且无法连接 Google Maven 而构建失败，可以临时在上述 Gradle 命令中加 `--offline -x :app:lintVitalRelease`，并执行同样的验签和对齐检查。
