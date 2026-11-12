@@ -5,10 +5,10 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
+import android.os.SystemClock
 import android.util.Log
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.importing.ZipArchives
-import com.xiaojiwei.fbng.importing.withLocalZip
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -42,6 +42,7 @@ internal data class PreparedGame(
 
 internal class FolderLibrary(context: Context, private val storage: AppStorage) {
     private val resolver = context.contentResolver
+    private val index = LibraryIndex(File(storage.root, "library-index"))
     private val preferences = context.getSharedPreferences("library-folders", Context.MODE_PRIVATE)
 
     fun add(uri: Uri) {
@@ -68,18 +69,60 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
         }
     }
 
-    suspend fun refresh(catalog: DatCatalog): LibraryRefresh {
+    suspend fun refresh(
+        catalog: DatCatalog,
+        onUpdate: suspend (LibraryRefresh) -> Unit = {},
+    ): LibraryRefresh {
         storage.ensure()
         // Older builds kept a disposable copy of the scanned folder archives here.
         File(storage.root, "folder-library").deleteRecursively()
-        storage.playDir.deleteRecursively()
         val scanner = LibraryScanner(catalog)
-        val archives = scanner.installed(storage).toMutableList()
         val folders = preferences.all.mapNotNull { (uri, name) ->
             (name as? String)?.let { LibraryFolder(Uri.parse(uri), it) }
         }.sortedWith(compareBy({ it.name }, { it.uri.toString() }))
-        val scans = folders.map { scan(it, scanner, archives) }
-        return LibraryRefresh(scanner.snapshot(archives), scans)
+        val sourceKeys = listOf(INSTALLED_SOURCE) + folders.map { it.uri.toString() }
+        val cached = index.read(catalog)
+        val current = cached.filterKeys(sourceKeys.toHashSet()::contains).toMutableMap()
+
+        fun snapshot(): LibraryRefresh {
+            val archives = sourceKeys.flatMap { source ->
+                current[source]?.entries?.values?.mapNotNull { it.archive }.orEmpty()
+            }
+            val scans = folders.map { folder ->
+                val source = current[folder.uri.toString()] ?: return@map FolderScan(folder)
+                var roms = 0
+                var bios = 0
+                var skipped = 0
+                for (entry in source.entries.values) {
+                    when (entry.archive?.set?.isBios) {
+                        true -> bios++
+                        false -> roms++
+                        null -> skipped++
+                    }
+                }
+                FolderScan(folder, roms, bios, skipped, source.unreadable, source.unavailable, source.incomplete)
+            }
+            return LibraryRefresh(scanner.snapshot(archives), scans)
+        }
+
+        if (current.isNotEmpty()) onUpdate(snapshot())
+        current[INSTALLED_SOURCE] = scanner.installed(storage, cached[INSTALLED_SOURCE]?.entries.orEmpty())
+        var lastPublished: Long? = null
+        for (folder in folders) {
+            val key = folder.uri.toString()
+            val previous = cached[key]?.entries.orEmpty()
+            current[key] = scan(folder, scanner, previous) { entries ->
+                val now = SystemClock.elapsedRealtime()
+                if (lastPublished?.let { now - it < PUBLISH_INTERVAL_MS } != true) {
+                    current[key] = IndexedSource(previous + entries)
+                    onUpdate(snapshot())
+                    lastPublished = now
+                }
+            }
+        }
+        currentCoroutineContext().ensureActive()
+        if (current != cached) index.write(catalog, current)
+        return snapshot()
     }
 
     suspend fun prepare(game: LibraryGame): PreparedGame {
@@ -122,14 +165,13 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
     private suspend fun scan(
         folder: LibraryFolder,
         scanner: LibraryScanner,
-        archives: MutableList<LibraryArchive>,
-    ): FolderScan {
+        cached: Map<String, IndexedArchive>,
+        onMatch: suspend (Map<String, IndexedArchive>) -> Unit,
+    ): IndexedSource {
         val rootId = DocumentsContract.getTreeDocumentId(folder.uri)
         val pending = ArrayDeque(listOf(rootId))
         val visited = mutableSetOf<String>()
-        var roms = 0
-        var bios = 0
-        var skipped = 0
+        val entries = linkedMapOf<String, IndexedArchive>()
         var unreadable = 0
         var incomplete = false
         while (pending.isNotEmpty()) {
@@ -140,7 +182,7 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
                 children(folder.uri, parent)
             } catch (error: Exception) {
                 logReadFailure("Could not list library folder", error)
-                if (parent == rootId) return FolderScan(folder, unavailable = true)
+                if (parent == rootId) return IndexedSource(unavailable = true)
                 incomplete = true
                 continue
             }
@@ -152,40 +194,63 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
                 }
                 if (!child.name.endsWith(".zip", ignoreCase = true) && child.mimeType != "application/zip") continue
                 val uri = DocumentsContract.buildDocumentUriUsingTree(folder.uri, child.id)
-                try {
-                    resolver.withLocalZip(uri, storage.cacheDir) { file ->
-                        val archive = scanner.inspect(file, child.name, ArchiveLocation.Folder(uri))
-                        if (archive == null) {
-                            skipped++
-                        } else {
-                            archives += archive
-                            if (archive.set.isBios) bios++ else roms++
-                        }
+                val path = uri.toString()
+                val stamp = ArchiveStamp(child.name, child.size, child.modified)
+                val previous = cached[path]
+                val entry = try {
+                    if (previous != null && stamp.matches(previous.stamp)) previous else {
+                        val members = ZipArchives.directory(resolver, uri, storage.cacheDir)
+                        IndexedArchive(stamp, scanner.inspect(members, child.name, ArchiveLocation.Folder(uri)))
                     }
                 } catch (error: Exception) {
-                    logReadFailure("Could not read or prepare ${child.name}", error)
+                    logReadFailure("Could not read ZIP directory for ${child.name}", error)
                     unreadable++
+                    continue
                 }
+                entries[path] = entry
+                if (entry.archive != null && entry !== previous) onMatch(entries)
             }
         }
-        return FolderScan(folder, roms, bios, skipped, unreadable, incomplete = incomplete)
+        return IndexedSource(entries, unreadable, incomplete = incomplete)
     }
 
     private fun children(tree: Uri, parent: String): List<Child> {
         val uri = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parent)
-        val columns = arrayOf(Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE)
+        val columns = arrayOf(
+            Document.COLUMN_DOCUMENT_ID,
+            Document.COLUMN_DISPLAY_NAME,
+            Document.COLUMN_MIME_TYPE,
+            Document.COLUMN_SIZE,
+            Document.COLUMN_LAST_MODIFIED,
+        )
         val cursor = resolver.query(uri, columns, null, null, null) ?: throw IOException("Cannot list $uri")
         return cursor.use {
             if (it.extras.getBoolean(DocumentsContract.EXTRA_LOADING) ||
                 it.extras.getString(DocumentsContract.EXTRA_ERROR) != null
             ) throw IOException("Folder listing is incomplete: $uri")
+            val sizeColumn = it.getColumnIndex(Document.COLUMN_SIZE)
+            val modifiedColumn = it.getColumnIndex(Document.COLUMN_LAST_MODIFIED)
             buildList {
-                while (it.moveToNext()) add(Child(it.getString(0), it.getString(1), it.getString(2)))
+                while (it.moveToNext()) {
+                    add(Child(
+                        id = it.getString(0),
+                        name = it.getString(1),
+                        mimeType = it.getString(2),
+                        size = if (sizeColumn < 0 || it.isNull(sizeColumn)) -1 else it.getLong(sizeColumn),
+                        modified = if (modifiedColumn < 0 || it.isNull(modifiedColumn)) 0 else it.getLong(modifiedColumn),
+                    ))
+                }
             }.sortedWith(compareBy({ child -> child.name }, { child -> child.id }))
         }
     }
 
-    private data class Child(val id: String, val name: String, val mimeType: String) {
+    private data class Child(
+        val id: String,
+        val name: String,
+        val mimeType: String,
+        val size: Long,
+        val modified: Long,
+    ) {
         val directory: Boolean get() = mimeType == Document.MIME_TYPE_DIR
     }
 
@@ -196,5 +261,6 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
 
     private companion object {
         const val TAG = "FBNG"
+        const val PUBLISH_INTERVAL_MS = 500L
     }
 }

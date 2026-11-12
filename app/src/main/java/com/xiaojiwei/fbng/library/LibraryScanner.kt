@@ -38,27 +38,33 @@ internal data class LibraryGame(
 internal data class LibrarySnapshot(val games: List<LibraryGame> = emptyList())
 
 internal class LibraryScanner(private val catalog: DatCatalog) {
-    suspend fun installed(storage: AppStorage): List<LibraryArchive> = buildList {
+    suspend fun installed(storage: AppStorage, cached: Map<String, IndexedArchive>): IndexedSource {
         val archives = storage.romsDir.listFiles().orEmpty().asSequence() +
             storage.systemFbneoDir.listFiles().orEmpty().asSequence()
+        val entries = linkedMapOf<String, IndexedArchive>()
         for (file in archives) {
             currentCoroutineContext().ensureActive()
             if (!file.isFile || file.extension != "zip") continue
             val expected = catalog.byName[file.nameWithoutExtension] ?: continue
             // The old PGM install also made a copy in roms; the canonical BIOS is in system/fbneo.
             if (file != storage.archive(expected.name, expected.isBios)) continue
+            val path = file.absolutePath
+            val stamp = ArchiveStamp(file.name, file.length(), file.lastModified())
+            val previous = cached[path]
             try {
-                inspect(file, file.name, ArchiveLocation.Installed(file))
-                    ?.takeIf { it.set.name == expected.name }
-                    ?.let(::add)
+                entries[path] = if (previous != null && stamp.matches(previous.stamp)) previous else {
+                    val archive = inspect(ZipArchives.directory(file), file.name, ArchiveLocation.Installed(file))
+                        ?.takeIf { it.set.name == expected.name }
+                    IndexedArchive(stamp, archive)
+                }
             } catch (_: IOException) {
                 // A missing or damaged archive is never offered to the core.
             }
         }
+        return IndexedSource(entries)
     }
 
-    fun inspect(file: File, displayName: String, location: ArchiveLocation): LibraryArchive? {
-        val members = ZipArchives.read(file)
+    fun inspect(members: List<ZipMember>, displayName: String, location: ArchiveLocation): LibraryArchive? {
         val match = RomSetMatcher.identify(members, catalog, displayName).best ?: return null
         if (!match.isClean) return null
         return LibraryArchive(catalog.byName.getValue(match.setName), location, members)

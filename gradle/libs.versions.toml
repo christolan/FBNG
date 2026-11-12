@@ -7,6 +7,7 @@ lifecycle = "2.11.0"
 window = "1.5.1"
 coroutines = "1.11.0"
 coreKtx = "1.17.0"
+commonsCompress = "1.28.0"
 libretrodroid = "0.13.2"
 junit = "4.13.2"
 # 1.78.0 is the current release. Its plugin reads unit tests through AGP 9's HasUnitTest.
@@ -27,6 +28,7 @@ lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", v
 window = { module = "androidx.window:window", version.ref = "window" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 libretrodroid = { module = "com.github.swordfish90:libretrodroid", version.ref = "libretrodroid" }
 junit = { module = "junit:junit", version.ref = "junit" }
 roborazzi = { module = "io.github.takahirom.roborazzi:roborazzi", version.ref = "roborazzi" }

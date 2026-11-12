@@ -65,6 +65,35 @@ class ShellFocusTest {
     }
 
     @Test
+    @Config(sdk = [33], qualifiers = "w900dp-h640dp-mdpi")
+    fun gamesStayPlayableAndFocusedWhileFolderResultsArrive() {
+        var snapshot by mutableStateOf(readySnapshot())
+        var played: String? = null
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = snapshot,
+                    reports = emptyList(),
+                    busy = true,
+                    playBusy = false,
+                    readFold = { null },
+                    onImport = {},
+                    onPlay = { played = it },
+                )
+            }
+        }
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+        rule.runOnIdle { snapshot = LibrarySnapshot(listOf(LibraryGame("1942", "1942")) + snapshot.games) }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        assertEquals("mslug", played)
+    }
+
+    @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
     fun compactDetailsReturnsToTheSelectedGame() {
         rule.setContent {

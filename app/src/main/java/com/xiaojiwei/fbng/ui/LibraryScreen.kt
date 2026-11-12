@@ -87,6 +87,8 @@ internal fun LibraryContent(
     folderError: Int? = null,
     launchError: Boolean = false,
     folderActions: FolderActions = FolderActions(),
+    playBusy: Boolean = busy,
+    preparingGame: Boolean = busy && workMessage == R.string.preparing_game,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -116,6 +118,8 @@ internal fun LibraryContent(
                 snapshot = snapshot,
                 reports = reports,
                 busy = busy,
+                playBusy = playBusy,
+                preparingGame = preparingGame,
                 readFold = readFold,
                 onImport = onImport,
                 onPlay = onPlay,
@@ -135,6 +139,8 @@ private fun LibraryShell(
     snapshot: LibrarySnapshot,
     reports: List<ImportReport>,
     busy: Boolean,
+    playBusy: Boolean,
+    preparingGame: Boolean,
     readFold: @Composable () -> FoldSnapshot?,
     onImport: () -> Unit,
     onPlay: (String) -> Unit,
@@ -236,8 +242,10 @@ private fun LibraryShell(
         }
 
         BackHandler(enabled = searchFocused || section != ShellSection.Library || compactDetails, onBack = ::back)
-        LaunchedEffect(section, snapshot, busy, folderTags, rail, widthClass, compactDetails, focusRequest) {
-            if (busy) return@LaunchedEffect
+        val focusBusy = if (section == ShellSection.Library) playBusy else busy
+        val savedCardExists = games.any { ShellTags.game(it.name) == libraryFocus }
+        LaunchedEffect(section, games.isNotEmpty(), savedCardExists, focusBusy, folderTags, rail, widthClass, compactDetails, focusRequest) {
+            if (focusBusy) return@LaunchedEffect
             val preferred = when (section) {
                 ShellSection.Library -> {
                     val card = selected?.let { ShellTags.game(it.name) }
@@ -295,8 +303,8 @@ private fun LibraryShell(
                         wide = rail,
                         compactDetails = compactDetails,
                         margin = margin,
-                        busy = busy,
-                        preparing = busy && workMessage == R.string.preparing_game,
+                        busy = playBusy,
+                        preparing = preparingGame,
                         launchError = launchError,
                         requesters = requesters,
                         onFocused = ::focusSaved,

@@ -43,6 +43,7 @@ import kotlinx.coroutines.withContext
 private const val DAT_ASSET = "fbneo/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat"
 private const val TAG = "FBNG"
 private val libraryLock = Mutex()
+private val prepareLock = Mutex()
 
 sealed interface CatalogLoad {
     data object Loading : CatalogLoad
@@ -64,18 +65,32 @@ fun FbngApp(bridge: GamepadBridge) {
     var reports by remember { mutableStateOf<List<ImportReport>>(emptyList()) }
     var playing by remember { mutableStateOf<PreparedGame?>(null) }
     var workMessage by remember { mutableStateOf<Int?>(null) }
+    var initialScan by remember { mutableStateOf(true) }
+    var preparing by remember { mutableStateOf(false) }
     var folderError by remember { mutableStateOf<Int?>(null) }
     var launchError by remember { mutableStateOf(false) }
 
+    suspend fun refreshLibrary(catalog: DatCatalog) {
+        library = withContext(Dispatchers.IO) {
+            folders.refresh(catalog) { partial ->
+                withContext(Dispatchers.Main) { library = partial }
+            }
+        }
+    }
+
     LaunchedEffect(load) {
         val ready = load as? CatalogLoad.Ready ?: return@LaunchedEffect
-        libraryLock.withLock {
-            if (library == null) library = withContext(Dispatchers.IO) { folders.refresh(ready.catalog) }
+        try {
+            libraryLock.withLock {
+                if (library == null) refreshLibrary(ready.catalog)
+            }
+        } finally {
+            initialScan = false
         }
     }
 
     fun updateLibrary(message: Int, action: suspend (DatCatalog) -> Unit = {}) {
-        if (workMessage != null || playing != null) return
+        if (workMessage != null || preparing || playing != null) return
         workMessage = message
         folderError = null
         launchError = false
@@ -84,7 +99,7 @@ fun FbngApp(bridge: GamepadBridge) {
                 val ready = snapshotFlow { load }.first { it != CatalogLoad.Loading } as? CatalogLoad.Ready
                 if (ready != null) libraryLock.withLock {
                     action(ready.catalog)
-                    library = withContext(Dispatchers.IO) { folders.refresh(ready.catalog) }
+                    refreshLibrary(ready.catalog)
                 }
             } finally {
                 workMessage = null
@@ -112,19 +127,19 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun play(setName: String) {
-        if (workMessage != null || playing != null) return
+        if (workMessage == R.string.importing || preparing || playing != null) return
         val game = library?.snapshot?.games?.firstOrNull { it.name == setName && it.canLaunch } ?: return
-        workMessage = R.string.preparing_game
+        preparing = true
         launchError = false
         scope.launch {
             try {
-                playing = libraryLock.withLock { withContext(Dispatchers.IO) { folders.prepare(game) } }
+                playing = prepareLock.withLock { withContext(Dispatchers.IO) { folders.prepare(game) } }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 Log.w(TAG, "Could not prepare ${game.name}", error)
                 launchError = true
             } finally {
-                workMessage = null
+                preparing = false
             }
         }
     }
@@ -137,8 +152,10 @@ fun FbngApp(bridge: GamepadBridge) {
                     load = load,
                     snapshot = library?.snapshot,
                     reports = reports,
-                    busy = workMessage != null,
-                    workMessage = workMessage ?: R.string.importing,
+                    busy = initialScan || workMessage != null || preparing,
+                    playBusy = preparing || workMessage == R.string.importing,
+                    preparingGame = preparing,
+                    workMessage = workMessage ?: if (initialScan) R.string.folder_scanning else R.string.preparing_game,
                     folders = library?.folders.orEmpty(),
                     folderError = folderError,
                     launchError = launchError,

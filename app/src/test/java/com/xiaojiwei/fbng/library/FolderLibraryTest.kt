@@ -10,6 +10,7 @@ import android.provider.DocumentsContract
 import android.provider.DocumentsContract.Document
 import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.dat.crcHex
+import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.dat.parseCatalog
 import java.io.File
 import java.io.IOException
@@ -125,12 +126,98 @@ class FolderLibraryTest {
         assertEquals(listOf(gamesFolder), afterRemoval.folders.map { it.folder.uri })
         assertTrue(bios.isFile)
         assertTrue(storage.archive("arcade", isBios = false).isFile)
-        assertFalse(storage.playDir.exists())
-
         storage.install(embedded, "arcade", isBios = false)
         val nonMerged = reopened.refresh(catalog).snapshot.games.single()
         assertTrue(nonMerged.canLaunch)
         assertEquals(listOf("arcade"), nonMerged.archives.map { it.set.name })
+    }
+
+    @Test
+    fun refreshReusesPersistentIndexAndOnlyOpensChangedFiles() = runBlocking {
+        val provider = Robolectric.setupContentProvider(TestDocuments::class.java, AUTHORITY)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val storage = AppStorage(files.newFolder())
+        val first = zip("standalone.zip", "solo.bin", standaloneData)
+        val second = zip("arcade.zip", "game.bin", romData)
+        val unknown = zip("unknown.zip", "unknown.bin", byteArrayOf(42))
+        provider.add("games", "街机")
+        provider.add("first", first.name, parent = "games", file = first)
+        provider.add("second", second.name, parent = "games", file = second)
+        provider.add("unknown", unknown.name, parent = "games", file = unknown)
+        val folder = DocumentsContract.buildTreeDocumentUri(AUTHORITY, "games")
+
+        val library = FolderLibrary(context, storage)
+        library.add(folder)
+        val firstScan = library.refresh(catalog) { partial ->
+            assertTrue(partial.snapshot.games.isNotEmpty())
+            assertTrue(provider.opened.size < 3)
+        }
+        assertEquals(setOf("first", "second", "unknown"), provider.opened.toSet())
+        assertEquals(1, firstScan.folders.single().skipped)
+
+        provider.opened.clear()
+        val reopened = FolderLibrary(context, storage)
+        val warmScan = reopened.refresh(catalog) { cached ->
+            assertEquals(firstScan.snapshot, cached.snapshot)
+            assertTrue(provider.opened.isEmpty())
+        }
+        assertEquals(firstScan, warmScan)
+        assertTrue(provider.opened.isEmpty())
+
+        val newFolder = DocumentsContract.buildTreeDocumentUri(AUTHORITY, "new")
+        provider.add("new", "新增")
+        val board = zip("board.zip", "bios.bin", biosData)
+        provider.add("board", board.name, parent = "new", file = board)
+        reopened.add(newFolder)
+        val expanded = reopened.refresh(catalog)
+        assertEquals(listOf("board"), provider.opened)
+        assertTrue(expanded.snapshot.games.all { it.canLaunch })
+
+        provider.opened.clear()
+        provider.remove("first")
+        second.writeBytes(unknown.readBytes())
+        assertTrue(second.setLastModified(second.lastModified() + 2_000))
+        val changed = reopened.refresh(catalog)
+        assertEquals(listOf("second"), provider.opened)
+        assertTrue(changed.snapshot.games.isEmpty())
+
+        provider.opened.clear()
+        reopened.refresh(DatCatalog("other-version", catalog.games))
+        assertEquals(setOf("second", "unknown", "board"), provider.opened.toSet())
+    }
+
+    @Test
+    fun scansCentralDirectoryButRejectsDamagedPayloadBeforeLaunch() = runBlocking {
+        val provider = Robolectric.setupContentProvider(TestDocuments::class.java, AUTHORITY)
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val storage = AppStorage(files.newFolder())
+        val rom = files.newFile("standalone.zip")
+        ZipOutputStream(rom.outputStream()).use { zip ->
+            val entry = ZipEntry("solo.bin").apply {
+                method = ZipEntry.STORED
+                size = standaloneData.size.toLong()
+                crc = CRC32().apply { update(standaloneData) }.value
+            }
+            zip.putNextEntry(entry)
+            zip.write(standaloneData)
+            zip.closeEntry()
+        }
+        val bytes = rom.readBytes()
+        // Change only the stored payload. Its CRC in the central directory stays intact.
+        val payload = (0..bytes.size - standaloneData.size).single { offset ->
+            standaloneData.indices.all { bytes[offset + it] == standaloneData[it] }
+        }
+        bytes[payload] = 0
+        rom.writeBytes(bytes)
+        provider.add("games", "街机")
+        provider.add("rom", rom.name, parent = "games", file = rom)
+        val library = FolderLibrary(context, storage)
+        library.add(DocumentsContract.buildTreeDocumentUri(AUTHORITY, "games"))
+
+        val game = library.refresh(catalog).snapshot.games.single()
+        assertEquals("standalone", game.name)
+        assertThrows(IOException::class.java) { runBlocking { library.prepare(game) } }
+        assertFalse(storage.playDir.exists())
     }
 
     private fun zip(
@@ -154,9 +241,14 @@ class FolderLibraryTest {
         private data class Entry(val name: String, val parent: String?, val file: File?)
         private val entries = mutableMapOf<String, Entry>()
         val unavailable = mutableSetOf<String>()
+        val opened = mutableListOf<String>()
 
         fun add(id: String, name: String, parent: String? = null, file: File? = null) {
             entries[id] = Entry(name, parent, file)
+        }
+
+        fun remove(id: String) {
+            entries.remove(id)
         }
 
         override fun onCreate() = true
@@ -179,16 +271,19 @@ class FolderLibraryTest {
                         Document.COLUMN_DOCUMENT_ID -> key
                         Document.COLUMN_DISPLAY_NAME -> entry.name
                         Document.COLUMN_MIME_TYPE -> if (entry.file == null) Document.MIME_TYPE_DIR else "application/octet-stream"
+                        Document.COLUMN_SIZE -> entry.file?.length()
+                        Document.COLUMN_LAST_MODIFIED -> entry.file?.lastModified()
                         else -> null
                     }
                 })
             }
         }
 
-        override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor = ParcelFileDescriptor.open(
-            requireNotNull(entries.getValue(DocumentsContract.getDocumentId(uri)).file),
-            ParcelFileDescriptor.MODE_READ_ONLY,
-        )
+        override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+            val id = DocumentsContract.getDocumentId(uri)
+            opened += id
+            return ParcelFileDescriptor.open(requireNotNull(entries.getValue(id).file), ParcelFileDescriptor.MODE_READ_ONLY)
+        }
 
         override fun getType(uri: Uri): String? = null
         override fun insert(uri: Uri, values: ContentValues?): Uri? = error("Read only")

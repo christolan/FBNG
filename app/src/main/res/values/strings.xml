@@ -5,7 +5,7 @@
     <string name="legal_notice">本应用不包含任何 ROM 或 BIOS。只能导入你自己持有的 zip。</string>
     <string name="import_button">导入 zip</string>
     <string name="importing">正在识别并复制…</string>
-    <string name="scanning">正在扫描游戏库并校验 ROM 和 BIOS…</string>
+    <string name="scanning">正在扫描游戏库…</string>
     <string name="loading_dat">正在读取 FBNeo DAT…</string>
     <string name="dat_error_title">无法读取 FBNeo DAT</string>
     <string name="dat_error_body">游戏库和 zip 导入已停用。%1$s</string>
@@ -78,8 +78,8 @@
     <string name="folder_scanning">正在扫描 ROM 和 BIOS…</string>
     <string name="folder_add_failed">无法保存读取权限。请重新选择文件夹并授权。</string>
     <string name="folder_unavailable">无法读取文件夹。请检查存储设备，或重新添加文件夹并授权。</string>
-    <string name="folder_matches">通过校验：ROM %1$d 个，BIOS %2$d 个</string>
-    <string name="folder_no_matches">未找到通过校验的 ROM 或 BIOS。</string>
+    <string name="folder_matches">已识别 ROM %1$d 个、BIOS %2$d 个</string>
+    <string name="folder_no_matches">未识别到 ROM 或 BIOS。</string>
     <string name="folder_skipped">跳过 %1$d 个不匹配的 ZIP。</string>
     <string name="folder_unreadable_zip">无法处理 %1$d 个 ZIP。请检查文件和设备剩余空间后重扫。</string>
     <string name="folder_incomplete">部分子文件夹无法读取。请检查存储设备后重扫。</string>
