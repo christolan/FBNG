@@ -1,5 +1,6 @@
 package com.xiaojiwei.fbng.ui
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,18 +18,13 @@ import com.xiaojiwei.fbng.dat.RomProblem
 import com.xiaojiwei.fbng.dat.SetMatch
 import com.xiaojiwei.fbng.importing.ImportReport
 import com.xiaojiwei.fbng.importing.InstallOutcome
-import com.xiaojiwei.fbng.importing.RomInstaller
-import com.xiaojiwei.fbng.library.InstalledSet
+import com.xiaojiwei.fbng.library.FolderScan
+import com.xiaojiwei.fbng.library.LibraryGame
+import com.xiaojiwei.fbng.library.MissingDependency
+import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 
-/**
- * Library: a console shell for the one supported set. Memory is the charcoal
- * field and the single electric-blue accent. Tokens come from FbngPalette,
- * FbngType, and FbngDimens. Checked: D-pad focus, A confirm, B back, 600/840
- * navigation, and 4.5:1 body text. The reference layouts are a left rail on a
- * wide window and a bottom bar on a narrow one. Covers are text, not artwork.
- */
 @Preview(name = "loading", widthDp = 400, heightDp = 800)
 @Composable
 private fun PreviewLoading() {
@@ -49,6 +45,7 @@ private fun PreviewMediumEmpty() {
 }
 
 @Preview(name = "expanded ready", widthDp = 900, heightDp = 640)
+@Preview(name = "compact ready", widthDp = 400, heightDp = 800, fontScale = 1.5f)
 @Composable
 private fun PreviewExpandedReady() {
     LibraryPreview(load = ready(), snapshot = readySnapshot())
@@ -67,6 +64,48 @@ private fun PreviewImport() {
         load = ready(),
         snapshot = emptySnapshot(),
         reports = listOf(mismatchReport()),
+        initialSection = ShellSection.Import,
+    )
+}
+
+@Preview(name = "compact folders empty", widthDp = 400, heightDp = 800)
+@Preview(name = "compact folders large font", widthDp = 400, heightDp = 800, fontScale = 1.5f)
+@Composable
+private fun PreviewFoldersEmpty() {
+    LibraryPreview(load = ready(), snapshot = emptySnapshot(), initialSection = ShellSection.Import)
+}
+
+@Preview(name = "compact folders scanning", widthDp = 400, heightDp = 800)
+@Composable
+private fun PreviewFoldersScanning() {
+    LibraryPreview(
+        load = ready(),
+        snapshot = emptySnapshot(),
+        initialSection = ShellSection.Import,
+        busy = true,
+    )
+}
+
+@Preview(name = "compact folders ready", widthDp = 400, heightDp = 800)
+@Preview(name = "expanded folders ready", widthDp = 900, heightDp = 640)
+@Composable
+private fun PreviewFoldersReady() {
+    LibraryPreview(
+        load = ready(),
+        snapshot = readySnapshot(),
+        initialSection = ShellSection.Import,
+        folders = listOf(FolderScan(previewFolder, roms = 1, bios = 1)),
+    )
+}
+
+@Preview(name = "expanded folder unavailable", widthDp = 900, heightDp = 640)
+@Composable
+private fun PreviewFolderUnavailable() {
+    LibraryPreview(
+        load = ready(),
+        snapshot = emptySnapshot(),
+        initialSection = ShellSection.Import,
+        folders = listOf(FolderScan(previewFolder, unavailable = true)),
     )
 }
 
@@ -114,6 +153,8 @@ private fun LibraryPreview(
     snapshot: LibrarySnapshot?,
     reports: List<ImportReport> = emptyList(),
     initialSection: ShellSection = ShellSection.Library,
+    folders: List<FolderScan> = emptyList(),
+    busy: Boolean = false,
 ) {
     FbngTheme {
         Box(Modifier.fillMaxSize()) {
@@ -121,48 +162,34 @@ private fun LibraryPreview(
                 load = load,
                 snapshot = snapshot,
                 reports = reports,
-                busy = false,
+                busy = busy,
+                workMessage = R.string.folder_scanning,
                 readFold = { null },
                 onImport = {},
                 onPlay = {},
                 initialSection = initialSection,
+                folders = folders,
             )
         }
     }
 }
 
+private val previewFolder = LibraryFolder(Uri.parse("content://preview/tree/arcade"), "街机游戏")
+
 private fun ready() = CatalogLoad.Ready(DatCatalog("preview", emptyList()))
 
-private fun emptySnapshot() = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM))
+private fun emptySnapshot() = LibrarySnapshot()
 
-private fun readySnapshot() = LibrarySnapshot(
-    clean(RomInstaller.KOVSH, bios = false),
-    clean(RomInstaller.PGM, bios = true),
-)
-
-private fun absent(name: String) = InstalledSet(name, present = false, match = null, unreadable = false)
-
-private fun clean(name: String, bios: Boolean) = InstalledSet(
-    expected = name,
-    present = true,
-    match = SetMatch(
-        setName = name,
-        description = name,
-        isBios = bios,
-        requiredCount = 1,
-        matchedOwnCount = 1,
-        contentHits = 1,
-        explainedCount = 1,
-        problems = emptyList(),
-    ),
-    unreadable = false,
-)
+private fun readySnapshot() = LibrarySnapshot(listOf(
+    LibraryGame("galaga", "Galaga (Namco rev. B)"),
+    LibraryGame("mslug", "Metal Slug - Super Vehicle-001", listOf(MissingDependency("neogeo", true))),
+))
 
 private fun mismatchReport() = ImportReport(
     displayName = "import.zip",
     outcome = InstallOutcome.REJECTED_MISMATCH,
     match = SetMatch(
-        setName = RomInstaller.KOVSH,
+        setName = "kovsh",
         description = "import.zip",
         isBios = false,
         requiredCount = 2,

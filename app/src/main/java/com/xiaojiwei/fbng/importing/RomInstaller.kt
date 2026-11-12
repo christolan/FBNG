@@ -5,12 +5,12 @@ import com.xiaojiwei.fbng.dat.RomSetMatcher
 import com.xiaojiwei.fbng.dat.SetMatch
 import com.xiaojiwei.fbng.library.AppStorage
 import java.io.File
-import java.util.zip.ZipException
+import java.io.IOException
 
 enum class InstallOutcome {
     INSTALLED,
-    REJECTED_OTHER_SET,
     REJECTED_MISMATCH,
+    AMBIGUOUS,
     UNRECOGNIZED,
     UNREADABLE,
 }
@@ -27,33 +27,21 @@ class RomInstaller(
     private val catalog: DatCatalog,
 ) {
     fun importFile(file: File, displayName: String): ImportReport {
-        val match = try {
-            RomSetMatcher.identify(ZipArchives.read(file), catalog).best
-        } catch (_: ZipException) {
+        val identification = try {
+            RomSetMatcher.identify(ZipArchives.read(file), catalog, displayName)
+        } catch (_: IOException) {
             return ImportReport(displayName, InstallOutcome.UNREADABLE, null, null)
         }
-        if (match == null) {
-            return ImportReport(displayName, InstallOutcome.UNRECOGNIZED, null, null)
-        }
+        val match = identification.best ?: return ImportReport(
+            displayName,
+            if (identification.ambiguous) InstallOutcome.AMBIGUOUS else InstallOutcome.UNRECOGNIZED,
+            null,
+            null,
+        )
         if (!match.isClean) {
             return ImportReport(displayName, InstallOutcome.REJECTED_MISMATCH, match, null)
         }
-        return when (match.setName) {
-            KOVSH -> {
-                storage.installKovsh(file)
-                ImportReport(displayName, InstallOutcome.INSTALLED, match, "kovsh.zip")
-            }
-            PGM -> {
-                storage.installPgm(file)
-                ImportReport(displayName, InstallOutcome.INSTALLED, match, "pgm.zip")
-            }
-            else -> ImportReport(displayName, InstallOutcome.REJECTED_OTHER_SET, match, null)
-        }
-    }
-
-    companion object {
-        const val KOVSH = "kovsh"
-        const val PGM = "pgm"
-        val ACCEPTED = setOf(KOVSH, PGM)
+        storage.install(file, match.setName, match.isBios)
+        return ImportReport(displayName, InstallOutcome.INSTALLED, match, "${match.setName}.zip")
     }
 }

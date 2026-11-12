@@ -1,12 +1,12 @@
 # FBNG
 
-FBNeo Next Generation。这是一个只给自己用的 Android 街机前端，Phase 0 只做一件事：导入你自己的 zip，然后用固定版本的 FinalBurn Neo 核心运行《三国战纪：风云再起》（套件名 `kovsh`，中国版 104）。
+FBNeo Next Generation 是一个自用 Android 街机前端。它用固定版本的 FinalBurn Neo 核心运行游戏，并用同一版本的街机 DAT 识别游戏、父套件和 BIOS。
 
 界面是 Jetpack Compose。模拟由 [LibretroDroid](https://github.com/Swordfish90/LibretroDroid) 0.13.2 加载 FBNeo 核心完成。这一阶段没有 MAME，没有云同步，也不上架。
 
 ## ROM 和 BIOS 不在这里
 
-仓库、源代码和构建出的 APK 都不包含任何游戏 ROM 或 BIOS，包括 `kovsh.zip` 和 `pgm.zip`。没有占位 dump。这两个文件只能由你自己导入。FBNeo 核心是已经核对过的那一份，放在 `core/fbneo/libfbneo_libretro_android.so`。构建复制它之前会核对 SHA-256、二进制标记和 16 KB 对齐，对不上就停止。
+仓库、源代码和构建出的 APK 都不包含任何游戏 ROM 或 BIOS，包括 `kovsh.zip` 和 `pgm.zip`。请使用你自己持有的 ZIP。FBNeo 核心是已经核对过的那一份，放在 `core/fbneo/libfbneo_libretro_android.so`。构建复制它之前会核对 SHA-256、二进制标记和 16 KB 对齐，对不上就停止。
 
 FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPLv3。这个应用只供个人使用，不收费、不接受捐赠、不发布到应用商店。
 
@@ -55,24 +55,19 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 `useLegacyPackaging` 是 false，安装清单里的 `extractNativeLibs` 也是 false，所以系统不会把核心复制到 `nativeLibraryDir`。应用如果在那个目录里找到已解压的文件，就直接用它；否则把 `base.apk!/lib/arm64-v8a/libfbneo_libretro_android.so` 交给 LibretroDroid。`dlopen` 从 API 23 起可以打开这种未压缩且按页对齐的 zip 条目。
 
-## 导入两个 zip
+## 添加文件夹和导入 ZIP
 
-1. 安装 Release APK，打开 FBNG。
-2. 点「导入 zip」，用系统文件选择器选一个或多个 zip。可以同时选，也可以分两次。外层文件名无所谓。
-3. 应用按 FBNeo DAT 核对 zip **里面**每个文件的文件名、大小和 CRC-32。
-   - `kovsh` 是 12 个游戏文件，其中 `pgm_p0605_v104.u1` 的 CRC 是 `7c78e5f3`，`kovsh_v100_china.asic` 的 CRC 是 `0f09a5c1`。DAT 里这个套件还列出了 6 个 PGM BIOS 文件，那些文件属于 `pgm`，不必打进 `kovsh.zip`。
-   - `pgm` 是 BIOS 套件：`pgm_t01s.rom`、`pgm_m01s.rom`、`pgm_p01s.u20`、`pgm_p02s.u20`、`ddp3_bios.u37`、`bios.u42`。
-4. 三项都一致时，文件会复制到应用私有目录，并改成规范名字：
-   - 游戏：`files/roms/kovsh.zip`。FBNeo 用这个文件名决定驱动是 `kovsh`。
-   - BIOS：`files/system/fbneo/pgm.zip`，同时复制一份到 `files/roms/pgm.zip`。核心找 BIOS 的顺序是游戏目录、`SYSTEM_DIRECTORY/fbneo/`、`SYSTEM_DIRECTORY/`。传给核心的 system 目录就是 `files/system`。
-5. 对不上时不会写入，界面会写明是缺文件、CRC 不对、大小不对，还是内容对了但内部文件名不对。识别成别的套件也不会安装。
-6. 库里会显示《三国战纪：风云再起》和英文名 Knights of Valour Super Heroes。BIOS 没通过校验时，「开始游戏」是关掉的，避免进一个黑屏。
+在「导入」里选「添加文件夹」，可以添加多个本地目录。添加后和每次启动应用时，应用会递归扫描这些目录里的 ZIP。目录有变动时也可以选「重新扫描」。扫描结果会显示已识别的游戏、BIOS 和跳过的 ZIP 数量。移除目录会保留原文件、手动导入的 ZIP 和存档。
+
+也可以用「导入 zip」手动导入一个或多个归档。应用按 DAT 校验文件名、大小和 CRC-32，校验通过后以 FBNeo 的套件名存入私有目录。外层文件名用于区分内容相同的套件，例如多个版本共用同一份 ROM 时，请用对应的套件名命名 ZIP。
+
+游戏库会显示已识别的游戏。克隆版缺少父套件或 BIOS 时，详情会列出缺少的 ZIP。游戏、父套件和 BIOS 可以来自不同目录，也可以与手动导入的 ZIP 搭配。如果游戏 ZIP 已经包含所需的父套件和 BIOS 文件，就可以直接启动。目录里的 ZIP 只在启动相关游戏时复制到临时目录。
 
 ## 游戏里能做的事
 
 壳层是游戏库、导入、同步和设置。宽窗口用左侧栏，窄窗口用底部栏。同步只显示「即将推出」，设置只显示核心版本和「这一阶段没有按键映射」，没有云同步，也没有映射开关。游戏中仍是「存档 / 读档 / 退出」。没有 RetroArch 那种套娃菜单。
 
-存档只有槽 1，写在 `files/states/kovsh/slot0.state`，并带上核心提交号。`serializeState()` 在 GL 线程上取数据，然后 `fsync` 落盘。进程被杀掉之后，重新开始游戏再点「读档」就能恢复。核心提交号不一致时会提示，因为 FBNeo 不保证跨版本读档。
+每款游戏各有一个存档槽，写在 `files/states/<套件名>/slot0.state`，并带上核心提交号。原有的 `kovsh` 存档可继续读取。`serializeState()` 在 GL 线程上取数据，然后 `fsync` 落盘。进程被杀掉之后，重新开始游戏再点「读档」就能恢复。核心提交号不一致时会提示，因为 FBNeo 不保证跨版本读档。
 
 有线和蓝牙手柄走 LibretroDroid 现成的按键和摇杆转发（包含 Android 和 RetroPad 的 A/B、X/Y 对调，以及 `controllerNumber` 分端口）。这一阶段没有映射界面。
 
@@ -84,4 +79,4 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 ./gradlew :app:testDebugUnitTest
 ```
 
-单测覆盖 DAT 解析、`kovsh` / `pgm` 的文件名、大小和 CRC、导入时的错配报告，以及存档文件在新的存储对象里还能读回来。没有模拟器，所以没有在真机上跑过 Find N6 或 RP6。
+单测覆盖 DAT 解析、ZIP 校验、文件夹扫描、拆分套件与 BIOS 依赖，以及存档的持久化。Compose 测试覆盖多游戏选择和手柄焦点。

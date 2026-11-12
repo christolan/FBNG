@@ -1,5 +1,6 @@
 package com.xiaojiwei.fbng.ui
 
+import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -53,9 +54,14 @@ internal enum class ShellSection {
 
 internal object ShellTags {
     const val Play = "shell-play"
-    const val Card = "shell-card"
+    const val EmptyImport = "shell-library-import"
+    const val DetailBack = "shell-detail-back"
+    fun game(name: String) = "shell-game-$name"
     const val Search = "shell-search"
     const val Import = "shell-import"
+    const val AddFolder = "shell-add-folder"
+    const val ScanFolders = "shell-scan-folders"
+    fun removeFolder(uri: Uri) = "shell-remove-folder-$uri"
     const val Sync = "shell-sync"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"

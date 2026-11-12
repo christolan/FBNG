@@ -1,56 +1,98 @@
 package com.xiaojiwei.fbng.library
 
+import android.net.Uri
 import com.xiaojiwei.fbng.dat.DatCatalog
+import com.xiaojiwei.fbng.dat.DatGame
 import com.xiaojiwei.fbng.dat.RomSetMatcher
-import com.xiaojiwei.fbng.dat.SetMatch
-import com.xiaojiwei.fbng.importing.RomInstaller
+import com.xiaojiwei.fbng.dat.ZipMember
 import com.xiaojiwei.fbng.importing.ZipArchives
 import java.io.File
-import java.util.zip.ZipException
+import java.io.IOException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
-data class InstalledSet(
-    val expected: String,
-    val present: Boolean,
-    val match: SetMatch?,
-    val unreadable: Boolean,
-)
-
-data class LibrarySnapshot(
-    val kovsh: InstalledSet,
-    val pgm: InstalledSet,
-) {
-    val romReady: Boolean
-        get() = kovsh.match?.let { it.isClean && it.setName == RomInstaller.KOVSH } == true
-
-    val biosReady: Boolean
-        get() = pgm.match?.let { it.isClean && it.setName == RomInstaller.PGM } == true
-
-    val canLaunch: Boolean get() = romReady && biosReady
+internal sealed interface ArchiveLocation {
+    data class Installed(val file: File) : ArchiveLocation
+    data class Folder(val uri: Uri) : ArchiveLocation
 }
 
-class LibraryScanner(
-    private val storage: AppStorage,
-    private val catalog: DatCatalog,
+internal data class LibraryArchive(
+    val set: DatGame,
+    val location: ArchiveLocation,
+    val members: List<ZipMember>,
 ) {
-    fun scan(): LibrarySnapshot {
-        storage.ensure()
-        val pgm = inspect(storage.pgmZip, RomInstaller.PGM)
-        if (pgm.match?.let { it.isClean && it.setName == RomInstaller.PGM } == true) {
-            storage.mirrorPgmBesideRom()
+    val signatures = members.mapTo(HashSet()) { it.signature }
+}
+
+internal data class MissingDependency(val name: String, val isBios: Boolean)
+
+internal data class LibraryGame(
+    val name: String,
+    val description: String,
+    val missing: List<MissingDependency> = emptyList(),
+    val archives: List<LibraryArchive> = emptyList(),
+) {
+    val canLaunch: Boolean get() = missing.isEmpty()
+}
+
+internal data class LibrarySnapshot(val games: List<LibraryGame> = emptyList())
+
+internal class LibraryScanner(private val catalog: DatCatalog) {
+    suspend fun installed(storage: AppStorage): List<LibraryArchive> = buildList {
+        val archives = storage.romsDir.listFiles().orEmpty().asSequence() +
+            storage.systemFbneoDir.listFiles().orEmpty().asSequence()
+        for (file in archives) {
+            currentCoroutineContext().ensureActive()
+            if (!file.isFile || file.extension != "zip") continue
+            val expected = catalog.byName[file.nameWithoutExtension] ?: continue
+            // The old PGM install also made a copy in roms; the canonical BIOS is in system/fbneo.
+            if (file != storage.archive(expected.name, expected.isBios)) continue
+            try {
+                inspect(file, file.name, ArchiveLocation.Installed(file))
+                    ?.takeIf { it.set.name == expected.name }
+                    ?.let(::add)
+            } catch (_: IOException) {
+                // A missing or damaged archive is never offered to the core.
+            }
         }
-        return LibrarySnapshot(
-            kovsh = inspect(storage.kovshZip, RomInstaller.KOVSH),
-            pgm = pgm,
-        )
     }
 
-    private fun inspect(file: File, expected: String): InstalledSet {
-        if (!file.isFile) return InstalledSet(expected, present = false, match = null, unreadable = false)
-        return try {
-            val match = RomSetMatcher.identify(ZipArchives.read(file), catalog).best
-            InstalledSet(expected, present = true, match = match, unreadable = false)
-        } catch (_: ZipException) {
-            InstalledSet(expected, present = true, match = null, unreadable = true)
+    fun inspect(file: File, displayName: String, location: ArchiveLocation): LibraryArchive? {
+        val members = ZipArchives.read(file)
+        val match = RomSetMatcher.identify(members, catalog, displayName).best ?: return null
+        if (!match.isClean) return null
+        return LibraryArchive(catalog.byName.getValue(match.setName), location, members)
+    }
+
+    fun snapshot(archives: List<LibraryArchive>): LibrarySnapshot {
+        val bySet = archives.groupBy { it.set.name }
+        val games = bySet.values.mapNotNull { copies ->
+            val game = copies.first().set
+            if (game.isBios) return@mapNotNull null
+            copies.map { plan(it, bySet) }.minBy { it.missing.size }
+        }.sortedWith(compareBy({ it.description.lowercase() }, { it.name }))
+        return LibrarySnapshot(games)
+    }
+
+    private fun plan(game: LibraryArchive, bySet: Map<String, List<LibraryArchive>>): LibraryGame {
+        val inherited = catalog.inheritedRoms(game.set).mapTo(HashSet()) { it.signature }
+        inherited.removeAll(game.signatures)
+        val ancestors = catalog.ancestors(game.set)
+        val selected = mutableListOf(game)
+        for (ancestor in ancestors) {
+            if (inherited.isEmpty()) break
+            val archive = bySet[ancestor.name]?.maxByOrNull { copy -> inherited.count { it in copy.signatures } }
+            if (archive != null && inherited.removeAll(archive.signatures)) selected += archive
         }
+
+        val missing = buildList {
+            // The chain starts with the split parent. Attribute remaining ROMs to their original set.
+            for (ancestor in ancestors.asReversed()) {
+                if (inherited.removeAll(ancestor.roms.filter { it.required }.map { it.signature }.toSet())) {
+                    add(MissingDependency(ancestor.name, ancestor.isBios))
+                }
+            }
+        }.asReversed()
+        return LibraryGame(game.set.name, game.set.description, missing, selected)
     }
 }

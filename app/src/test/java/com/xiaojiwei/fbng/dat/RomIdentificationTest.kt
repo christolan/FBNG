@@ -76,7 +76,7 @@ class RomIdentificationTest {
         val report = RomInstaller(storage, catalog).importFile(file, "whatever.zip")
         assertEquals(InstallOutcome.REJECTED_MISMATCH, report.outcome)
         assertTrue(report.match!!.problems.any { it.kind == ProblemKind.CRC_MISMATCH && it.expectedName == "pgm_p0605_v104.u1" })
-        assertFalse(storage.kovshZip.exists())
+        assertFalse(storage.archive("kovsh", isBios = false).exists())
     }
 
     @Test
@@ -109,7 +109,7 @@ class RomIdentificationTest {
                     it.actualName == "wrong-program.u1"
             },
         )
-        assertFalse(storage.kovshZip.exists())
+        assertFalse(storage.archive("kovsh", isBios = false).exists())
     }
 
     @Test
@@ -132,7 +132,7 @@ class RomIdentificationTest {
         val report = RomInstaller(storage, catalog).importFile(file, "renamed.zip")
         assertEquals(InstallOutcome.INSTALLED, report.outcome)
         assertEquals("kovsh.zip", report.installedFileName)
-        assertTrue(storage.kovshZip.isFile)
+        assertTrue(storage.archive("kovsh", isBios = false).isFile)
         assertTrue(report.match!!.problems.any { it.kind == ProblemKind.EXTRA })
     }
 
@@ -142,20 +142,30 @@ class RomIdentificationTest {
         val storage = AppStorage(folder.newFolder("storage"))
         val report = RomInstaller(storage, catalog).importFile(file, "bios-dump.zip")
         assertEquals(InstallOutcome.INSTALLED, report.outcome)
-        assertTrue(storage.pgmZip.isFile)
-        assertTrue(storage.pgmZipBesideRom.isFile)
-        assertEquals(storage.pgmZip.length(), storage.pgmZipBesideRom.length())
+        assertTrue(storage.archive("pgm", isBios = true).isFile)
+        assertEquals(file.length(), storage.archive("pgm", isBios = true).length())
     }
 
     @Test
-    fun otherCleanSetIsIdentifiedButNotInstalled() {
+    fun otherCleanSetIsInstalled() {
         val file = zip("other.zip", "other.bin" to bytes(1, 2))
         val storage = AppStorage(folder.newFolder("storage"))
         val report = RomInstaller(storage, catalog).importFile(file, "other.zip")
-        assertEquals(InstallOutcome.REJECTED_OTHER_SET, report.outcome)
+        assertEquals(InstallOutcome.INSTALLED, report.outcome)
         assertEquals("other", report.match?.setName)
-        assertFalse(storage.kovshZip.exists())
-        assertFalse(storage.pgmZip.exists())
+        assertTrue(storage.archive("other", isBios = false).isFile)
+    }
+
+    @Test
+    fun identicalSetsUseTheCanonicalArchiveNameToResolveAmbiguity() {
+        val original = catalog.byName.getValue("other")
+        val withTwin = DatCatalog(catalog.version, catalog.games + original.copy(name = "otherj"))
+        val file = zip("renamed.zip", "other.bin" to bytes(1, 2))
+        val storage = AppStorage(folder.newFolder("storage"))
+        val installer = RomInstaller(storage, withTwin)
+        assertEquals(InstallOutcome.AMBIGUOUS, installer.importFile(file, file.name).outcome)
+        assertEquals("otherj.zip", installer.importFile(file, "otherj.ZIP").installedFileName)
+        assertTrue(storage.archive("otherj", isBios = false).isFile)
     }
 
     @Test

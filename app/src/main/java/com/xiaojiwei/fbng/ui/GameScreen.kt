@@ -64,7 +64,7 @@ import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SessionLifecycleOwner
-import com.xiaojiwei.fbng.library.AppStorage
+import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import java.io.File
@@ -84,8 +84,8 @@ private class RunningSession(
 )
 
 @Composable
-fun GameScreen(
-    storage: AppStorage,
+internal fun GameScreen(
+    game: PreparedGame,
     bridge: GamepadBridge,
     onQuit: () -> Unit,
 ) {
@@ -110,12 +110,12 @@ fun GameScreen(
         return
     }
 
-    val session = remember(corePath, storage.kovshZip.absolutePath) {
+    val session = remember(corePath, game.rom.absolutePath) {
         val data = GLRetroViewData(activity).apply {
             coreFilePath = corePath
-            gameFilePath = storage.kovshZip.absolutePath
-            systemDirectory = storage.systemDir.absolutePath
-            savesDirectory = storage.savesDir.absolutePath
+            gameFilePath = game.rom.absolutePath
+            systemDirectory = game.systemDir.absolutePath
+            savesDirectory = game.savesDir.absolutePath
             variables = emptyArray<Variable>()
             shader = ShaderConfig.Default
             rumbleEventsEnabled = true
@@ -130,11 +130,11 @@ fun GameScreen(
         life.create()
         Log.i(
             TAG,
-            "core $corePath game ${storage.kovshZip.absolutePath} system ${storage.systemDir}",
+            "core $corePath game ${game.rom.absolutePath} system ${game.systemDir}",
         )
         RunningSession(view, life)
     }
-    val store = remember { SaveStateStore(storage.stateDir) }
+    val store = remember { SaveStateStore(game.stateDir) }
     val scope = rememberCoroutineScope()
 
     DisposableEffect(session) {

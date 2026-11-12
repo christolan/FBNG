@@ -1,8 +1,13 @@
 package com.xiaojiwei.fbng.ui
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -14,12 +19,12 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import com.xiaojiwei.fbng.dat.DatCatalog
-import com.xiaojiwei.fbng.dat.SetMatch
-import com.xiaojiwei.fbng.importing.RomInstaller
-import com.xiaojiwei.fbng.library.InstalledSet
+import com.xiaojiwei.fbng.library.FolderScan
+import com.xiaojiwei.fbng.library.LibraryGame
+import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
-import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,7 +41,8 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w900dp-h640dp-mdpi")
-    fun dpadDownMovesFromPlayToTheCover() {
+    fun dpadSelectsTheNextGameAndStartsItsSet() {
+        var played: String? = null
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -46,41 +52,21 @@ class ShellFocusTest {
                     busy = false,
                     readFold = { null },
                     onImport = {},
-                    onPlay = {},
+                    onPlay = { played = it },
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Play).performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.Card).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        assertEquals("mslug", played)
     }
 
     @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
-    fun dpadDownMovesFromTheCoverToTheBottomBar() {
-        rule.setContent {
-            FbngTheme {
-                LibraryContent(
-                    load = readyCatalog(),
-                    snapshot = emptySnapshot(),
-                    reports = emptyList(),
-                    busy = false,
-                    readFold = { null },
-                    onImport = {},
-                    onPlay = {},
-                )
-            }
-        }
-        rule.onNodeWithTag(ShellTags.Search).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Card).requestFocus()
-        rule.onNodeWithTag(ShellTags.Card).performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.NavLibrary).assertIsFocused()
-    }
-
-    @Test
-    @Config(sdk = [33], qualifiers = "w900dp-h640dp-mdpi")
-    fun buttonAStartsTheGameWhenTheSetIsReady() {
-        var played = false
+    fun compactDetailsReturnsToTheSelectedGame() {
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -90,13 +76,16 @@ class ShellFocusTest {
                     busy = false,
                     readFold = { null },
                     onImport = {},
-                    onPlay = { played = true },
+                    onPlay = {},
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Play).performKeyInput { pressKey(Key.ButtonA) }
-        assertTrue(played)
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
     }
 
     @Test
@@ -106,7 +95,7 @@ class ShellFocusTest {
             FbngTheme {
                 LibraryContent(
                     load = readyCatalog(),
-                    snapshot = emptySnapshot(),
+                    snapshot = readySnapshot(),
                     reports = emptyList(),
                     busy = false,
                     readFold = { null },
@@ -115,10 +104,11 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.Search).performTextInput("zzzz")
+        rule.onNodeWithTag(ShellTags.Search).requestFocus()
+        rule.onNodeWithTag(ShellTags.Search).performTextInput("mslug")
         rule.onNodeWithTag(ShellTags.Search).performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.NavLibrary).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Card).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertDoesNotExist()
     }
 
     @Test
@@ -128,7 +118,7 @@ class ShellFocusTest {
             FbngTheme {
                 LibraryContent(
                     load = readyCatalog(),
-                    snapshot = emptySnapshot(),
+                    snapshot = LibrarySnapshot(),
                     reports = emptyList(),
                     busy = false,
                     readFold = { null },
@@ -138,9 +128,40 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.Import).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Import).performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.Search).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.AddFolder).performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag(ShellTags.EmptyImport).assertIsFocused()
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
+    fun dpadReachesFolderControlsAndRemovalRestoresFocus() {
+        val uri = Uri.parse("content://test/tree/arcade")
+        val remove = ShellTags.removeFolder(uri)
+        rule.setContent {
+            var folders by remember { mutableStateOf(listOf(FolderScan(LibraryFolder(uri, "街机"), roms = 1))) }
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = LibrarySnapshot(),
+                    reports = emptyList(),
+                    busy = false,
+                    readFold = { null },
+                    onImport = {},
+                    onPlay = {},
+                    initialSection = ShellSection.Import,
+                    folders = folders,
+                    folderActions = FolderActions(remove = { removed ->
+                        folders = folders.filterNot { it.folder.uri == removed }
+                    }),
+                )
+            }
+        }
+        rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.ScanFolders).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(remove).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(remove).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
     }
 
     @Test
@@ -193,27 +214,7 @@ class ShellFocusTest {
 
 private fun readyCatalog() = CatalogLoad.Ready(DatCatalog("test", emptyList()))
 
-private fun emptySnapshot() = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM))
-
-private fun readySnapshot() = LibrarySnapshot(
-    clean(RomInstaller.KOVSH, bios = false),
-    clean(RomInstaller.PGM, bios = true),
-)
-
-private fun absent(name: String) = InstalledSet(name, present = false, match = null, unreadable = false)
-
-private fun clean(name: String, bios: Boolean) = InstalledSet(
-    expected = name,
-    present = true,
-    match = SetMatch(
-        setName = name,
-        description = name,
-        isBios = bios,
-        requiredCount = 1,
-        matchedOwnCount = 1,
-        contentHits = 1,
-        explainedCount = 1,
-        problems = emptyList(),
-    ),
-    unreadable = false,
-)
+private fun readySnapshot() = LibrarySnapshot(listOf(
+    LibraryGame("galaga", "Galaga"),
+    LibraryGame("mslug", "Metal Slug"),
+))

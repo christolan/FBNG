@@ -14,9 +14,12 @@ data class DatRom(
     val size: Long,
     val crc: Long,
     val status: String?,
+    val merge: String? = null,
 ) {
     val required: Boolean
         get() = !status.equals("nodump", ignoreCase = true) && size > 0L && crc != 0L
+
+    internal val signature get() = RomSignature(size, crc)
 }
 
 data class DatGame(
@@ -44,12 +47,14 @@ class DatCatalog(
         val nameIndex = HashMap<String, MutableSet<String>>()
         val crcIndex = HashMap<Long, MutableSet<String>>()
         for (game in games) {
-            val chain = inheritedKeys(game)
+            val ancestors = ancestors(game).flatMap { it.roms }.filter { it.required }
+            val inheritedKeys = ancestors.mapTo(HashSet(), ::romKey)
+            val inheritedSignatures = ancestors.mapTo(HashSet()) { it.signature }
             val inheritedRoms = ArrayList<DatRom>()
             val ownRoms = ArrayList<DatRom>()
             for (rom in game.roms) {
                 if (!rom.required) continue
-                if (romKey(rom) in chain) {
+                if (romKey(rom) in inheritedKeys || rom.merge != null && rom.signature in inheritedSignatures) {
                     inheritedRoms += rom
                 } else {
                     ownRoms += rom
@@ -72,20 +77,19 @@ class DatCatalog(
 
     fun inheritedRoms(game: DatGame): List<DatRom> = inheritedByGame[game.name].orEmpty()
 
-    private fun inheritedKeys(game: DatGame): Set<RomKey> {
-        val keys = HashSet<RomKey>()
+    internal fun ancestors(game: DatGame): List<DatGame> = buildList {
         val seen = HashSet<String>()
+        seen += game.name
         var parentName = game.romof
         while (parentName != null && seen.add(parentName)) {
             val parent = byName[parentName] ?: break
-            parent.roms.forEach { rom ->
-                if (rom.required) keys += romKey(rom)
-            }
+            add(parent)
             parentName = parent.romof
         }
-        return keys
     }
 }
+
+internal data class RomSignature(val size: Long, val crc: Long)
 
 private data class RomKey(val name: String, val size: Long, val crc: Long)
 
@@ -250,7 +254,7 @@ private class DatHandler : DefaultHandler() {
         val size = attributes.value("size")?.toLongOrNull() ?: 0L
         val crc = attributes.value("crc")?.toLongOrNull(16)?.and(0xffff_ffffL) ?: 0L
         val status = attributes.value("status")
-        return DatRom(romName, size, crc, status)
+        return DatRom(romName, size, crc, status, attributes.value("merge"))
     }
 
     private fun fail(message: String): Nothing = throw SAXParseException(message, locator)

@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.importing
 import com.xiaojiwei.fbng.dat.ZipMember
 import java.io.File
 import java.util.zip.CRC32
+import java.util.zip.ZipException
 import java.util.zip.ZipFile
 
 object ZipArchives {
@@ -10,19 +11,22 @@ object ZipArchives {
         ZipFile(file).use { zip ->
             val members = ArrayList<ZipMember>()
             val entries = zip.entries()
+            val buffer = ByteArray(64 * 1024)
             while (entries.hasMoreElements()) {
                 val entry = entries.nextElement()
                 if (entry.isDirectory || ignored(entry.name)) continue
                 val crc = CRC32()
                 var size = 0L
                 zip.getInputStream(entry).use { input ->
-                    val buffer = ByteArray(64 * 1024)
                     while (true) {
                         val read = input.read(buffer)
                         if (read < 0) break
                         crc.update(buffer, 0, read)
                         size += read
                     }
+                }
+                if (size != entry.size || crc.value != entry.crc) {
+                    throw ZipException("ZIP member failed its checksum: ${entry.name}")
                 }
                 members += ZipMember(
                     name = baseName(entry.name),

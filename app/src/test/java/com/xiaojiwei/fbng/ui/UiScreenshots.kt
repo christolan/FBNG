@@ -1,5 +1,6 @@
 package com.xiaojiwei.fbng.ui
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,8 +9,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import com.dropbox.differ.SimpleImageComparator
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.RoborazziComposeOptions
+import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.github.takahirom.roborazzi.size
 import com.xiaojiwei.fbng.R
@@ -19,8 +22,10 @@ import com.xiaojiwei.fbng.dat.RomProblem
 import com.xiaojiwei.fbng.dat.SetMatch
 import com.xiaojiwei.fbng.importing.ImportReport
 import com.xiaojiwei.fbng.importing.InstallOutcome
-import com.xiaojiwei.fbng.importing.RomInstaller
-import com.xiaojiwei.fbng.library.InstalledSet
+import com.xiaojiwei.fbng.library.FolderScan
+import com.xiaojiwei.fbng.library.LibraryGame
+import com.xiaojiwei.fbng.library.MissingDependency
+import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import org.junit.Assert.assertEquals
@@ -48,8 +53,15 @@ class UiScreenshots {
         capture("library_phone_portrait", 400, 800) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                snapshot = LibrarySnapshot(),
             )
+        }
+    }
+
+    @Test
+    fun libraryPhonePortraitListsMultipleGames() {
+        capture("library_games_compact", 400, 800) {
+            LibraryShot(load = readyCatalog(), snapshot = gamesSnapshot())
         }
     }
 
@@ -59,8 +71,33 @@ class UiScreenshots {
         capture("library_phone_portrait_import", 400, 800) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                snapshot = LibrarySnapshot(),
                 reports = listOf(mismatchReport()),
+                initialSection = ShellSection.Import,
+            )
+        }
+    }
+
+    @Test
+    fun foldersCompactShowsScanResults() {
+        capture("library_folders_compact", 400, 800) {
+            LibraryShot(
+                load = readyCatalog(),
+                snapshot = gamesSnapshot(),
+                initialSection = ShellSection.Import,
+                folders = listOf(FolderScan(arcadeFolder(), roms = 1, bios = 1, skipped = 2)),
+            )
+        }
+    }
+
+    @Test
+    fun foldersExpandedShowsUnavailableFolder() {
+        capture("library_folders_expanded", 900, 640) {
+            LibraryShot(
+                load = readyCatalog(),
+                snapshot = LibrarySnapshot(),
+                initialSection = ShellSection.Import,
+                folders = listOf(FolderScan(arcadeFolder(), unavailable = true)),
             )
         }
     }
@@ -71,7 +108,7 @@ class UiScreenshots {
         capture("library_phone_landscape", 800, 360) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                snapshot = gamesSnapshot(),
             )
         }
     }
@@ -82,7 +119,7 @@ class UiScreenshots {
         capture("library_foldable_expanded", 900, 640) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(clean(RomInstaller.KOVSH, bios = false), clean(RomInstaller.PGM, bios = true)),
+                snapshot = gamesSnapshot(),
             )
         }
     }
@@ -94,7 +131,7 @@ class UiScreenshots {
         capture("shell_sync_expanded", 900, 640) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                snapshot = LibrarySnapshot(),
                 initialSection = ShellSection.Sync,
             )
         }
@@ -106,7 +143,7 @@ class UiScreenshots {
         capture("shell_settings_compact", 400, 800) {
             LibraryShot(
                 load = readyCatalog(),
-                snapshot = LibrarySnapshot(absent(RomInstaller.KOVSH), absent(RomInstaller.PGM)),
+                snapshot = LibrarySnapshot(),
                 initialSection = ShellSection.Settings,
             )
         }
@@ -162,6 +199,12 @@ class UiScreenshots {
     private fun capture(name: String, widthDp: Int, heightDp: Int, content: @Composable () -> Unit) {
         captureRoboImage(
             filePath = "src/test/screenshots/$name.png",
+            roborazziOptions = RoborazziOptions(
+                compareOptions = RoborazziOptions.CompareOptions(
+                    // Native rendering can round a few RGB steps differently across hosts.
+                    imageComparator = SimpleImageComparator(maxDistance = 0.012f),
+                ),
+            ),
             roborazziComposeOptions = RoborazziComposeOptions {
                 size(widthDp = widthDp, heightDp = heightDp)
             },
@@ -176,6 +219,7 @@ private fun LibraryShot(
     snapshot: LibrarySnapshot?,
     reports: List<ImportReport> = emptyList(),
     initialSection: ShellSection = ShellSection.Library,
+    folders: List<FolderScan> = emptyList(),
 ) {
     FbngTheme {
         LibraryContent(
@@ -187,9 +231,12 @@ private fun LibraryShot(
             onImport = {},
             onPlay = {},
             initialSection = initialSection,
+            folders = folders,
         )
     }
 }
+
+private fun arcadeFolder() = LibraryFolder(Uri.parse("content://test/tree/arcade"), "街机游戏")
 
 @Composable
 private fun HudFrame(aspect: Float, hasSlot: Boolean, message: String) {
@@ -216,29 +263,16 @@ private fun HudFrame(aspect: Float, hasSlot: Boolean, message: String) {
 
 private fun readyCatalog() = CatalogLoad.Ready(DatCatalog("test", emptyList()))
 
-private fun absent(name: String) = InstalledSet(name, present = false, match = null, unreadable = false)
-
-private fun clean(name: String, bios: Boolean) = InstalledSet(
-    expected = name,
-    present = true,
-    match = SetMatch(
-        setName = name,
-        description = name,
-        isBios = bios,
-        requiredCount = 1,
-        matchedOwnCount = 1,
-        contentHits = 1,
-        explainedCount = 1,
-        problems = emptyList(),
-    ),
-    unreadable = false,
-)
+private fun gamesSnapshot() = LibrarySnapshot(listOf(
+    LibraryGame("galaga", "Galaga (Namco rev. B)"),
+    LibraryGame("mslug", "Metal Slug - Super Vehicle-001", listOf(MissingDependency("neogeo", true))),
+))
 
 private fun mismatchReport() = ImportReport(
     displayName = "import.zip",
     outcome = InstallOutcome.REJECTED_MISMATCH,
     match = SetMatch(
-        setName = RomInstaller.KOVSH,
+        setName = "kovsh",
         description = "import.zip",
         isBios = false,
         requiredCount = 2,
