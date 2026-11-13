@@ -7,7 +7,6 @@ import java.util.zip.ZipFile
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.roborazzi)
 }
 
 val fbneoPin = Properties().apply {
@@ -103,8 +102,6 @@ dependencies {
     testImplementation(libs.compose.ui.test.junit4)
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.robolectric)
-    testImplementation(libs.roborazzi)
-    testImplementation(libs.roborazzi.compose)
 }
 
 android {
@@ -253,11 +250,6 @@ tasks.configureEach {
 tasks.named("preBuild").configure {
     dependsOn(fetchFbneoCore)
     dependsOn("verifyLibretroDroidAlignment")
-}
-
-// Goldens live in src so they can be committed. Comparison images stay under build/.
-roborazzi {
-    outputDir.set(layout.projectDirectory.dir("src/test/screenshots"))
 }
 
 tasks.register("verifyLibretroDroidAlignment") {

@@ -36,8 +36,8 @@ import androidx.compose.ui.semantics.semantics
  * Gamepad focus for a shell control. [focusable] is the first modifier so a
  * caller's [androidx.compose.ui.focus.focusRequester] sits directly above it —
  * anything between the two makes requestFocus() miss the target.
- * Scale snaps so a screenshot cannot catch it mid-tween. Disabled targets keep
- * solid colors; fading the label is what made the old buttons unreadable.
+ * Focus scale changes immediately to provide clear gamepad feedback. Disabled
+ * targets keep solid colors so their labels remain readable.
  */
 @Composable
 internal fun Modifier.fbngFocusTarget(
