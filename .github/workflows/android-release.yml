@@ -1,6 +1,6 @@
 # Builds the personal release APK.
 # Actions artifact: zlib zip (not LZMA), kept for 14 days.
-# Push to main and workflow_dispatch also publish a prerelease in this private repo,
+# Push to main and workflow_dispatch also publish a release in this repository,
 # with the raw APK attached. Pull requests only upload the artifact.
 # 0.x stays a prerelease. The tag, title, and asset use the version, not "debug".
 name: Assemble release APK
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     # Job permissions replace the workflow permissions. contents: write publishes
-    # the private prerelease; actions: write keeps the artifact upload.
+    # the release; actions: write keeps the artifact upload.
     permissions:
       contents: write
       actions: write
@@ -213,8 +213,6 @@ jobs:
           from pathlib import Path
           Path(os.environ["NOTES_FILE"]).write_text(
               "\n".join([
-                  "这一版从 APK 里直接加载未解压的 FBNeo 核心。",
-                  "",
                   f"版本 {os.environ['VERSION']}（versionCode {os.environ['CODE']}）",
                   f"提交 `{os.environ['COMMIT']}`",
                   "",
@@ -222,7 +220,7 @@ jobs:
                   f"大小 {os.environ['APK_SIZE']} 字节",
                   f"SHA-256 `{os.environ['APK_SHA']}`",
                   "",
-                  "个人使用的 Release 包，使用仓库里的 Release 证书签名（v1、v2、v3）。不含 ROM 或 BIOS。此 Release 只在本私有仓库内可见。",
+                  "使用 FBNG 的 Release 证书签名（v1、v2、v3）。不含 ROM 或 BIOS。",
                   "",
               ])
           )

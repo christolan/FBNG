@@ -73,6 +73,7 @@ import com.xiaojiwei.fbng.library.indexLibrary
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.update.UpdateState
 
 private enum class LibraryPicker { Letters, Status }
 
@@ -97,6 +98,7 @@ internal fun LibraryContent(
     recentNames: List<String> = emptyList(),
     onToggleFavorite: (String) -> Unit = {},
     covers: CoverUiState? = null,
+    appUpdate: UpdateUiState? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -145,6 +147,7 @@ internal fun LibraryContent(
                 recentNames = recentNames,
                 onToggleFavorite = onToggleFavorite,
                 covers = covers,
+                appUpdate = appUpdate,
             )
         }
     }
@@ -171,6 +174,7 @@ private fun LibraryShell(
     recentNames: List<String>,
     onToggleFavorite: (String) -> Unit,
     covers: CoverUiState?,
+    appUpdate: UpdateUiState?,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -216,6 +220,7 @@ private fun LibraryShell(
             ShellTags.SettingsBack,
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
+            ShellTags.AppUpdate,
             ShellTags.FetchCovers,
             ShellTags.RefreshCovers,
             ShellTags.NavFavorites,
@@ -432,7 +437,14 @@ private fun LibraryShell(
                     ShellTags.SettingsBack,
                 )
                 ShellSection.Sync -> listOf(savedFocus, ShellTags.SettingsBack, ShellTags.Sync)
-                ShellSection.Settings -> listOf(savedFocus, ShellTags.OpenImport, ShellTags.OpenSync)
+                ShellSection.Settings -> listOfNotNull(
+                    savedFocus,
+                    ShellTags.AppUpdate.takeIf {
+                        appUpdate?.state is UpdateState.Available
+                    },
+                    ShellTags.OpenImport,
+                    ShellTags.OpenSync,
+                )
             }
             val targets = preferred.distinct()
             repeat(4) {
@@ -463,6 +475,7 @@ private fun LibraryShell(
                 requesters = requesters,
                 onSection = ::openSection,
                 onNavFocused = { navFocus = it },
+                updateAvailable = appUpdate?.state is UpdateState.Available,
                 modifier = if (pickerOpen) {
                     Modifier.semantics { hideFromAccessibility() }
                 } else Modifier,
@@ -595,6 +608,7 @@ private fun LibraryShell(
                     )
                     ShellSection.Settings -> SettingsPage(
                         covers = covers,
+                        appUpdate = appUpdate,
                         margin = margin,
                         requesters = requesters,
                         onFocused = ::focusSaved,
@@ -747,6 +761,7 @@ private fun SettingsPage(
     onOpenImport: () -> Unit,
     onOpenSync: () -> Unit,
     covers: CoverUiState?,
+    appUpdate: UpdateUiState?,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -763,6 +778,7 @@ private fun SettingsPage(
         )
         SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport, requesters, onFocused, onOpenImport)
         SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync, requesters, onFocused, onOpenSync)
+        if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
         if (covers != null) CoverSettings(covers, requesters, onFocused)
         FocusableMessage(
             tag = ShellTags.SettingsInfo,
@@ -770,11 +786,6 @@ private fun SettingsPage(
             onFocused = onFocused,
             container = scheme.surface,
         ) {
-            Text(
-                stringResource(R.string.settings_body),
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurface,
-            )
             Text(
                 stringResource(R.string.gamepad_hint),
                 style = MaterialTheme.typography.bodyLarge,

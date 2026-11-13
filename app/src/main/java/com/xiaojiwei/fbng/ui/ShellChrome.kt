@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
@@ -87,6 +89,7 @@ internal object ShellTags {
     const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
+    const val AppUpdate = "shell-app-update"
     const val FetchCovers = "shell-fetch-covers"
     const val RefreshCovers = "shell-refresh-covers"
     const val NavFavorites = "shell-nav-favorites"
@@ -124,6 +127,7 @@ internal fun ShellScaffold(
     onSection: (ShellSection) -> Unit,
     onNavFocused: (String) -> Unit,
     modifier: Modifier = Modifier,
+    updateAvailable: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -136,6 +140,7 @@ internal fun ShellScaffold(
                     requesters = requesters,
                     onSection = onSection,
                     onNavFocused = onNavFocused,
+                    updateAvailable = updateAvailable,
                 )
                 Box(Modifier.weight(1f).fillMaxHeight()) { content() }
             }
@@ -149,6 +154,7 @@ internal fun ShellScaffold(
                 requesters = requesters,
                 onSection = onSection,
                 onNavFocused = onNavFocused,
+                updateAvailable = updateAvailable,
             )
         }
     }
@@ -161,6 +167,7 @@ private fun ShellRail(
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
     onNavFocused: (String) -> Unit,
+    updateAvailable: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
     val width = if (expanded) FbngDimens.railWidthExpanded else FbngDimens.railWidthMedium
@@ -181,6 +188,7 @@ private fun ShellRail(
                 requester = requesters.getValue(destination.tag),
                 onClick = { onSection(destination.section) },
                 onFocused = { onNavFocused(destination.tag) },
+                showUpdate = destination.section == ShellSection.Settings && updateAvailable,
             )
         }
     }
@@ -206,16 +214,21 @@ private fun RailItem(
     requester: FocusRequester,
     onClick: () -> Unit,
     onFocused: () -> Unit,
+    showUpdate: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
     val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
+    val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = FbngDimens.railItemHeight)
             .onFocusChanged { if (it.isFocused) onFocused() }
             .testTag(destination.tag)
-            .semantics { this.selected = selected }
+            .semantics {
+                this.selected = selected
+                if (updateDescription != null) stateDescription = updateDescription
+            }
             .focusRequester(requester)
             .fbngFocusTarget(
                 onClick = onClick,
@@ -233,7 +246,7 @@ private fun RailItem(
                 .height(FbngDimens.space4)
                 .background(if (selected) scheme.primary else Color.Transparent),
         )
-        ShellGlyph(destination.section, tint, Modifier.size(FbngDimens.icon))
+        NavigationGlyph(destination.section, tint, showUpdate)
         Text(
             stringResource(destination.label),
             color = tint,
@@ -250,6 +263,7 @@ private fun ShellBottomBar(
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
     onNavFocused: (String) -> Unit,
+    updateAvailable: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
     Row(
@@ -262,13 +276,18 @@ private fun ShellBottomBar(
         Destinations.forEach { destination ->
             val selected = destination.section == section
             val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
+            val showUpdate = destination.section == ShellSection.Settings && updateAvailable
+            val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = FbngDimens.buttonHeight)
                     .onFocusChanged { if (it.isFocused) onNavFocused(destination.tag) }
                     .testTag(destination.tag)
-                    .semantics { this.selected = selected }
+                    .semantics {
+                        this.selected = selected
+                        if (updateDescription != null) stateDescription = updateDescription
+                    }
                     .focusRequester(requesters.getValue(destination.tag))
                     .fbngFocusTarget(
                         onClick = { onSection(destination.section) },
@@ -287,7 +306,7 @@ private fun ShellBottomBar(
                         .background(if (selected) scheme.primary else Color.Transparent),
                 )
                 Spacer(Modifier.height(FbngDimens.space4))
-                ShellGlyph(destination.section, tint, Modifier.size(FbngDimens.icon))
+                NavigationGlyph(destination.section, tint, showUpdate)
                 Text(
                     stringResource(destination.label),
                     color = tint,
@@ -296,6 +315,19 @@ private fun ShellBottomBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun NavigationGlyph(section: ShellSection, tint: Color, showUpdate: Boolean) {
+    Box {
+        ShellGlyph(section, tint, Modifier.size(FbngDimens.icon))
+        if (showUpdate) {
+            Badge(
+                modifier = Modifier.align(Alignment.TopEnd),
+                containerColor = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }
