@@ -32,7 +32,8 @@ internal class LibraryIndex(file: File) {
 
     fun read(catalog: DatCatalog): Map<String, IndexedSource> = try {
         DataInputStream(file.openRead().buffered()).use { input ->
-            if (input.readInt() != FORMAT || input.readUTF() != version(catalog)) return@use emptyMap()
+            val format = input.readInt()
+            if (format !in 1..FORMAT || input.readUTF() != version(catalog)) return@use emptyMap()
             buildMap {
                 repeat(input.readCount()) {
                     val source = input.readUTF()
@@ -50,7 +51,8 @@ internal class LibraryIndex(file: File) {
                                 }
                                 val location = if (source == INSTALLED_SOURCE) ArchiveLocation.Installed(File(path))
                                 else ArchiveLocation.Folder(Uri.parse(path))
-                                LibraryArchive(set, location, members)
+                                val displayName = if (format >= 2) input.readUTF() else stamp.name
+                                LibraryArchive(set, location, members, displayName)
                             } else null
                             put(path, IndexedArchive(stamp, archive))
                         }
@@ -95,6 +97,7 @@ internal class LibraryIndex(file: File) {
                             output.writeLong(member.size)
                             output.writeLong(member.crc)
                         }
+                            output.writeUTF(archive.displayName)
                     }
                 }
                 output.flush()
@@ -115,7 +118,7 @@ internal class LibraryIndex(file: File) {
     }
 
     private companion object {
-        const val FORMAT = 1
+        const val FORMAT = 2
         const val MAX_COUNT = 1_000_000
         const val TAG = "FBNG"
     }

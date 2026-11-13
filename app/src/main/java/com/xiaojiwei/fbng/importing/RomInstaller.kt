@@ -41,7 +41,7 @@ class RomInstaller(
         if (!match.isClean) {
             return ImportReport(displayName, InstallOutcome.REJECTED_MISMATCH, match, null)
         }
-        storage.install(file, match.setName, match.isBios)
+        storage.install(file, match.setName, match.isBios, displayName)
         return ImportReport(displayName, InstallOutcome.INSTALLED, match, "${match.setName}.zip")
     }
 }

@@ -29,8 +29,16 @@
         <item quantity="other">%1$,d 款游戏</item>
     </plurals>
     <string name="library_result_count">%1$,d / %2$,d 款游戏</string>
-    <string name="library_jump_to_letter">跳到字母</string>
+    <string name="library_jump_to_letter">字母筛选</string>
+    <string name="library_query_hint">例如 SGZJ、KOF98</string>
+    <string name="library_query_backspace">退格</string>
+    <string name="library_query_clear">清空</string>
+    <string name="library_query_done">完成</string>
     <string name="library_close_picker">关闭面板</string>
+    <string name="library_previous_page">上一页</string>
+    <string name="library_next_page">下一页</string>
+    <string name="library_page_number">第 %1$d / %2$d 页</string>
+    <string name="library_page_keys">L1/R1 翻页</string>
     <string name="library_letter_other">数字及其他</string>
     <string name="library_filter_title">筛选启动状态</string>
     <string name="library_filter_all">全部状态</string>
@@ -49,6 +57,9 @@
     <string name="pause">暂停</string>
     <string name="resume">恢复</string>
     <string name="game_paused">游戏已暂停</string>
+    <string name="pause_loading">正在加载，完成后暂停</string>
+    <string name="game_stopped">游戏无法继续</string>
+    <string name="pause_back_hint">系统返回：自动存档并退出 · 手柄 B：恢复</string>
     <string name="reset">重置</string>
     <string name="reset_title">重置游戏？</string>
     <string name="reset_body">将清除这款游戏的自动存档和全部手动槽位，并从零开始，无法恢复。</string>
@@ -79,7 +90,7 @@
     <string name="problem_extra">多出来的文件 %1$s（不影响校验）</string>
     <string name="footer_core">核心 FBNeo %1$s · 构建 %2$s · LibretroDroid %3$s</string>
     <string name="gamepad_hint">有线手柄和蓝牙手柄直接交给核心，这一阶段没有映射界面。</string>
-    <string name="in_game_hint">退出时自动存档，进入时自动读档。手柄 Menu 键可暂停或恢复。</string>
+    <string name="in_game_hint">退出时自动存档，进入时自动读档。系统返回先打开暂停页，再次返回退出游戏。手柄菜单功能键可打开暂停页，B 恢复游戏。</string>
     <string name="reports_heading">这次导入</string>
     <string name="core_error_library">无法加载 FBNeo 核心。</string>
     <string name="core_error_game">无法启动游戏。请核对游戏套件和依赖文件是否匹配当前 FBNeo 核心。</string>
@@ -90,7 +101,7 @@
     <string name="shell_import">导入</string>
     <string name="shell_sync">同步</string>
     <string name="shell_settings">设置</string>
-    <string name="search_label">搜索</string>
+    <string name="search_label">中文名 / 首字母 / 文件名</string>
     <string name="search_clear">清除搜索</string>
     <string name="search_empty">没有匹配的游戏。请更换搜索词。</string>
     <string name="card_ready">可以开始</string>

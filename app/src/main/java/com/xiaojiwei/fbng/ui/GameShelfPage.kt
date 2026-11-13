@@ -3,11 +3,13 @@ package com.xiaojiwei.fbng.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -50,9 +52,6 @@ internal fun GameShelfPage(
     covers: CoverUiState? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val repeatedTitles = remember(entries) {
-        entries.groupingBy { it.title }.eachCount().filterValues { it > 1 }.keys
-    }
     Column(
         Modifier.fillMaxSize()
             .then(if (entries.isEmpty()) Modifier.verticalScroll(rememberScrollState()) else Modifier)
@@ -102,8 +101,8 @@ internal fun GameShelfPage(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             state = gridState,
             contentPadding = PaddingValues(top = FbngDimens.space4, bottom = margin),
-            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16),
-            verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         ) {
             items(entries, key = { if (recent) ShellTags.recent(it.game.name) else ShellTags.favorite(it.game.name) }) { entry ->
                 val tag = if (recent) ShellTags.recent(entry.game.name) else ShellTags.favorite(entry.game.name)
@@ -112,32 +111,36 @@ internal fun GameShelfPage(
                     cardRequesters[tag] = requester
                     onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
                 }
-                Column(
+                Row(
                     Modifier.libraryFocus(tag, requester, onFocused)
                         .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surface, large = true)
                         .heightIn(min = FbngDimens.favoriteCardHeight)
-                        .padding(FbngDimens.space16),
-                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
+                        .padding(FbngDimens.space12),
+                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (covers != null) {
-                        GameCover(entry.title, covers.images[entry.game.name], Modifier.fillMaxWidth())
+                    val image = covers?.images?.get(entry.game.name)
+                    if (image != null) {
+                        GameCover(entry.title, image, Modifier.width(FbngDimens.shelfCoverWidth))
                     }
-                    Text(
-                        entry.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = scheme.onSurface,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (entry.title in repeatedTitles) {
-                        Text(entry.game.name, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-                    }
-                    if (!entry.game.canLaunch) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
                         Text(
-                            stringResource(R.string.card_needs_dependencies),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = scheme.error,
+                            entry.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = scheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
+                        Text(entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
+                            style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (!entry.game.canLaunch) {
+                            Text(
+                                stringResource(R.string.card_needs_dependencies),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = scheme.error,
+                            )
+                        }
                     }
                 }
             }

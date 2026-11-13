@@ -20,6 +20,7 @@ internal data class LibraryArchive(
     val set: DatGame,
     val location: ArchiveLocation,
     val members: List<ZipMember>,
+    val displayName: String = "${set.name}.zip",
 ) {
     val signatures = members.mapTo(HashSet()) { it.signature }
 }
@@ -31,6 +32,7 @@ internal data class LibraryGame(
     val description: String,
     val missing: List<MissingDependency> = emptyList(),
     val archives: List<LibraryArchive> = emptyList(),
+    val fileNames: List<String> = listOf("$name.zip"),
 ) {
     val canLaunch: Boolean get() = missing.isEmpty()
 }
@@ -52,11 +54,14 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
             val stamp = ArchiveStamp(file.name, file.length(), file.lastModified())
             val previous = cached[path]
             try {
-                entries[path] = if (previous != null && stamp.matches(previous.stamp)) previous else {
+                val indexed = if (previous != null && stamp.matches(previous.stamp)) previous else {
                     val archive = inspect(ZipArchives.directory(file), file.name, ArchiveLocation.Installed(file))
                         ?.takeIf { it.set.name == expected.name }
                     IndexedArchive(stamp, archive)
                 }
+                entries[path] = indexed.copy(archive = indexed.archive?.copy(
+                    displayName = storage.sourceName(expected.name, expected.isBios),
+                ))
             } catch (_: IOException) {
                 // A missing or damaged archive is never offered to the core.
             }
@@ -67,7 +72,7 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
     fun inspect(members: List<ZipMember>, displayName: String, location: ArchiveLocation): LibraryArchive? {
         val match = RomSetMatcher.identify(members, catalog, displayName).best ?: return null
         if (!match.isClean) return null
-        return LibraryArchive(catalog.byName.getValue(match.setName), location, members)
+        return LibraryArchive(catalog.byName.getValue(match.setName), location, members, displayName)
     }
 
     fun snapshot(archives: List<LibraryArchive>): LibrarySnapshot {
@@ -76,6 +81,7 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
             val game = copies.first().set
             if (game.isBios) return@mapNotNull null
             copies.map { plan(it, bySet) }.minBy { it.missing.size }
+                .copy(fileNames = copies.map { it.displayName }.distinct())
         }.sortedWith(compareBy({ it.description.lowercase() }, { it.name }))
         return LibrarySnapshot(games)
     }
