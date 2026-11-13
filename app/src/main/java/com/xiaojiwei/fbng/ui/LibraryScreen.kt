@@ -44,7 +44,6 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
@@ -160,7 +159,6 @@ private fun LibraryShell(
     appUpdate: UpdateUiState?,
 ) {
     val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
     var sectionName by rememberSaveable { mutableStateOf(initialSection.name) }
     var savedFocus by rememberSaveable { mutableStateOf("") }
     var libraryFocus by rememberSaveable { mutableStateOf("") }
@@ -171,7 +169,6 @@ private fun LibraryShell(
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
     var playableOnly by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<LibraryPicker?>(null) }
-    var pickerReturnFocus by rememberSaveable { mutableStateOf<String?>(null) }
     var focusRequest by remember { mutableStateOf(0) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
     var libraryPageSize by rememberSaveable { mutableStateOf(1) }
@@ -179,7 +176,6 @@ private fun LibraryShell(
     val recentListState = rememberLazyListState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var searchFocused by remember { mutableStateOf(false) }
     val section = ShellSection.valueOf(sectionName)
     val shellRequesters = remember {
         listOf(
@@ -188,8 +184,6 @@ private fun LibraryShell(
             ShellTags.OpenLibrary,
             ShellTags.EmptyImport,
             ShellTags.DetailBack,
-            ShellTags.Search,
-            ShellTags.ClearSearch,
             ShellTags.JumpToLetter,
             ShellTags.LibraryFilter,
             ShellTags.PreviousPage,
@@ -261,14 +255,14 @@ private fun LibraryShell(
         val showDetails = detailsOpen && selected != null
         val currentPage = libraryPage.coerceIn(0, ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0))
         val pageEntries = results.entries.drop(currentPage * libraryPageSize).take(libraryPageSize)
-        val pickerOpen = section == ShellSection.Library && picker != null && entries.isNotEmpty()
+        val pickerOpen = section == ShellSection.Library && picker != null
 
         fun returnToList(name: String? = selected?.game?.name) {
             navFocus = null
             val index = results.entries.indexOfFirst { it.game.name == name }
             if (index >= 0) libraryPage = index / libraryPageSize
             libraryFocus = name?.let(ShellTags::game)
-                ?: if (searchQuery.isNotEmpty()) ShellTags.ClearSearch else ShellTags.LibraryFilter
+                ?: ShellTags.JumpToLetter
             focusRequest++
         }
 
@@ -285,8 +279,10 @@ private fun LibraryShell(
         }
 
         fun closePicker() {
-            libraryFocus = pickerReturnFocus ?: ShellTags.LibraryFilter
-            pickerReturnFocus = null
+            libraryFocus = when (picker) {
+                LibraryPicker.Letters -> ShellTags.JumpToLetter
+                LibraryPicker.Status, null -> ShellTags.LibraryFilter
+            }
             picker = null
             focusRequest++
         }
@@ -296,13 +292,7 @@ private fun LibraryShell(
                 if (picker == target) closePicker()
                 return
             }
-            keyboard?.hide()
             focusManager.clearFocus(force = true)
-            searchFocused = false
-            pickerReturnFocus = when (target) {
-                LibraryPicker.Letters -> selected?.game?.name?.let(ShellTags::game) ?: ShellTags.JumpToLetter
-                LibraryPicker.Status -> ShellTags.LibraryFilter
-            }
             picker = target
         }
 
@@ -312,25 +302,14 @@ private fun LibraryShell(
                     query = searchQuery,
                     resultCount = results.entries.size,
                     onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
-                    onDismiss = {
-                        closePicker()
-                        returnToList(results.entries.firstOrNull()?.game?.name)
-                    },
+                    onDismiss = ::closePicker,
                 )
             }
         } else null
 
-        LaunchedEffect(picker, entries.isEmpty()) {
-            if (picker != null && entries.isEmpty()) {
-                closePicker()
-            }
-        }
-
         fun openSection(destination: ShellSection) {
             if (destination == section) return
             if (pickerOpen) closePicker()
-            if (searchFocused) keyboard?.hide()
-            searchFocused = false
             navFocus = null
             savedFocus = when {
                 destination == ShellSection.Settings && section == ShellSection.Import -> ShellTags.OpenImport
@@ -343,12 +322,6 @@ private fun LibraryShell(
         fun back() {
             when {
                 pickerOpen -> closePicker()
-                section == ShellSection.Library && searchFocused -> {
-                    keyboard?.hide()
-                    focusManager.clearFocus(force = true)
-                    searchFocused = false
-                    returnToList()
-                }
                 section == ShellSection.Library && showDetails -> {
                     detailsOpen = false
                     returnToList(selected.game.name)
@@ -382,7 +355,7 @@ private fun LibraryShell(
             favoriteCards.takeIf { section == ShellSection.Favorites },
             recentCards.takeIf { section == ShellSection.Recent },
         ) {
-            if (libraryFocusBusy || pickerOpen || searchFocused) return@LaunchedEffect
+            if (libraryFocusBusy || pickerOpen) return@LaunchedEffect
             if (navFocus?.let(::request) == true) return@LaunchedEffect
             val preferred = when (section) {
                 ShellSection.Favorites, ShellSection.Recent -> {
@@ -407,9 +380,9 @@ private fun LibraryShell(
                         libraryFocus,
                         ShellTags.Play.takeIf { showDetails },
                         card,
-                        ShellTags.ClearSearch.takeIf { searchQuery.isNotEmpty() },
-                        ShellTags.LibraryFilter,
                         ShellTags.EmptyImport,
+                        ShellTags.JumpToLetter,
+                        ShellTags.LibraryFilter,
                         ShellTags.DetailBack,
                     )
                 }
@@ -437,7 +410,7 @@ private fun LibraryShell(
         }
         Box(Modifier.fillMaxSize().onKeyEvent { event ->
             if (event.type == KeyEventType.KeyUp && section == ShellSection.Library &&
-                !showDetails && !pickerOpen && !searchFocused
+                !showDetails && !pickerOpen
             ) {
                 when (event.key) {
                     Key.ButtonL1 -> { changePage(currentPage - 1); return@onKeyEvent true }
@@ -547,27 +520,7 @@ private fun LibraryShell(
                         onOpenImport = { openSection(ShellSection.Import) },
                         onOpenLetters = { showPicker(LibraryPicker.Letters) },
                         onOpenFilter = { showPicker(LibraryPicker.Status) },
-                        search = {
-                            LibrarySearch(
-                                query = searchQuery,
-                                onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
-                                onSearchFocus = { searchFocused = it },
-                                onExitSearch = ::back,
-                                onClear = {
-                                    focusManager.clearFocus(force = true)
-                                    searchFocused = false
-                                    navFocus = null
-                                    searchQuery = ""
-                                    libraryPage = 0
-                                    selectedName = null
-                                    libraryFocus = ""
-                                    focusRequest++
-                                },
-                                requester = requesters.getValue(ShellTags.Search),
-                                clearRequester = requesters.getValue(ShellTags.ClearSearch),
-                                onFocused = ::focusSaved,
-                            )
-                        },
+                        query = searchQuery,
                     )
                     ShellSection.Import -> ImportPage(
                         busy = busy,
@@ -676,13 +629,13 @@ private fun SettingsSubpage(
         ),
         margin = margin,
         headerAction = {
-            FbngButton(
+            ShellHeaderBack(
+                label = stringResource(R.string.settings_back),
                 onClick = onBack,
                 modifier = Modifier.libraryFocus(
                     ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused,
                 ),
-                kind = FbngButtonKind.Neutral,
-            ) { Text(stringResource(R.string.settings_back)) }
+            )
         },
     ) {
         Column(Modifier.verticalScroll(rememberScrollState()), content = { content() })

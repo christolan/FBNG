@@ -1,28 +1,22 @@
 package com.xiaojiwei.fbng.ui
 
-import android.view.InputDevice
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,20 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -53,62 +36,76 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
-import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
-import kotlin.math.max
 
 @Composable
-internal fun LibraryTools(
+internal fun LibraryFilters(
+    query: String,
     playableOnly: Boolean,
+    wide: Boolean,
+    compactWidth: Dp,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onOpenLetters: () -> Unit,
     onOpenFilter: () -> Unit,
 ) {
+    val letters = stringResource(R.string.library_jump_to_letter)
+    val status = stringResource(filterLabel(playableOnly))
+    val statusFilter = stringResource(R.string.library_filter_title)
     val scheme = MaterialTheme.colorScheme
-    val jumpLabel = stringResource(R.string.library_jump_to_letter)
-    val statusLabel = stringResource(filterLabel(playableOnly))
-    val textStyle = MaterialTheme.typography.labelLarge
-    val textMeasurer = rememberTextMeasurer()
-    val widestLabel = max(
-        textMeasurer.measure(jumpLabel, textStyle).size.width,
-        textMeasurer.measure(statusLabel, textStyle).size.width,
-    )
-    val controls: @Composable (Modifier) -> Unit = { modifier ->
-        FbngButton(
-            onOpenLetters,
-            modifier.libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused),
-            kind = FbngButtonKind.Neutral,
-        ) {
-            Text(jumpLabel, style = textStyle)
-        }
-        FbngButton(
-            onOpenFilter,
-            modifier.libraryFocus(ShellTags.LibraryFilter, requesters.getValue(ShellTags.LibraryFilter), onFocused),
-            kind = FbngButtonKind.Neutral,
-        ) {
-            Text(
-                statusLabel,
-                style = textStyle,
-                color = if (playableOnly) scheme.secondary else scheme.onSurface,
-            )
-        }
+    val lettersColor = if (query.isEmpty()) scheme.onSurface else scheme.secondary
+    val statusColor = if (playableOnly) scheme.secondary else scheme.onSurface
+    ShellHeaderButton(
+        onClick = onOpenLetters,
+        modifier = Modifier
+            .width(if (wide) FbngDimens.libraryLetterFilterWidth else compactWidth)
+            .libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused)
+            .semantics {
+                contentDescription = letters
+                if (query.isNotEmpty()) stateDescription = query
+            },
+    ) {
+        Text(
+            if (wide) query.ifEmpty { letters } else stringResource(R.string.library_letters_short),
+            color = lettersColor,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val labelWidth = with(LocalDensity.current) { widestLabel.toDp() }
-        val horizontal = maxWidth >= (labelWidth + FbngDimens.space32) * 2 + FbngDimens.space8
-        if (horizontal) {
-            Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                controls(Modifier.weight(1f))
-            }
+    ShellHeaderButton(
+        onClick = onOpenFilter,
+        modifier = Modifier
+            .width(if (wide) FbngDimens.libraryStatusFilterWidth else compactWidth)
+            .libraryFocus(ShellTags.LibraryFilter, requesters.getValue(ShellTags.LibraryFilter), onFocused)
+            .semantics {
+                contentDescription = statusFilter
+                stateDescription = status
+            },
+    ) {
+        if (wide) {
+            Text(
+                status,
+                color = statusColor,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                controls(Modifier.fillMaxWidth())
+            Canvas(Modifier.size(FbngDimens.icon)) {
+                val stroke = size.minDimension / 10
+                drawLine(statusColor, Offset(size.width * .15f, size.height * .24f),
+                    Offset(size.width * .85f, size.height * .24f), stroke, StrokeCap.Round)
+                drawLine(statusColor, Offset(size.width * .28f, size.height * .5f),
+                    Offset(size.width * .72f, size.height * .5f), stroke, StrokeCap.Round)
+                drawLine(statusColor, Offset(size.width * .42f, size.height * .76f),
+                    Offset(size.width * .58f, size.height * .76f), stroke, StrokeCap.Round)
             }
         }
     }
@@ -191,113 +188,5 @@ private fun LibraryPickerCard(title: Int, modifier: Modifier, content: @Composab
             color = MaterialTheme.colorScheme.onSurface,
         )
         content()
-    }
-}
-
-@Composable
-internal fun LibrarySearch(
-    query: String,
-    onQuery: (String) -> Unit,
-    onSearchFocus: (Boolean) -> Unit,
-    onExitSearch: () -> Unit,
-    onClear: () -> Unit,
-    requester: FocusRequester,
-    clearRequester: FocusRequester,
-    onFocused: (String) -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val keyboard = LocalSoftwareKeyboardController.current
-    val clearIcon: (@Composable () -> Unit)? = if (query.isEmpty()) null else {
-        {
-            val label = stringResource(R.string.search_clear)
-            Box(
-                Modifier.size(FbngDimens.buttonHeight)
-                    .focusProperties { left = requester }
-                    .libraryFocus(ShellTags.ClearSearch, clearRequester, onFocused)
-                    .semantics { contentDescription = label }
-                    .fbngFocusTarget(onClick = onClear, container = scheme.surface, shape = MaterialTheme.shapes.small),
-                contentAlignment = Alignment.Center,
-            ) {
-                LibrarySearchGlyph(scheme.onSurfaceVariant, clear = true)
-            }
-        }
-    }
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQuery,
-        modifier = Modifier
-            .fillMaxWidth()
-            .onFocusChanged {
-                onSearchFocus(it.isFocused)
-                if (it.isFocused) onFocused(ShellTags.Search)
-            }
-            .onPreviewKeyEvent { event ->
-                when {
-                    event.type == KeyEventType.KeyUp &&
-                        (event.key == Key.ButtonB || event.key == Key.Back || event.key == Key.Escape) -> {
-                        onExitSearch()
-                        true
-                    }
-                    event.key == Key.ButtonA -> {
-                        if (event.type == KeyEventType.KeyUp) keyboard?.show()
-                        true
-                    }
-                    query.isNotEmpty() && event.key == Key.DirectionRight && event.type == KeyEventType.KeyDown &&
-                        (!event.nativeKeyEvent.isFromSource(InputDevice.SOURCE_KEYBOARD) ||
-                            event.nativeKeyEvent.isFromSource(InputDevice.SOURCE_DPAD)) -> clearRequester.requestFocus()
-                    else -> false
-                }
-            }
-            .focusProperties { if (query.isNotEmpty()) right = clearRequester }
-            .testTag(ShellTags.Search)
-            .focusRequester(requester),
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge,
-        label = { Text(stringResource(R.string.search_label)) },
-        leadingIcon = { LibrarySearchGlyph(scheme.onSurfaceVariant, clear = false) },
-        trailingIcon = clearIcon,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onExitSearch() }),
-        shape = RoundedCornerShape(FbngDimens.cardRadius),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = scheme.onSurface,
-            unfocusedTextColor = scheme.onSurface,
-            focusedBorderColor = scheme.primary,
-            unfocusedBorderColor = scheme.outline,
-            cursorColor = scheme.primary,
-            focusedLabelColor = scheme.secondary,
-            unfocusedLabelColor = scheme.onSurfaceVariant,
-            focusedContainerColor = scheme.surface,
-            unfocusedContainerColor = scheme.surface,
-        ),
-    )
-}
-
-@Composable
-private fun LibrarySearchGlyph(color: Color, clear: Boolean) {
-    Canvas(Modifier.size(FbngDimens.icon)) {
-        val stroke = size.minDimension / 12
-        if (clear) {
-            val left = size.width * 0.25f
-            val right = size.width - left
-            val top = size.height * 0.25f
-            val bottom = size.height - top
-            drawLine(color, Offset(left, top), Offset(right, bottom), stroke, StrokeCap.Round)
-            drawLine(color, Offset(right, top), Offset(left, bottom), stroke, StrokeCap.Round)
-        } else {
-            drawCircle(
-                color,
-                radius = size.minDimension / 4,
-                center = Offset(size.width * 0.42f, size.height * 0.42f),
-                style = Stroke(stroke),
-            )
-            drawLine(
-                color,
-                Offset(size.width * 0.60f, size.height * 0.60f),
-                Offset(size.width * 0.80f, size.height * 0.80f),
-                stroke,
-                StrokeCap.Round,
-            )
-        }
     }
 }

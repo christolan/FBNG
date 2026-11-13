@@ -31,6 +31,7 @@ fun FbngButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     kind: FbngButtonKind = FbngButtonKind.Filled,
+    contentPadding: PaddingValues = PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8),
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -64,7 +65,7 @@ fun FbngButton(
                 focusedStroke = focused,
             )
             .heightIn(min = FbngDimens.buttonHeight)
-            .padding(PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8)),
+            .padding(contentPadding),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
         content = content,

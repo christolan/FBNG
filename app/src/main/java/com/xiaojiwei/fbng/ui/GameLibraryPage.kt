@@ -2,7 +2,6 @@ package com.xiaojiwei.fbng.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +32,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -74,7 +74,7 @@ internal fun GameLibraryPage(
     onOpenImport: () -> Unit,
     onOpenLetters: () -> Unit,
     onOpenFilter: () -> Unit,
-    search: @Composable () -> Unit,
+    query: String,
     covers: CoverUiState? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -85,13 +85,13 @@ internal fun GameLibraryPage(
             title = stringResource(R.string.shell_page_path, libraryTitle, selected.title),
             margin = margin,
             headerAction = {
-                FbngButton(
+                ShellHeaderBack(
+                    label = stringResource(R.string.library_back),
                     onClick = onBack,
                     modifier = Modifier.libraryFocus(
                         ShellTags.DetailBack, requesters.getValue(ShellTags.DetailBack), onFocused,
                     ),
-                    kind = FbngButtonKind.Neutral,
-                ) { Text(stringResource(R.string.library_back)) }
+                )
             },
         ) {
             GameDetails(
@@ -112,8 +112,31 @@ internal fun GameLibraryPage(
         return
     }
 
-    if (totalGames == 0) {
-        ShellPage(title = libraryTitle, margin = margin) {
+    val games = results.entries.drop(pageIndex * pageSize).take(pageSize)
+    val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / pageSize + 1
+    ShellPage(
+        title = libraryTitle,
+        margin = margin,
+        headerAction = { width ->
+            val labelWidth = with(LocalDensity.current) { MaterialTheme.typography.labelLarge.fontSize.toDp() } * 4
+            val buttonWidth = if (width < FbngDimens.libraryHeaderNarrow) {
+                FbngDimens.libraryHeaderNarrowButton
+            } else FbngDimens.buttonHeight
+            LibraryFilters(
+                query = query,
+                playableOnly = playableOnly,
+                wide = width >= FbngDimens.libraryHeaderWide &&
+                    labelWidth + FbngDimens.space8 <= FbngDimens.libraryStatusFilterWidth,
+                compactWidth = buttonWidth,
+                requesters = requesters,
+                onFocused = onFocused,
+                onOpenLetters = onOpenLetters,
+                onOpenFilter = onOpenFilter,
+            )
+            LibraryPagination(pageIndex, pages, buttonWidth, busy, requesters, onFocused, onPage)
+        },
+    ) {
+        if (totalGames == 0) {
             Column(
                 Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                     .background(scheme.surface, RoundedCornerShape(FbngDimens.panelRadius))
@@ -128,40 +151,8 @@ internal fun GameLibraryPage(
                 )
                 FbngButton(onOpenImport, control(ShellTags.EmptyImport)) { Text(stringResource(R.string.folder_configure)) }
             }
+            return@ShellPage
         }
-        return
-    }
-
-    val games = results.entries.drop(pageIndex * pageSize).take(pageSize)
-    val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / pageSize + 1
-    ShellPage(
-        title = libraryTitle,
-        margin = margin,
-        headerAction = {
-            LibraryPagination(pageIndex, pages, busy, requesters, onFocused, onPage)
-        },
-        toolbar = {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val tools: @Composable () -> Unit = {
-                    LibraryTools(playableOnly, requesters, onFocused, onOpenLetters, onOpenFilter)
-                }
-                if (maxWidth >= FbngDimens.librarySearchWidth + FbngDimens.libraryToolsWidth + FbngDimens.space8) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                    ) {
-                        Box(Modifier.weight(1f)) { search() }
-                        Box(Modifier.width(FbngDimens.libraryToolsWidth)) { tools() }
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        search()
-                        tools()
-                    }
-                }
-            }
-        },
-    ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val rowHeight = gameCardTextHeight()
             val gap = FbngDimens.space8
@@ -212,6 +203,7 @@ internal fun GameLibraryPage(
 private fun LibraryPagination(
     pageIndex: Int,
     pages: Int,
+    buttonWidth: Dp,
     busy: Boolean,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
@@ -223,26 +215,27 @@ private fun LibraryPagination(
     ) {
         val previous = stringResource(R.string.library_previous_page)
         val next = stringResource(R.string.library_next_page)
-        FbngButton(
+        ShellHeaderButton(
             onClick = { onPage(pageIndex - 1) },
             enabled = !busy && pageIndex > 0,
-            kind = FbngButtonKind.Neutral,
             modifier = Modifier
-                .widthIn(min = FbngDimens.buttonHeight)
+                .width(buttonWidth)
                 .libraryFocus(ShellTags.PreviousPage, requesters.getValue(ShellTags.PreviousPage), onFocused)
                 .semantics { contentDescription = previous },
         ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
+        val number = if (pages == 0) 0 else pageIndex + 1
+        val pageDescription = stringResource(R.string.library_page_number, number, pages)
         Text(
-            stringResource(R.string.library_page_number, if (pages == 0) 0 else pageIndex + 1, pages),
-            style = MaterialTheme.typography.bodyLarge,
+            stringResource(R.string.library_page_short, number, pages),
+            modifier = Modifier.clearAndSetSemantics { contentDescription = pageDescription },
+            style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
         )
-        FbngButton(
+        ShellHeaderButton(
             onClick = { onPage(pageIndex + 1) },
             enabled = !busy && pageIndex + 1 < pages,
-            kind = FbngButtonKind.Neutral,
             modifier = Modifier
-                .widthIn(min = FbngDimens.buttonHeight)
+                .width(buttonWidth)
                 .libraryFocus(ShellTags.NextPage, requesters.getValue(ShellTags.NextPage), onFocused)
                 .semantics { contentDescription = next },
         ) { Text("›", style = MaterialTheme.typography.titleMedium) }
