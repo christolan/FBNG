@@ -95,6 +95,7 @@ internal fun LibraryContent(
     playBusy: Boolean = busy,
     preparingGame: Boolean = busy && workMessage == R.string.preparing_game,
     favoriteNames: Set<String> = emptySet(),
+    recentNames: List<String> = emptyList(),
     onToggleFavorite: (String) -> Unit = {},
 ) {
     Surface(
@@ -141,6 +142,7 @@ internal fun LibraryContent(
                 launchError = launchError,
                 folderActions = folderActions,
                 favoriteNames = favoriteNames,
+                recentNames = recentNames,
                 onToggleFavorite = onToggleFavorite,
             )
         }
@@ -165,6 +167,7 @@ private fun LibraryShell(
     launchError: Boolean,
     folderActions: FolderActions,
     favoriteNames: Set<String>,
+    recentNames: List<String>,
     onToggleFavorite: (String) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
@@ -173,6 +176,7 @@ private fun LibraryShell(
     var savedFocus by rememberSaveable { mutableStateOf("") }
     var libraryFocus by rememberSaveable { mutableStateOf("") }
     var favoritesFocus by rememberSaveable { mutableStateOf("") }
+    var recentFocus by rememberSaveable { mutableStateOf("") }
     var navFocus by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
@@ -184,6 +188,7 @@ private fun LibraryShell(
     var focusRequest by remember { mutableStateOf(0) }
     val listState = rememberLazyListState()
     val favoritesGridState = rememberLazyGridState()
+    val recentGridState = rememberLazyGridState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
@@ -209,6 +214,7 @@ private fun LibraryShell(
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
             ShellTags.NavFavorites,
+            ShellTags.NavRecent,
             ShellTags.NavLibrary,
             ShellTags.NavSettings,
         ).associateWith { FocusRequester() }
@@ -222,6 +228,7 @@ private fun LibraryShell(
         when (section) {
             ShellSection.Library -> libraryFocus = id
             ShellSection.Favorites -> favoritesFocus = id
+            ShellSection.Recent -> recentFocus = id
             else -> savedFocus = id
         }
     }
@@ -250,6 +257,11 @@ private fun LibraryShell(
         val entries = remember(snapshot.games, gameTitles) { indexLibrary(snapshot.games, gameTitles) }
         val favoriteEntries = remember(entries, favoriteNames) { entries.filter { it.game.name in favoriteNames } }
         val favoriteCards = remember(favoriteEntries) { favoriteEntries.map { ShellTags.favorite(it.game.name) } }
+        val recentEntries = remember(entries, recentNames) {
+            val byName = entries.associateBy { it.game.name }
+            recentNames.mapNotNull(byName::get)
+        }
+        val recentCards = remember(recentEntries) { recentEntries.map { ShellTags.recent(it.game.name) } }
         val needle = if (rail) "" else searchQuery.trim()
         val matchingEntries = remember(entries, needle) {
             if (needle.isEmpty()) entries else entries.filter { it.matches(needle) }
@@ -363,6 +375,7 @@ private fun LibraryShell(
         }
         val tabTag = when (section) {
             ShellSection.Favorites -> ShellTags.NavFavorites
+            ShellSection.Recent -> ShellTags.NavRecent
             ShellSection.Library -> ShellTags.NavLibrary
             ShellSection.Settings, ShellSection.Import, ShellSection.Sync -> ShellTags.NavSettings
         }
@@ -374,20 +387,24 @@ private fun LibraryShell(
             section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail,
             widthClass, compactDetails, pickerOpen, focusRequest,
             favoriteCards.takeIf { section == ShellSection.Favorites },
+            recentCards.takeIf { section == ShellSection.Recent },
         ) {
             if (libraryFocusBusy || pickerOpen) return@LaunchedEffect
             if (navFocus?.let(::request) == true) return@LaunchedEffect
             val preferred = when (section) {
-                ShellSection.Favorites -> {
-                    val card = favoritesFocus.takeIf { it in favoriteCards } ?: favoriteCards.firstOrNull()
+                ShellSection.Favorites, ShellSection.Recent -> {
+                    val cards = if (section == ShellSection.Recent) recentCards else favoriteCards
+                    val saved = if (section == ShellSection.Recent) recentFocus else favoritesFocus
+                    val grid = if (section == ShellSection.Recent) recentGridState else favoritesGridState
+                    val card = saved.takeIf { it in cards } ?: cards.firstOrNull()
                     if (card != null &&
-                        favoritesGridState.layoutInfo.visibleItemsInfo.none { it.key == card }
+                        grid.layoutInfo.visibleItemsInfo.none { it.key == card }
                     ) {
-                        favoritesGridState.scrollToItem(favoriteCards.indexOf(card))
+                        grid.scrollToItem(cards.indexOf(card))
                     }
                     listOfNotNull(
                         card,
-                        ShellTags.OpenLibrary.takeIf { favoriteEntries.isEmpty() },
+                        ShellTags.OpenLibrary.takeIf { cards.isEmpty() },
                     )
                 }
                 ShellSection.Library -> {
@@ -449,21 +466,23 @@ private fun LibraryShell(
                 } else Modifier,
             ) {
                 when (section) {
-                    ShellSection.Favorites -> FavoritesPage(
-                        entries = favoriteEntries,
-                        hasFavorites = favoriteNames.isNotEmpty(),
+                    ShellSection.Favorites, ShellSection.Recent -> GameShelfPage(
+                        entries = if (section == ShellSection.Recent) recentEntries else favoriteEntries,
+                        hasSavedGames = if (section == ShellSection.Recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
+                        recent = section == ShellSection.Recent,
                         scanning = workMessage == R.string.folder_scanning && busy,
                         preparing = preparingGame,
                         launchError = launchError,
                         margin = margin,
-                        gridState = favoritesGridState,
+                        gridState = if (section == ShellSection.Recent) recentGridState else favoritesGridState,
                         cardRequesters = cardRequesters,
                         libraryRequester = requesters.getValue(ShellTags.OpenLibrary),
                         onFocused = ::focusSaved,
                         onOpenLibrary = { openSection(ShellSection.Library) },
                         onChoose = { entry ->
                             val name = entry.game.name
-                            favoritesFocus = ShellTags.favorite(name)
+                            if (section == ShellSection.Recent) recentFocus = ShellTags.recent(name)
+                            else favoritesFocus = ShellTags.favorite(name)
                             if (entry.game.canLaunch) {
                                 onPlay(name)
                             } else {

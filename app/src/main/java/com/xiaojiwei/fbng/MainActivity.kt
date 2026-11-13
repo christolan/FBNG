@@ -41,8 +41,8 @@ class MainActivity : ComponentActivity() {
             // The core owns the stick. Drop any latched shell step so leaving
             // the game does not immediately move focus.
             shellPad.reset()
-            if (gamepadBridge.dispatchMotion(event)) return true
         }
+        if (gamepadBridge.dispatchMotion(event)) return true
         val fromPad = event.isFromSource(InputDevice.SOURCE_JOYSTICK) ||
             event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
             event.isFromSource(InputDevice.SOURCE_DPAD)

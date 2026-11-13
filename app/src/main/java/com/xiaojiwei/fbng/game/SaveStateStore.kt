@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.game
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Properties
+import java.nio.file.Files
 
 data class SavedSlot(
     val bytes: ByteArray,
@@ -42,6 +43,12 @@ class SaveStateStore(private val directory: File) {
         }
         val metaBytes = java.io.ByteArrayOutputStream().also { props.store(it, "FBNG slot 0") }.toByteArray()
         writeAtomically(metaFile, metaBytes)
+    }
+
+    fun clear() {
+        // Remove the payload first so a reset can never load stale progress.
+        listOf(stateFile, metaFile, File(directory, "slot0.state.tmp"), File(directory, "slot0.properties.tmp"))
+            .forEach { Files.deleteIfExists(it.toPath()) }
     }
 
     private fun writeAtomically(dest: File, bytes: ByteArray) {

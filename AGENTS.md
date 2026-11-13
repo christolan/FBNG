@@ -1,6 +1,6 @@
 # AGENTS.md — FBNG UI 规则
 
-自用 Android 街机前端（LibretroDroid + 固定版本的 FBNeo）。界面是 Jetpack Compose，Material 3 深色方案。主设备是 OPPO Find N6，主输入是手柄，触屏是次要输入。这一阶段的界面只有游戏库（含导入结果）和游戏中的存档 / 读档 / 退出。仓库里没有 ROM 或 BIOS，也不要提交。
+自用 Android 街机前端（LibretroDroid + 固定版本的 FBNeo）。界面是 Jetpack Compose，Material 3 深色方案。主设备是 OPPO Find N6，主输入是手柄，触屏是次要输入。界面包含收藏、最近、游戏库（含导入结果）和设置；游戏中支持自动存读档、手动存读档、暂停 / 恢复、重置和退出。仓库里没有 ROM 或 BIOS，也不要提交。
 
 下面的字号、缩放、圆角、边距是建议起点，不是官方硬性标准。改它们之前先看现有界面，不要为了凑齐这些数字去重画一版。
 
@@ -18,9 +18,9 @@
 - 字体是无衬线（`FontFamily.SansSerif`）。正文和按钮 16sp，作为焦点标题的字不小于 20sp。
 - 圆角：小控件 8dp，卡片 12dp，Banner 和空状态面板 24dp。手柄按键提示的 A/B 是圆形键帽。
 - 导航：窗口宽度 ≥ 600dp，或竖直且分开的书本铰链，用左侧导航栏。宽度 < 600dp 且不是书本铰链，用底部导航栏。外边距 compact 16dp、medium 24dp、expanded 32dp，断点是 600dp 和 840dp（`shellWidth` / `shellUsesNavigationRail`）。列数按可用宽度算，不写死。medium 和 expanded 都是左侧栏，expanded 只把栏加宽、外边距加大，不把手机底栏拉宽。
-- 导航依次是收藏、游戏库、设置。收藏是启动首页。导入和同步从设置进入。同步页显示「即将推出」。设置也显示核心版本、许可和手柄映射说明。封面和 Banner 没有图，用游戏名文字卡片。不要画假游戏，也不要放 ROM 画面。搜索只在窄屏游戏库里，按名称过滤这一款。
-- 游戏中的黑边仍由 `layoutGameHud` 计算，不改那套公式。黑边上的存档 / 读档 / 退出是炭灰底、电光蓝细边的圆角按钮。画面背后继续用纯黑。
-- 游戏运行时方向键、摇杆和 A/B/X/Y 仍交给核心，壳层不抢。壳层（游戏库、导入、同步、设置、缺核心）里，方向键和摇杆一次一格移动焦点，A 确认，B 返回。文本框里 B 只退出编辑。游戏库根页上的 B 不退出应用。
+- 导航依次是收藏、最近、游戏库、设置。「最近」按成功启动的时间倒序去重，保存在本地。收藏是启动首页。导入和同步从设置进入。同步页显示「即将推出」。设置也显示核心版本、许可和手柄映射说明。封面和 Banner 没有图，用游戏名文字卡片。不要画假游戏，也不要放 ROM 画面。搜索只在窄屏游戏库里，按名称过滤这一款。
+- 游戏中的黑边仍由 `layoutGameHud` 计算，不改那套公式。黑边上的暂停 / 恢复、存档、读档、重置、退出是炭灰底、电光蓝细边的圆角按钮。画面背后继续用纯黑。
+- 游戏运行时方向键、摇杆和 A/B/X/Y 仍交给核心，壳层不抢。手动暂停时改由壳层接收，恢复后交还核心；Menu / Mode 是暂停快捷键，触屏按钮同样可用。壳层（游戏库、导入、同步、设置、缺核心）里，方向键和摇杆一次一格移动焦点，A 确认，B 返回。文本框里 B 只退出编辑。游戏库根页上的 B 不退出应用。
 
 ## Token
 
@@ -67,7 +67,7 @@
 
 列数用可用宽度算（例如 `GridCells.Adaptive`），不写死列数。
 
-壳层用 `shellWidth` / `shellUsesNavigationRail`（`LayoutPolicy.kt`）读取上面的 600dp 和 840dp，没有改用还在实验阶段的 adaptive API。`libraryUsesTwoPanes` 仍是「左侧栏」的判定：宽度 ≥ 600dp，或竖直且 `isSeparating` 的铰链（书本姿态）。水平的桌面铰链不会因此打开左侧栏。游戏中的 HUD 不看窗口宽度，只看 `layoutGameHud`：画面按核心宽高比在安全区内居中，黑边够 56dp 就把存档 / 读档 / 退出放进黑边，不够就叠在外侧，不缩小画面。
+壳层用 `shellWidth` / `shellUsesNavigationRail`（`LayoutPolicy.kt`）读取上面的 600dp 和 840dp，没有改用还在实验阶段的 adaptive API。`libraryUsesTwoPanes` 仍是「左侧栏」的判定：宽度 ≥ 600dp，或竖直且 `isSeparating` 的铰链（书本姿态）。水平的桌面铰链不会因此打开左侧栏。游戏中的 HUD 不看窗口宽度，只看 `layoutGameHud`：画面按核心宽高比在安全区内居中，黑边够 56dp 就把游戏操作按钮放进黑边，不够就叠在外侧，不缩小画面。
 
 桌面模式（tabletop）以真实铰链边界为准。半折且铰链水平时，上半屏是画面，下半屏是控制。用 `FoldingFeature.bounds` 换算到本地坐标（`rememberFoldSnapshot` 已经记下 `hingeStartPx` / `hingeEndPx`），禁止假设上下各一半，控件不要压在铰链上。折叠和展开时保留当前焦点、滚动位置和正在运行的游戏。`MainActivity` 已处理 `configChanges`，游戏中的 `GLRetroView` 不要为了旋转或折叠新建一份。
 

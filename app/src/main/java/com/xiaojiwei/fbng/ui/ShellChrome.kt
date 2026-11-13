@@ -51,6 +51,7 @@ import kotlin.math.sin
 
 internal enum class ShellSection {
     Favorites,
+    Recent,
     Library,
     Import,
     Sync,
@@ -68,6 +69,7 @@ internal object ShellTags {
     fun game(name: String) = "$GamePrefix$name"
     fun gameName(tag: String) = tag.takeIf { it.startsWith(GamePrefix) }?.removePrefix(GamePrefix)
     fun favorite(name: String) = "$FavoritePrefix$name"
+    fun recent(name: String) = "shell-recent-game-$name"
     const val Search = "shell-search"
     const val ClearSearch = "shell-search-clear"
     const val JumpToLetter = "shell-jump-to-letter"
@@ -84,11 +86,14 @@ internal object ShellTags {
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
     const val NavFavorites = "shell-nav-favorites"
+    const val NavRecent = "shell-nav-recent"
     const val NavLibrary = "shell-nav-library"
     const val NavSettings = "shell-nav-settings"
     const val Save = "shell-save"
     const val Load = "shell-load"
     const val Quit = "shell-quit"
+    const val Pause = "shell-pause"
+    const val Reset = "shell-reset"
     const val DatError = "shell-dat-error"
     const val CoreMissing = "shell-core-missing"
 }
@@ -101,6 +106,7 @@ private data class ShellDestination(
 
 private val Destinations = listOf(
     ShellDestination(ShellSection.Favorites, R.string.favorites_title, ShellTags.NavFavorites),
+    ShellDestination(ShellSection.Recent, R.string.recent_title, ShellTags.NavRecent),
     ShellDestination(ShellSection.Library, R.string.shell_library, ShellTags.NavLibrary),
     ShellDestination(ShellSection.Settings, R.string.shell_settings, ShellTags.NavSettings),
 )
@@ -351,6 +357,11 @@ internal fun ShellGlyph(section: ShellSection, color: Color, modifier: Modifier 
                 }
                 star.close()
                 drawPath(star, color, style = stroke)
+            }
+            ShellSection.Recent -> {
+                drawCircle(color, radius = size.minDimension * 0.4f, style = stroke)
+                drawLine(color, center, Offset(center.x, size.height * 0.25f), stroke.width, StrokeCap.Round)
+                drawLine(color, center, Offset(size.width * 0.7f, center.y), stroke.width, StrokeCap.Round)
             }
             ShellSection.Library -> {
                 val gap = size.minDimension * 0.16f
