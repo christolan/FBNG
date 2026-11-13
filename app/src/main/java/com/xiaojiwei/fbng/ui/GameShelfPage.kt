@@ -47,6 +47,7 @@ internal fun GameShelfPage(
     onOpenLibrary: () -> Unit,
     onChoose: (LibraryEntry) -> Unit,
     recent: Boolean = false,
+    covers: CoverUiState? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     val repeatedTitles = remember(entries) {
@@ -118,6 +119,9 @@ internal fun GameShelfPage(
                         .padding(FbngDimens.space16),
                     verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
                 ) {
+                    if (covers != null) {
+                        GameCover(entry.title, covers.images[entry.game.name], Modifier.fillMaxWidth())
+                    }
                     Text(
                         entry.title,
                         style = MaterialTheme.typography.titleMedium,

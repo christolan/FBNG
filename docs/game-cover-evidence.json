@@ -1,0 +1,109 @@
+{
+  "checked_at": "2026-11-13",
+  "dat_sha256": "9484cce16c1f37f5de5fd6d92a300a57d037c68b77744686dc0c3cff01c169d2",
+  "source": "https://github.com/libretro-thumbnails/FBNeo_-_Arcade_Games",
+  "source_tree_sha": "701bce96b276cabee65970b57d8aa00926f692bc",
+  "source_tree_truncated": false,
+  "non_bios_game_sets": 8500,
+  "image_types": {
+    "Named_Boxarts": {
+      "repository_image_count": 6482,
+      "repository_bytes": 3254781204,
+      "dat_exact_matches": 5081,
+      "dat_matches_with_cloneof_fallback": 6253
+    },
+    "Named_Titles": {
+      "repository_image_count": 12281,
+      "repository_bytes": 688268897,
+      "dat_exact_matches": 8436,
+      "dat_matches_with_cloneof_fallback": 8484
+    },
+    "Named_Snaps": {
+      "repository_image_count": 12268,
+      "repository_bytes": 968461503,
+      "dat_exact_matches": 8434,
+      "dat_matches_with_cloneof_fallback": 8484
+    }
+  },
+  "unmatched_all_types_with_cloneof_fallback": [
+    "wbbc97",
+    "buggyboyjr",
+    "buggyboyb",
+    "buggyboy",
+    "enmadaio",
+    "ffex2r",
+    "ffex2j",
+    "ffex2u",
+    "kickball",
+    "bs_rf2",
+    "smbneo",
+    "tx1jb",
+    "tx1jc",
+    "tx1",
+    "bnstars1",
+    "vssmbneo"
+  ],
+  "download_probes": [
+    {
+      "set": "kovsh",
+      "kind": "Named_Titles",
+      "host": "raw",
+      "url": "https://raw.githubusercontent.com/libretro-thumbnails/FBNeo_-_Arcade_Games/master/Named_Titles/Knights%20of%20Valour%20Super%20Heroes%20_%20San%20Guo%20Zhan%20Ji%20-%20Feng%20Yun%20Zai%20Qi%20_%20Sangoku%20Senki%20Super%20Heroes%20%28ver.%20104%2C%20CN%29.png",
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 285760,
+      "png_dimensions": [
+        512,
+        384
+      ],
+      "elapsed_seconds": 0.58
+    },
+    {
+      "set": "kof98",
+      "kind": "Named_Boxarts",
+      "host": "raw",
+      "url": "https://raw.githubusercontent.com/libretro-thumbnails/FBNeo_-_Arcade_Games/master/Named_Boxarts/The%20King%20of%20Fighters%20%2798%20-%20The%20Slugfest%20_%20King%20of%20Fighters%20%2798%20-%20Dream%20Match%20Never%20Ends%20%28NGM-2420%29.png",
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 445366,
+      "png_dimensions": [
+        512,
+        640
+      ],
+      "elapsed_seconds": 0.67
+    },
+    {
+      "set": "kovsh",
+      "kind": "Named_Titles",
+      "host": "server",
+      "url": "https://thumbnails.libretro.com/FBNeo%20-%20Arcade%20Games/Named_Titles/Knights%20of%20Valour%20Super%20Heroes%20_%20San%20Guo%20Zhan%20Ji%20-%20Feng%20Yun%20Zai%20Qi%20_%20Sangoku%20Senki%20Super%20Heroes%20%28ver.%20104%2C%20CN%29.png",
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 285760,
+      "png_dimensions": [
+        512,
+        384
+      ],
+      "elapsed_seconds": 1.23
+    },
+    {
+      "set": "ddonpach",
+      "kind": "Named_Snaps",
+      "host": "raw",
+      "url": "https://raw.githubusercontent.com/libretro-thumbnails/FBNeo_-_Arcade_Games/master/Named_Snaps/DoDonPachi%20%28World%2C%201997%202_%205%20Master%20Ver.%29.png",
+      "status": 200,
+      "content_type": "image/png",
+      "bytes": 28756,
+      "png_dimensions": [
+        240,
+        320
+      ],
+      "elapsed_seconds": 0.36
+    }
+  ],
+  "method": {
+    "normalization": "replace each of &*/:`<>?\\|\" with _ in DAT description; append .png",
+    "fallback": "walk cloneof only with cycle detection and BIOS exclusion",
+    "coverage_scope": "8500 non-BIOS DAT game sets, including clones; filename-index matches, not image-content review"
+  }
+}

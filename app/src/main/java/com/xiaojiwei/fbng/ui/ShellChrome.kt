@@ -85,6 +85,8 @@ internal object ShellTags {
     const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
+    const val FetchCovers = "shell-fetch-covers"
+    const val RefreshCovers = "shell-refresh-covers"
     const val NavFavorites = "shell-nav-favorites"
     const val NavRecent = "shell-nav-recent"
     const val NavLibrary = "shell-nav-library"

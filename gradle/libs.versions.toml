@@ -7,6 +7,8 @@ lifecycle = "2.11.0"
 window = "1.5.1"
 coroutines = "1.11.0"
 coreKtx = "1.17.0"
+work = "2.11.0"
+coil = "3.6.3"
 commonsCompress = "1.28.0"
 libretrodroid = "0.13.2"
 junit = "4.13.2"
@@ -26,6 +28,8 @@ lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", v
 window = { module = "androidx.window:window", version.ref = "window" }
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
 libretrodroid = { module = "com.github.swordfish90:libretrodroid", version.ref = "libretrodroid" }
 junit = { module = "junit:junit", version.ref = "junit" }

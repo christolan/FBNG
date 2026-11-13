@@ -18,7 +18,12 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.artwork.CoverRepository
+import com.xiaojiwei.fbng.artwork.CoverWorker
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.dat.DatParse
 import com.xiaojiwei.fbng.dat.FbneoDat
@@ -33,8 +38,9 @@ import com.xiaojiwei.fbng.library.LibraryRefresh
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.library.RecentGames
 import com.xiaojiwei.fbng.library.readGameTitles
-import java.io.IOException
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
+import java.io.IOException
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -66,6 +72,26 @@ fun FbngApp(bridge: GamepadBridge) {
     val recentGames = remember { RecentGames(context) }
     var recentNames by remember { mutableStateOf(recentGames.read()) }
     val favorites = remember(context) { context.getSharedPreferences("library-favorites", Context.MODE_PRIVATE) }
+    val coverPreferences = remember(context) { context.getSharedPreferences("cover-requests", Context.MODE_PRIVATE) }
+    val coverRepository = remember(context) { CoverRepository.get(context) }
+    val coverImages by coverRepository.images.collectAsStateWithLifecycle()
+    var manualCoverId by remember { mutableStateOf(coverPreferences.getString("manual-id", null)) }
+    val manualCoverWork by produceState<WorkInfo?>(null, manualCoverId) {
+        val id = manualCoverId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+        if (id != null) WorkManager.getInstance(context).getWorkInfoByIdFlow(id).collect { value = it }
+    }
+    LaunchedEffect(coverRepository) {
+        coverRepository.reloadImages()
+        if (coverRepository.eligibleNames().isNotEmpty()) CoverWorker.enqueue(context)
+    }
+    fun requestCovers(refresh: Boolean) {
+        if (manualCoverWork?.state?.isFinished == false &&
+            (if (refresh) CoverWorker.REFRESH else "missing") in manualCoverWork?.tags.orEmpty()
+        ) return
+        val id = CoverWorker.enqueue(context, manual = true, refresh = refresh).toString()
+        coverPreferences.edit().putString("manual-id", id).apply()
+        manualCoverId = id
+    }
     var favoriteNames by remember(favorites) {
         mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
     }
@@ -187,10 +213,12 @@ fun FbngApp(bridge: GamepadBridge) {
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favoriteNames,
                     recentNames = recentNames,
+                    covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
                     onToggleFavorite = { name ->
                         val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
                         favorites.edit().putStringSet("sets", updated).apply()
                         favoriteNames = updated
+                        if (name in updated) CoverWorker.enqueue(context)
                     },
                 )
             }
@@ -198,7 +226,10 @@ fun FbngApp(bridge: GamepadBridge) {
             GameScreen(
                 game = game,
                 bridge = bridge,
-                onStarted = { recentNames = recentGames.record(game.rom.nameWithoutExtension) },
+                onStarted = {
+                    recentNames = recentGames.record(game.rom.nameWithoutExtension)
+                    CoverWorker.enqueue(context)
+                },
                 onQuit = { playing = null },
             )
         }

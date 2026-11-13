@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.window)
     implementation(libs.coroutines.android)
     implementation(libs.core.ktx)
+    implementation(libs.work.runtime)
+    implementation(libs.coil.compose)
     implementation(libs.commons.compress)
     implementation(libs.libretrodroid)
     debugImplementation(libs.compose.ui.tooling)
