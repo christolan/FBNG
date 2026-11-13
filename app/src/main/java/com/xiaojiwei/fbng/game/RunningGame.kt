@@ -27,6 +27,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     private var failed = false
     private var canAutoSave = false
     private var quitSaved = false
+    private var dialogOpen = false
 
     init {
         life.lifecycle.addObserver(view)
@@ -39,8 +40,13 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     }
 
     fun togglePause() {
-        if (!ready || busy) return
+        if (!ready || busy || dialogOpen) return
         paused = !paused
+        updatePlayback()
+    }
+
+    fun setDialogOpen(open: Boolean) {
+        dialogOpen = open
         updatePlayback()
     }
 
@@ -54,18 +60,24 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         }
     }
 
-    suspend fun save() = withPausedCore {
+    suspend fun save(id: Int = SaveStateStore.AUTO_SLOT) = withPausedCore {
         val bytes = snapshot()
+        val coverSource = GameCover.source(view)
         // Once captured, finish the disk write even if the screen is disposed.
-        withContext(NonCancellable + Dispatchers.IO) { store.write(bytes, BuildConfig.FBNEO_COMMIT) }
+        withContext(NonCancellable + Dispatchers.IO) {
+            val cover = GameCover.capture(coverSource)
+            check(id == SaveStateStore.AUTO_SLOT || cover != null) { "无法截取游戏画面，请返回游戏后重试存档。" }
+            store.write(bytes, BuildConfig.FBNEO_COMMIT, id = id, cover = cover)
+        }
         hasSlot = store.hasSlot()
         canAutoSave = true
     }
 
-    suspend fun load(): SavedSlot? = withPausedCore {
+    suspend fun load(id: Int = SaveStateStore.AUTO_SLOT): SavedSlot? = withPausedCore {
         // A failed read must not let a later automatic save overwrite the old slot.
         canAutoSave = false
-        val slot = withContext(Dispatchers.IO) { store.read() }
+        val slot = withContext(Dispatchers.IO) { store.read(id) }
+        check(id == SaveStateStore.AUTO_SLOT || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
         check(!closed && !failed) { "游戏已关闭或核心出错" }
         if (slot != null) {
             check(view.unserializeState(slot.bytes, useEmulationThread = false)) { "无法读取存档，请检查核心版本或重置游戏。" }
@@ -77,7 +89,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
 
     suspend fun reset() = withPausedCore {
         canAutoSave = false
-        store.clear()
+        withContext(Dispatchers.IO) { store.clear() }
         hasSlot = store.hasSlot()
         view.reset(useEmulationThread = false)
         canAutoSave = true
@@ -116,7 +128,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         if (!ready || busy || !canAutoSave || quitSaved || closed) return
         // Android can kill the process immediately after onStop. Pause the GL thread,
         // then capture directly and fsync before returning from the lifecycle callback.
-        store.write(snapshot(), BuildConfig.FBNEO_COMMIT)
+        store.write(snapshot(), BuildConfig.FBNEO_COMMIT, cover = GameCover.capture(GameCover.source(view)))
         hasSlot = store.hasSlot()
     }
 
@@ -138,6 +150,6 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
 
     private fun updatePlayback() {
         if (closed) return
-        if (foreground && !paused && !busy && !failed) life.resume() else life.pause()
+        if (foreground && !paused && !dialogOpen && !busy && !failed) life.resume() else life.pause()
     }
 }

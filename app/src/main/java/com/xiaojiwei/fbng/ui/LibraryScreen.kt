@@ -959,8 +959,8 @@ internal fun rememberFoldSnapshot(): FoldSnapshot? {
     val activity = LocalContext.current.findActivity()
     val layoutInfo by WindowInfoTracker.getOrCreate(activity)
         .windowLayoutInfo(activity)
-        .collectAsStateWithLifecycle(initialValue = WindowLayoutInfo(emptyList()))
-    val feature = layoutInfo.displayFeatures.filterIsInstance<FoldingFeature>().firstOrNull() ?: return null
+        .collectAsStateWithLifecycle<WindowLayoutInfo?>(initialValue = null)
+    val feature = layoutInfo?.displayFeatures?.filterIsInstance<FoldingFeature>()?.firstOrNull() ?: return null
     val vertical = feature.orientation == FoldingFeature.Orientation.VERTICAL
     return FoldSnapshot(
         orientationVertical = vertical,

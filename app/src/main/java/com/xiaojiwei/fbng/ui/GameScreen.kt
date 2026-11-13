@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -97,6 +98,7 @@ internal fun GameScreen(
     onStarted: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val resources by rememberUpdatedState(LocalResources.current)
     val activity = context.findActivity()
     val corePath = remember {
         val info = activity.applicationInfo
@@ -144,6 +146,7 @@ internal fun GameScreen(
     var message by remember(session) { mutableStateOf("") }
     var reportedAspect by remember(session) { mutableStateOf(Float.NaN) }
     var showReset by remember(session) { mutableStateOf(false) }
+    var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
     var pauseBeforeReset by remember(session) { mutableStateOf(false) }
     var coreFailed by remember(session) { mutableStateOf(false) }
     var foreground by remember(session) {
@@ -154,20 +157,20 @@ internal fun GameScreen(
     fun reportFailure(error: Exception, resource: Int) {
         if (error is CancellationException) throw error
         Log.e(TAG, "game operation failed", error)
-        message = context.getString(resource, error.message ?: error.javaClass.simpleName)
+        message = resources.getString(resource, error.message ?: error.javaClass.simpleName)
     }
 
     fun loadMessage(slot: SavedSlot?): String {
         val warning = if (slot != null && slot.coreCommit.isNotEmpty() && slot.coreCommit != BuildConfig.FBNEO_COMMIT) {
-            "\n" + context.getString(R.string.load_version_warn, slot.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
+            "\n" + resources.getString(R.string.load_version_warn, slot.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
         } else ""
-        return (if (slot == null) context.getString(R.string.load_missing) else context.getString(R.string.load_ok)) + warning
+        return (if (slot == null) resources.getString(R.string.load_missing) else resources.getString(R.string.load_ok)) + warning
     }
 
     fun quit() {
-        if (session.busy || showReset) return
+        if (session.busy || showReset || slotMode != null) return
         scope.launch {
-            message = context.getString(R.string.save_working)
+            message = resources.getString(R.string.save_working)
             try {
                 session.saveBeforeQuit()
                 onQuit()
@@ -182,8 +185,23 @@ internal fun GameScreen(
         if (!pauseBeforeReset) session.togglePause()
     }
 
+    fun dismissSlots() {
+        if (session.busy) return
+        slotMode = null
+        session.setDialogOpen(false)
+    }
+
+    fun openSlots(mode: SaveSlotMode) {
+        if (!session.ready || session.busy || coreFailed || showReset || slotMode != null) return
+        bridge.target = null
+        session.setDialogOpen(true)
+        message = ""
+        slotMode = mode
+    }
+
     BackHandler {
         when {
+            slotMode != null -> dismissSlots()
             showReset -> dismissReset()
             session.paused -> session.togglePause()
             else -> quit()
@@ -225,10 +243,10 @@ internal fun GameScreen(
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    DisposableEffect(session, session.paused, session.busy, showReset, coreFailed, foreground) {
-        bridge.target = if (!foreground || session.paused || session.busy || showReset || coreFailed) null else session.view
+    DisposableEffect(session, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
+        bridge.target = if (!foreground || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
         bridge.onPauseToggle = {
-            if (!showReset && !coreFailed) session.togglePause()
+            if (!showReset && slotMode == null && !coreFailed) session.togglePause()
         }
         onDispose { bridge.target = null }
     }
@@ -241,7 +259,7 @@ internal fun GameScreen(
                 event is GLRetroView.GLRetroEvents.FrameRendered
             ) {
                 if (!session.initializationStarted && !coreFailed) {
-                    message = context.getString(R.string.load_working)
+                    message = resources.getString(R.string.load_working)
                     try {
                         val slot = session.initialize()
                         message = if (slot == null) "" else loadMessage(slot)
@@ -269,16 +287,16 @@ internal fun GameScreen(
             coreFailed = true
             session.fail()
             message = when (code) {
-                GLRetroView.ERROR_LOAD_LIBRARY -> context.getString(R.string.core_error_library)
-                GLRetroView.ERROR_LOAD_GAME -> context.getString(R.string.core_error_game)
-                else -> context.getString(R.string.core_error_generic, code)
+                GLRetroView.ERROR_LOAD_LIBRARY -> resources.getString(R.string.core_error_library)
+                GLRetroView.ERROR_LOAD_GAME -> resources.getString(R.string.core_error_game)
+                else -> resources.getString(R.string.core_error_generic, code)
             }
             Log.e(TAG, "core error $code")
         }
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black).onKeyEvent { event ->
-        if (session.paused && !showReset && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
+        if (session.paused && !showReset && slotMode == null && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
             session.togglePause()
             true
         } else false
@@ -307,29 +325,10 @@ internal fun GameScreen(
                 busy = session.busy,
                 hasSlot = session.hasSlot,
                 paused = session.paused,
-                dialogOpen = showReset,
+                dialogOpen = showReset || slotMode != null,
                 message = if (session.paused && message.isEmpty()) stringResource(R.string.game_paused) else message,
-                onSave = {
-                    scope.launch {
-                        message = context.getString(R.string.save_working)
-                        try {
-                            session.save()
-                            message = context.getString(R.string.save_ok)
-                        } catch (error: Exception) {
-                            reportFailure(error, R.string.save_fail)
-                        }
-                    }
-                },
-                onLoad = {
-                    scope.launch {
-                        message = context.getString(R.string.load_working)
-                        try {
-                            message = loadMessage(session.load())
-                        } catch (error: Exception) {
-                            reportFailure(error, R.string.auto_load_fail)
-                        }
-                    }
-                },
+                onSave = { openSlots(SaveSlotMode.Save) },
+                onLoad = { openSlots(SaveSlotMode.Load) },
                 onPause = { session.togglePause() },
                 onReset = {
                     pauseBeforeReset = session.paused
@@ -339,6 +338,33 @@ internal fun GameScreen(
                 onQuit = ::quit,
             )
         }
+    }
+    slotMode?.let { mode ->
+        SaveSlotsDialog(
+            store = store,
+            mode = mode,
+            busy = session.busy,
+            message = message,
+            onDismiss = ::dismissSlots,
+            onChoose = { id ->
+                if (!session.busy && !coreFailed && (mode != SaveSlotMode.Save || id > SaveStateStore.AUTO_SLOT)) {
+                    scope.launch {
+                        message = resources.getString(if (mode == SaveSlotMode.Save) R.string.save_working else R.string.load_working)
+                        try {
+                            if (mode == SaveSlotMode.Save) {
+                                session.save(id)
+                                message = resources.getString(R.string.save_ok)
+                            } else {
+                                message = loadMessage(session.load(id))
+                            }
+                            dismissSlots()
+                        } catch (error: Exception) {
+                            reportFailure(error, if (mode == SaveSlotMode.Save) R.string.save_fail else R.string.auto_load_fail)
+                        }
+                    }
+                }
+            },
+        )
     }
     if (showReset) {
         val cancelFocus = remember { FocusRequester() }
@@ -359,7 +385,7 @@ internal fun GameScreen(
                     scope.launch {
                         try {
                             session.reset()
-                            message = context.getString(R.string.reset_ok)
+                            message = resources.getString(R.string.reset_ok)
                         } catch (error: Exception) {
                             reportFailure(error, R.string.reset_fail)
                         } finally {

@@ -22,11 +22,15 @@
         android:resizeableActivity="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.FBNG">
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode|keyboard|keyboardHidden|navigation|colorMode|fontScale|layoutDirection|touchscreen"
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="landscape"
             android:windowSoftInputMode="stateAlwaysHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

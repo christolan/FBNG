@@ -34,6 +34,8 @@ internal object FbngDimens {
     val hudActionWidth = space48 + space24
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
+    val saveCardWidth = space48 * 4
+    val saveDialogWidth = space48 * 24
 
     /** 5 × 32dp. Wide enough for a 16sp Chinese nav label plus the icon. */
     val railWidthMedium = 160.dp
