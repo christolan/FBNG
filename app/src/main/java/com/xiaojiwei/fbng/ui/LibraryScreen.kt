@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -185,11 +184,10 @@ private fun LibraryShell(
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
     var playableOnly by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<LibraryPicker?>(null) }
-    var focusedLetter by rememberSaveable { mutableStateOf('#') }
     var pickerReturnFocus by rememberSaveable { mutableStateOf<String?>(null) }
-    var jumpToName by rememberSaveable { mutableStateOf<String?>(null) }
     var focusRequest by remember { mutableStateOf(0) }
-    val listState = rememberLazyListState()
+    var libraryPage by rememberSaveable { mutableStateOf(0) }
+    var libraryPageSize by rememberSaveable { mutableStateOf(1) }
     val favoritesGridState = rememberLazyGridState()
     val recentGridState = rememberLazyGridState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
@@ -207,6 +205,8 @@ private fun LibraryShell(
             ShellTags.ClearSearch,
             ShellTags.JumpToLetter,
             ShellTags.LibraryFilter,
+            ShellTags.PreviousPage,
+            ShellTags.NextPage,
             ShellTags.Import,
             ShellTags.AddFolder,
             ShellTags.ScanFolders,
@@ -252,11 +252,7 @@ private fun LibraryShell(
         val widthDp = maxWidth.value.toInt()
         val widthClass = shellWidth(widthDp)
         val rail = shellUsesNavigationRail(widthDp, readFold())
-        val margin = when (widthClass) {
-            ShellWidth.Compact -> FbngDimens.compactMargin
-            ShellWidth.Medium -> FbngDimens.mediumMargin
-            ShellWidth.Expanded -> FbngDimens.expandedMargin
-        }
+        val margin = FbngDimens.compactMargin
         val kovshTitle = stringResource(R.string.game_title)
         val gameTitles = remember(localizedTitles, kovshTitle) { localizedTitles + ("kovsh" to kovshTitle) }
         val entries = remember(snapshot.games, gameTitles) { indexLibrary(snapshot.games, gameTitles) }
@@ -267,7 +263,7 @@ private fun LibraryShell(
             recentNames.mapNotNull(byName::get)
         }
         val recentCards = remember(recentEntries) { recentEntries.map { ShellTags.recent(it.game.name) } }
-        val needle = if (rail) "" else searchQuery.trim()
+        val needle = searchQuery.trim()
         val matchingEntries = remember(entries, needle) {
             if (needle.isEmpty()) entries else entries.filter { it.matches(needle) }
         }
@@ -275,15 +271,29 @@ private fun LibraryShell(
             LibraryResults(if (playableOnly) matchingEntries.filter { it.game.canLaunch } else matchingEntries)
         }
         val selected = results.byName[selectedName] ?: results.entries.firstOrNull()
-        val compactDetails = !rail && detailsOpen && selected != null
-        val libraryActionFocused = libraryFocus == ShellTags.Play || libraryFocus == ShellTags.ToggleFavorite
-        val wideDetailsFocused = rail && section == ShellSection.Library && navFocus == null && libraryActionFocused
+        val showDetails = detailsOpen && selected != null
+        val currentPage = libraryPage.coerceIn(0, ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0))
+        val pageEntries = results.entries.drop(currentPage * libraryPageSize).take(libraryPageSize)
         val pickerOpen = section == ShellSection.Library && picker != null && entries.isNotEmpty()
-        val inlineLetters = pickerOpen && rail && picker == LibraryPicker.Letters
 
         fun returnToList(name: String? = selected?.game?.name) {
+            navFocus = null
+            val index = results.entries.indexOfFirst { it.game.name == name }
+            if (index >= 0) libraryPage = index / libraryPageSize
             libraryFocus = name?.let(ShellTags::game)
-                ?: if (!rail && searchQuery.isNotEmpty()) ShellTags.ClearSearch else ShellTags.LibraryFilter
+                ?: if (searchQuery.isNotEmpty()) ShellTags.ClearSearch else ShellTags.LibraryFilter
+            focusRequest++
+        }
+
+        fun changePage(page: Int) {
+            val lastPage = ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0)
+            val next = page.coerceIn(0, lastPage)
+            if (next == currentPage) return
+            libraryPage = next
+            val first = results.entries.getOrNull(next * libraryPageSize) ?: return
+            selectedName = first.game.name
+            libraryFocus = ShellTags.game(first.game.name)
+            navFocus = null
             focusRequest++
         }
 
@@ -300,39 +310,31 @@ private fun LibraryShell(
                 return
             }
             keyboard?.hide()
+            focusManager.clearFocus(force = true)
+            searchFocused = false
             pickerReturnFocus = when (target) {
                 LibraryPicker.Letters -> selected?.game?.name?.let(ShellTags::game) ?: ShellTags.JumpToLetter
                 LibraryPicker.Status -> ShellTags.LibraryFilter
             }
-            if (target == LibraryPicker.Letters) focusedLetter = selected?.letter ?: '#'
             picker = target
-        }
-
-        fun chooseLetter(letter: Char) {
-            val name = results.groups[letter]?.firstOrNull()?.game?.name
-            closePicker()
-            if (name != null) {
-                selectedName = name
-                jumpToName = name
-                returnToList(name)
-            }
         }
 
         val letterPicker: (@Composable () -> Unit)? = if (pickerOpen && picker == LibraryPicker.Letters) {
             {
-                LibraryLetterPicker(
-                    lettersWithResults = results.groups.keys,
-                    focusedLetter = focusedLetter,
-                    onLetterFocused = { focusedLetter = it },
-                    onDismiss = ::closePicker,
-                    onChoose = ::chooseLetter,
-                    inline = inlineLetters,
+                LibraryQueryDialog(
+                    query = searchQuery,
+                    resultCount = results.entries.size,
+                    onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
+                    onDismiss = {
+                        closePicker()
+                        returnToList(results.entries.firstOrNull()?.game?.name)
+                    },
                 )
             }
         } else null
 
-        LaunchedEffect(picker, entries.isEmpty(), results.groups.isEmpty()) {
-            if (picker != null && (entries.isEmpty() || (picker == LibraryPicker.Letters && results.groups.isEmpty()))) {
+        LaunchedEffect(picker, entries.isEmpty()) {
+            if (picker != null && entries.isEmpty()) {
                 closePicker()
             }
         }
@@ -360,11 +362,10 @@ private fun LibraryShell(
                     searchFocused = false
                     returnToList()
                 }
-                section == ShellSection.Library && compactDetails -> {
+                section == ShellSection.Library && showDetails -> {
                     detailsOpen = false
                     returnToList(selected.game.name)
                 }
-                wideDetailsFocused -> returnToList()
                 section == ShellSection.Import || section == ShellSection.Sync -> openSection(ShellSection.Settings)
                 section != ShellSection.Favorites -> openSection(ShellSection.Favorites)
             }
@@ -387,14 +388,14 @@ private fun LibraryShell(
         val libraryFocusBusy = section == ShellSection.Library && playBusy
         val importBusy = section == ShellSection.Import && busy
         val focusedGameName = ShellTags.gameName(libraryFocus)
-        val savedRowExists = focusedGameName in results.rowByName
+        val savedRowExists = pageEntries.any { it.game.name == focusedGameName }
         LaunchedEffect(
             section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail,
-            widthClass, compactDetails, pickerOpen, focusRequest,
+            widthClass, showDetails, pickerOpen, focusRequest, currentPage, libraryPageSize,
             favoriteCards.takeIf { section == ShellSection.Favorites },
             recentCards.takeIf { section == ShellSection.Recent },
         ) {
-            if (libraryFocusBusy || pickerOpen) return@LaunchedEffect
+            if (libraryFocusBusy || pickerOpen || searchFocused) return@LaunchedEffect
             if (navFocus?.let(::request) == true) return@LaunchedEffect
             val preferred = when (section) {
                 ShellSection.Favorites, ShellSection.Recent -> {
@@ -413,25 +414,13 @@ private fun LibraryShell(
                     )
                 }
                 ShellSection.Library -> {
-                    val name = focusedGameName.takeIf { savedRowExists } ?: selected?.game?.name
+                    val name = focusedGameName.takeIf { savedRowExists } ?: pageEntries.firstOrNull()?.game?.name
                     val card = name?.let(ShellTags::game)
-                    if (!compactDetails && name != null) {
-                        val index = results.rowByName.getValue(name)
-                        val rowVisible = listState.layoutInfo.visibleItemsInfo.any { it.key == card }
-                        val restoreRow = focusedGameName != null || (libraryActionFocused && !rail)
-                        if (jumpToName == name) {
-                            // Each group starts with its heading immediately before its first game.
-                            listState.scrollToItem(index - 1)
-                        } else if (!rowVisible && restoreRow) {
-                            listState.scrollToItem(index)
-                        }
-                    }
-                    jumpToName = null
                     listOfNotNull(
                         libraryFocus,
-                        ShellTags.Play.takeIf { compactDetails },
+                        ShellTags.Play.takeIf { showDetails },
                         card,
-                        ShellTags.ClearSearch.takeIf { !rail && searchQuery.isNotEmpty() },
+                        ShellTags.ClearSearch.takeIf { searchQuery.isNotEmpty() },
                         ShellTags.LibraryFilter,
                         ShellTags.EmptyImport,
                         ShellTags.DetailBack,
@@ -453,6 +442,14 @@ private fun LibraryShell(
             request(tabTag)
         }
         Box(Modifier.fillMaxSize().onKeyEvent { event ->
+            if (event.type == KeyEventType.KeyUp && section == ShellSection.Library &&
+                !showDetails && !pickerOpen && !searchFocused
+            ) {
+                when (event.key) {
+                    Key.ButtonL1 -> { changePage(currentPage - 1); return@onKeyEvent true }
+                    Key.ButtonR1 -> { changePage(currentPage + 1); return@onKeyEvent true }
+                }
+            }
             if (event.type != KeyEventType.KeyUp ||
                 (event.key != Key.ButtonB && !(pickerOpen && event.key == Key.Escape))
             ) return@onKeyEvent false
@@ -466,7 +463,7 @@ private fun LibraryShell(
                 requesters = requesters,
                 onSection = ::openSection,
                 onNavFocused = { navFocus = it },
-                modifier = if (pickerOpen && !inlineLetters) {
+                modifier = if (pickerOpen) {
                     Modifier.semantics { hideFromAccessibility() }
                 } else Modifier,
             ) {
@@ -497,7 +494,7 @@ private fun LibraryShell(
                                     playableOnly = false
                                 }
                                 selectedName = name
-                                detailsOpen = !rail
+                                detailsOpen = true
                                 libraryFocus = ShellTags.Play
                                 openSection(ShellSection.Library)
                             }
@@ -514,10 +511,22 @@ private fun LibraryShell(
                         } else {
                             R.string.search_empty
                         },
-                        listState = listState,
+                        pageIndex = currentPage,
+                        pageSize = libraryPageSize,
+                        onPage = ::changePage,
+                        onPageSize = { size ->
+                            if (size != libraryPageSize) {
+                                val anchor = ShellTags.gameName(libraryFocus) ?: selectedName
+                                val index = results.entries.indexOfFirst { it.game.name == anchor }
+                                    .takeIf { it >= 0 } ?: currentPage * libraryPageSize
+                                libraryPageSize = size
+                                libraryPage = index / size
+                            }
+                            focusRequest++
+                        },
                         cardRequesters = cardRequesters,
                         wide = rail,
-                        compactDetails = compactDetails,
+                        showDetails = showDetails,
                         margin = margin,
                         busy = playBusy,
                         preparing = preparingGame,
@@ -529,8 +538,9 @@ private fun LibraryShell(
                         onSelected = { selectedName = it },
                         onDetails = {
                             if (pickerOpen) closePicker()
+                            navFocus = null
                             selectedName = it
-                            detailsOpen = !rail
+                            detailsOpen = true
                             libraryFocus = ShellTags.Play
                             focusRequest++
                         },
@@ -542,16 +552,21 @@ private fun LibraryShell(
                         onOpenImport = { openSection(ShellSection.Import) },
                         onOpenLetters = { showPicker(LibraryPicker.Letters) },
                         onOpenFilter = { showPicker(LibraryPicker.Status) },
-                        letterPicker = letterPicker.takeIf { inlineLetters },
                         search = {
                             LibrarySearch(
                                 query = searchQuery,
-                                onQuery = { searchQuery = it },
+                                onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
                                 onSearchFocus = { searchFocused = it },
                                 onExitSearch = ::back,
                                 onClear = {
+                                    focusManager.clearFocus(force = true)
+                                    searchFocused = false
+                                    navFocus = null
                                     searchQuery = ""
-                                    returnToList(selected?.game?.name ?: selectedName)
+                                    libraryPage = 0
+                                    selectedName = null
+                                    libraryFocus = ""
+                                    focusRequest++
                                 },
                                 requester = requesters.getValue(ShellTags.Search),
                                 clearRequester = requesters.getValue(ShellTags.ClearSearch),
@@ -588,10 +603,12 @@ private fun LibraryShell(
                     )
                 }
             }
-            if (pickerOpen && !inlineLetters) {
+            if (pickerOpen) {
                 if (picker == LibraryPicker.Status) {
                     LibraryStatusPicker(playableOnly, ::closePicker) {
                         playableOnly = it
+                        libraryPage = 0
+                        selectedName = null
                         closePicker()
                     }
                 } else {

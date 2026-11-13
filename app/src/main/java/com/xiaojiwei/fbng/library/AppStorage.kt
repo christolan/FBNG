@@ -21,7 +21,11 @@ class AppStorage(val root: File) {
         listOf(romsDir, systemFbneoDir, savesDir, cacheDir).forEach { it.mkdirs() }
     }
 
-    fun install(source: File, setName: String, isBios: Boolean) {
+    fun sourceName(setName: String, isBios: Boolean): String = runCatching {
+        File(root, "source-names/${checkedName(setName)}.txt").takeIf { it.isFile }?.readText()
+    }.getOrNull()?.takeIf { it.isNotBlank() } ?: archive(setName, isBios).name
+
+    fun install(source: File, setName: String, isBios: Boolean, displayName: String? = null) {
         val destination = archive(setName, isBios)
         val parent = checkNotNull(destination.parentFile)
         parent.mkdirs()
@@ -29,6 +33,17 @@ class AppStorage(val root: File) {
         try {
             source.copyTo(temporary, overwrite = true)
             Files.move(temporary.toPath(), destination.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+            if (displayName != null) {
+                val names = File(root, "source-names").apply { mkdirs() }
+                val metadata = File.createTempFile("$setName.name", ".tmp", names)
+                try {
+                    metadata.writeText(displayName)
+                    Files.move(metadata.toPath(), File(names, "$setName.txt").toPath(),
+                        StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                } finally {
+                    metadata.delete()
+                }
+            }
         } finally {
             temporary.delete()
         }

@@ -74,6 +74,8 @@ internal object ShellTags {
     const val ClearSearch = "shell-search-clear"
     const val JumpToLetter = "shell-jump-to-letter"
     const val LibraryFilter = "shell-library-filter"
+    const val PreviousPage = "shell-library-previous-page"
+    const val NextPage = "shell-library-next-page"
     fun letter(value: Char) = "shell-letter-$value"
     const val Import = "shell-import"
     const val AddFolder = "shell-add-folder"
@@ -140,7 +142,7 @@ internal fun ShellScaffold(
         } else {
             Box(Modifier.weight(1f).fillMaxWidth()) { content() }
         }
-        PadHint()
+        if (section != ShellSection.Library) PadHint()
         if (!rail) {
             ShellBottomBar(
                 section = section,
@@ -172,15 +174,6 @@ private fun ShellRail(
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {
         Wordmark(Modifier.padding(horizontal = FbngDimens.space8))
-        Text(
-            stringResource(R.string.library_sub),
-            modifier = Modifier.padding(horizontal = FbngDimens.space8),
-            style = MaterialTheme.typography.bodyLarge,
-            color = scheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(FbngDimens.space8))
         Destinations.forEach { destination ->
             RailItem(
                 destination = destination,
@@ -216,10 +209,10 @@ private fun RailItem(
 ) {
     val scheme = MaterialTheme.colorScheme
     val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = FbngDimens.buttonHeight)
+            .heightIn(min = FbngDimens.railItemHeight)
             .onFocusChanged { if (it.isFocused) onFocused() }
             .testTag(destination.tag)
             .semantics { this.selected = selected }
@@ -231,13 +224,13 @@ private fun RailItem(
                 role = Role.Tab,
             )
             .padding(horizontal = FbngDimens.space8),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
     ) {
         Box(
             Modifier
-                .width(FbngDimens.space4)
-                .height(FbngDimens.icon)
+                .width(FbngDimens.space24)
+                .height(FbngDimens.space4)
                 .background(if (selected) scheme.primary else Color.Transparent),
         )
         ShellGlyph(destination.section, tint, Modifier.size(FbngDimens.icon))

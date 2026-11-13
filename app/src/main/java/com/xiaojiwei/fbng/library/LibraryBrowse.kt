@@ -1,16 +1,39 @@
 package com.xiaojiwei.fbng.library
 
 import android.icu.text.AlphabeticIndex
+import android.icu.text.Transliterator
 import android.icu.util.ULocale
+import java.util.Locale
 
 internal const val LibraryLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ#"
 
 internal data class LibraryEntry(val game: LibraryGame, val title: String, val letter: Char) {
+    val initials: String by lazy { titleInitials(title) }
+
     fun matches(query: String): Boolean =
         title.contains(query, ignoreCase = true) ||
             game.description.contains(query, ignoreCase = true) ||
-            game.name.contains(query, ignoreCase = true)
+            "${game.name}.zip".contains(query, ignoreCase = true) ||
+            game.fileNames.any { it.contains(query, ignoreCase = true) } ||
+            query.filter { it.isLetterOrDigit() }.takeIf { it.isNotEmpty() }
+                ?.let { initials.contains(it, ignoreCase = true) } == true
 }
+
+private val pinyin by lazy { Transliterator.getInstance("Han-Latin; Latin-ASCII") }
+private val nameParts = Regex("\\p{IsHan}+|[A-Za-z0-9]+")
+private val pinyinParts = Regex("[A-Za-z]+|[0-9]+")
+
+/** Keep ASCII names/numbers, and reduce each Chinese syllable to its initial. */
+private fun titleInitials(title: String): String = buildString {
+    for (part in nameParts.findAll(title)) {
+        if (Character.UnicodeScript.of(part.value.codePointAt(0)) == Character.UnicodeScript.HAN) {
+            val latin = synchronized(pinyin) { pinyin.transliterate(part.value) }
+            for (syllable in pinyinParts.findAll(latin)) {
+                append(if (syllable.value.first().isDigit()) syllable.value else syllable.value.take(1))
+            }
+        } else append(part.value)
+    }
+}.uppercase(Locale.ROOT)
 
 internal class LibraryResults(val entries: List<LibraryEntry>) {
     val byName = entries.associateBy { it.game.name }

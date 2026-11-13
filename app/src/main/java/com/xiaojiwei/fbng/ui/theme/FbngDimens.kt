@@ -29,19 +29,24 @@ internal object FbngDimens {
     val buttonHeight = space48
     val icon = space24
     val padKey = space32
-    val favoriteCardWidth = 280.dp
+    val favoriteCardWidth = space48 * 5
+    val shelfCoverWidth = space48 * 2
     val favoriteCardHeight = space48 * 2
+    val libraryCellWidth = space48 * 5
+    val libraryRowHeight = space48 + space24
+    val libraryToolsWidth = space48 * 5
+    val libraryToolbarBreakpoint = space48 * 13
+    val railItemHeight = space48 + space16
     val hudActionWidth = space48 + space24
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
     val saveCardWidth = space48 * 4
     val saveDialogWidth = space48 * 24
 
-    /** 5 × 32dp. Wide enough for a 16sp Chinese nav label plus the icon. */
-    val railWidthMedium = 160.dp
+    /** Compact icon-over-label navigation leaves the width for game pages. */
+    val railWidthMedium = space48 * 2
 
-    /** 4 × 48dp. */
-    val railWidthExpanded = 192.dp
+    val railWidthExpanded = space48 * 2
 
     /** Enough for seven letter keys at their normal size with gaps and panel padding. */
     val libraryPickerWidth = space48 * 9

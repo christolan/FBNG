@@ -70,7 +70,6 @@ import com.swordfish.libretrodroid.ShaderConfig
 import com.swordfish.libretrodroid.Variable
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.game.CoreGeometry
 import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.SaveStateStore
@@ -81,7 +80,6 @@ import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import java.io.File
-import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -144,9 +142,9 @@ internal fun GameScreen(
     }
     val scope = rememberCoroutineScope()
     var message by remember(session) { mutableStateOf("") }
-    var reportedAspect by remember(session) { mutableStateOf(Float.NaN) }
     var showReset by remember(session) { mutableStateOf(false) }
     var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
+    var pausePageOpen by remember(session) { mutableStateOf(false) }
     var pauseBeforeReset by remember(session) { mutableStateOf(false) }
     var coreFailed by remember(session) { mutableStateOf(false) }
     var foreground by remember(session) {
@@ -158,6 +156,9 @@ internal fun GameScreen(
         if (error is CancellationException) throw error
         Log.e(TAG, "game operation failed", error)
         message = resources.getString(resource, error.message ?: error.javaClass.simpleName)
+        pausePageOpen = true
+        bridge.target = null
+        if (!session.paused) session.togglePause()
     }
 
     fun loadMessage(slot: SavedSlot?): String {
@@ -199,12 +200,32 @@ internal fun GameScreen(
         slotMode = mode
     }
 
+    fun openPausePage() {
+        bridge.target = null
+        pausePageOpen = true
+        if (!session.paused) session.togglePause()
+    }
+
+    fun resume() {
+        if (!session.ready || session.busy || coreFailed || showReset || slotMode != null) return
+        if (session.paused) session.togglePause()
+        pausePageOpen = false
+    }
+
+    // A back gesture during loading still opens the page. Once initialization
+    // finishes, pause before giving control back to the player.
+    LaunchedEffect(session, pausePageOpen, session.ready, session.busy, showReset, slotMode) {
+        if (pausePageOpen && session.ready && !session.busy && !session.paused && !showReset && slotMode == null) {
+            session.togglePause()
+        }
+    }
+
     BackHandler {
         when {
             slotMode != null -> dismissSlots()
             showReset -> dismissReset()
-            session.paused -> session.togglePause()
-            else -> quit()
+            pausePageOpen || coreFailed -> quit()
+            else -> openPausePage()
         }
     }
 
@@ -243,17 +264,17 @@ internal fun GameScreen(
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    DisposableEffect(session, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
-        bridge.target = if (!foreground || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
+    DisposableEffect(session, pausePageOpen, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
+        bridge.target = if (!foreground || pausePageOpen || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
         bridge.onPauseToggle = {
-            if (!showReset && slotMode == null && !coreFailed) session.togglePause()
+            if (!showReset && slotMode == null && !coreFailed && !session.busy) {
+                if (pausePageOpen) resume() else openPausePage()
+            }
         }
         onDispose { bridge.target = null }
     }
 
     LaunchedEffect(session.view) {
-        var loggedMissing = false
-        var last = Float.NaN
         session.view.getGLRetroEvents().collect { event ->
             if (event is GLRetroView.GLRetroEvents.SurfaceCreated ||
                 event is GLRetroView.GLRetroEvents.FrameRendered
@@ -266,18 +287,8 @@ internal fun GameScreen(
                     } catch (error: Exception) {
                         reportFailure(error, R.string.auto_load_fail)
                     }
+                    if (pausePageOpen && !session.paused) session.togglePause()
                     started()
-                }
-                val next = CoreGeometry.reportedAspectRatio()
-                if (next == null) {
-                    if (!loggedMissing) {
-                        Log.w(TAG, "core aspect unavailable, HUD uses 4:3 until the core reports one")
-                        loggedMissing = true
-                    }
-                } else if (!last.isFinite() || abs(last - next) > 0.001f) {
-                    last = next
-                    reportedAspect = next
-                    Log.i(TAG, "core aspect $next")
                 }
             }
         }
@@ -296,40 +307,31 @@ internal fun GameScreen(
     }
 
     Box(Modifier.fillMaxSize().background(Color.Black).onKeyEvent { event ->
-        if (session.paused && !showReset && slotMode == null && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
-            session.togglePause()
+        if (pausePageOpen && !showReset && slotMode == null && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
+            resume()
             true
         } else false
     }) {
-        BoxWithConstraints(
+        Box(
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing),
         ) {
-            val density = LocalDensity.current
-            val widthPx = if (constraints.hasBoundedWidth) constraints.maxWidth else 0
-            val heightPx = if (constraints.hasBoundedHeight) constraints.maxHeight else 0
-            val layout = layoutGameHud(
-                screenWidthPx = widthPx,
-                screenHeightPx = heightPx,
-                gameAspect = reportedAspect,
-                minBarPx = with(density) { MinHudBar.roundToPx() },
-            )
             // One AndroidView for the session. It fills the play area; LibretroDroid
-            // letterboxes inside that rect. Folding, rotating, or a new core aspect
-            // only moves the HUD — the surface is not padded into a sidebar.
+            // letterboxes inside that rect without reserving any space for controls.
             AndroidView(factory = { session.view }, modifier = Modifier.fillMaxSize())
-            GameHud(
-                layout = layout,
+            // Keep the same GL surface mounted underneath an opaque pause page.
+            // Running games have no HUD, regardless of the available black bars.
+            if (pausePageOpen || coreFailed) GamePausePage(
                 ready = session.ready && !coreFailed,
                 busy = session.busy,
                 hasSlot = session.hasSlot,
-                paused = session.paused,
                 dialogOpen = showReset || slotMode != null,
-                message = if (session.paused && message.isEmpty()) stringResource(R.string.game_paused) else message,
+                message = message,
+                failed = coreFailed,
                 onSave = { openSlots(SaveSlotMode.Save) },
                 onLoad = { openSlots(SaveSlotMode.Load) },
-                onPause = { session.togglePause() },
+                onResume = ::resume,
                 onReset = {
                     pauseBeforeReset = session.paused
                     if (!session.paused) session.togglePause()
@@ -402,6 +404,78 @@ internal fun GameScreen(
                 ) { Text(stringResource(R.string.cancel)) }
             },
         )
+    }
+}
+
+@Composable
+private fun GamePausePage(
+    ready: Boolean,
+    busy: Boolean,
+    hasSlot: Boolean,
+    dialogOpen: Boolean,
+    message: String,
+    failed: Boolean,
+    onResume: () -> Unit,
+    onSave: () -> Unit,
+    onLoad: () -> Unit,
+    onReset: () -> Unit,
+    onQuit: () -> Unit,
+) {
+    val focus = remember { HudFocus() }
+    LaunchedEffect(ready, busy, dialogOpen) {
+        if (busy || dialogOpen) return@LaunchedEffect
+        val target = if (ready) focus.tag else ShellTags.Quit
+        repeat(4) {
+            withFrameNanos { }
+            if (runCatching { focus.requesters.getValue(target).requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+        }
+    }
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
+        Box(Modifier.fillMaxSize().padding(FbngDimens.space16), contentAlignment = Alignment.Center) {
+            Column(
+                Modifier.widthIn(max = FbngDimens.hudActionsWidth).fillMaxWidth()
+                    .verticalScroll(rememberScrollState()).padding(FbngDimens.space4),
+                verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+            ) {
+                Text(
+                    stringResource(when {
+                        failed -> R.string.game_stopped
+                        !ready -> R.string.pause_loading
+                        else -> R.string.game_paused
+                    }),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+                Text(stringResource(R.string.pause_back_hint), style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                    val button = Modifier.fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
+                    FbngButton(onClick = onResume, enabled = ready && !busy,
+                        modifier = button.then(focus.target(ShellTags.Pause)).testTag(ShellTags.Pause)) {
+                        Text(stringResource(R.string.resume))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                        ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy, onSave,
+                            Modifier.weight(1f).then(focus.target(ShellTags.Save)))
+                        ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy, onLoad,
+                            Modifier.weight(1f).then(focus.target(ShellTags.Load)))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                        ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy, onReset,
+                            Modifier.weight(1f).then(focus.target(ShellTags.Reset)))
+                        ActionButton(stringResource(R.string.quit), ShellTags.Quit, !busy, onQuit,
+                            Modifier.weight(1f).then(focus.target(ShellTags.Quit)))
+                    }
+                }
+                Text(stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (message.isNotEmpty()) Text(message, style = MaterialTheme.typography.bodyLarge,
+                    color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+            }
+        }
     }
 }
 

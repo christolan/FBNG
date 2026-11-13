@@ -9,18 +9,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -33,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -63,7 +56,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.library.LibraryLetters
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
@@ -121,75 +113,6 @@ internal fun LibraryTools(
                 controls(Modifier.fillMaxWidth())
             }
         }
-    }
-}
-
-@Composable
-internal fun LibraryLetterPicker(
-    lettersWithResults: Set<Char>,
-    focusedLetter: Char,
-    onLetterFocused: (Char) -> Unit,
-    onDismiss: () -> Unit,
-    onChoose: (Char) -> Unit,
-    inline: Boolean = false,
-) {
-    if (lettersWithResults.isEmpty()) return
-    val target = focusedLetter.takeIf { it in lettersWithResults } ?: lettersWithResults.first()
-    val requesters = remember { LibraryLetters.associateWith { FocusRequester() } }
-    val gridState = rememberLazyGridState()
-    val scheme = MaterialTheme.colorScheme
-    val content: @Composable () -> Unit = {
-        LaunchedEffect(lettersWithResults) {
-            withFrameNanos { }
-            val requester = requesters.getValue(target)
-            if (requester.requestFocus()) return@LaunchedEffect
-            gridState.scrollToItem(LibraryLetters.indexOf(target))
-            repeat(4) {
-                withFrameNanos { }
-                if (requester.requestFocus()) return@LaunchedEffect
-            }
-        }
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(FbngDimens.buttonHeight),
-            state = gridState,
-            contentPadding = PaddingValues(FbngDimens.space4),
-            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-            verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-        ) {
-            items(LibraryLetters.toList(), key = { it.toString() }) { letter ->
-                val enabled = letter in lettersWithResults
-                val description = if (letter == '#') stringResource(R.string.library_letter_other) else null
-                Box(
-                    Modifier.focusRequester(requesters.getValue(letter))
-                        .testTag(ShellTags.letter(letter))
-                        .onFocusChanged { if (it.isFocused) onLetterFocused(letter) }
-                        .semantics { if (description != null) contentDescription = description }
-                        .fbngFocusTarget(
-                            onClick = { onChoose(letter) },
-                            enabled = enabled,
-                            container = scheme.surfaceContainerHighest,
-                            shape = MaterialTheme.shapes.small,
-                        )
-                        .heightIn(min = FbngDimens.buttonHeight),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        letter.toString(),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = if (enabled) scheme.onSurface else scheme.outlineVariant,
-                    )
-                }
-            }
-        }
-    }
-    if (inline) {
-        LibraryPickerCard(
-            title = R.string.library_jump_to_letter,
-            modifier = Modifier.fillMaxWidth(),
-            content = content,
-        )
-    } else {
-        LibraryPickerPanel(R.string.library_jump_to_letter, onDismiss, content)
     }
 }
 
