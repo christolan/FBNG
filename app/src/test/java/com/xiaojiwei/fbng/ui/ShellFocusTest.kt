@@ -16,13 +16,15 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
 import com.xiaojiwei.fbng.dat.DatCatalog
@@ -180,7 +182,7 @@ class ShellFocusTest {
         assertEquals(firstBounds.bottom - firstBounds.top, secondBounds.bottom - secondBounds.top)
         val nextPage = rule.onNodeWithTag(ShellTags.NextPage).getUnclippedBoundsInRoot()
         assertTrue(nextPage.bottom < firstBounds.top)
-        rule.onNodeWithTag(ShellTags.Search).assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.LibraryFilter).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.game(games[0].name)).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonR1) }
@@ -189,8 +191,47 @@ class ShellFocusTest {
     }
 
     @Test
-    @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
-    fun buttonBLeavesTheSearchFieldWithoutLeavingTheLibrary() {
+    @Config(sdk = [33], qualifiers = "w320dp-h360dp-mdpi")
+    fun compactTabsAndSubpagesUseTheSameHeaderBounds() {
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = readySnapshot(),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Favorites,
+                )
+            }
+        }
+        val header = rule.onNodeWithTag(ShellTags.Header)
+        val initial = header.getUnclippedBoundsInRoot()
+        rule.onNodeWithTag(ShellTags.NavRecent).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.NavLibrary).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNode(hasText("游戏库") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)).assertIsDisplayed()
+        listOf(ShellTags.JumpToLetter, ShellTags.LibraryFilter, ShellTags.PreviousPage, ShellTags.NextPage).forEach { tag ->
+            val control = rule.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue(control.left >= initial.left && control.right <= initial.right)
+            assertTrue(control.top >= initial.top && control.bottom <= initial.bottom)
+        }
+        rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.game("galaga")).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.NavSettings).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.OpenImport).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.SettingsBack).performClick()
+        rule.onNodeWithTag(ShellTags.OpenSync).performClick()
+        assertEquals(initial, header.getUnclippedBoundsInRoot())
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w800dp-h320dp-land-mdpi")
+    fun everyLetterKeyIsVisibleInLandscapeAndButtonBReturnsToTheFilter() {
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -202,10 +243,22 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.Search).requestFocus()
-        rule.onNodeWithTag(ShellTags.Search).performTextInput("mslug")
-        rule.onNodeWithTag(ShellTags.Search).performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+        val filter = rule.onNodeWithTag(ShellTags.JumpToLetter)
+        filter.requestFocus()
+        filter.performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-".forEach { character ->
+            rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
+        }
+        listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        rule.onNodeWithTag(ShellTags.letter('Q')).performTouchInput { click() }
+        rule.onNodeWithText("0 款游戏").assertIsDisplayed()
+        rule.onNodeWithText("清空").performClick()
+        rule.onNodeWithTag(ShellTags.letter('M')).performClick()
+        rule.onNodeWithTag(ShellTags.letter('S')).performClick()
+        rule.onNodeWithTag(ShellTags.letter('A')).performKeyInput { pressKey(Key.ButtonB) }
+        filter.assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.game("galaga")).assertDoesNotExist()
     }
 

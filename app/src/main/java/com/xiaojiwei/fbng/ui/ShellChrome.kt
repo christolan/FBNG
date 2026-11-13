@@ -7,8 +7,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +51,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.ui.theme.FbngButton
+import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import kotlin.math.PI
@@ -63,6 +69,7 @@ internal enum class ShellSection {
 }
 
 internal object ShellTags {
+    const val Header = "shell-header"
     private const val GamePrefix = "shell-game-"
     private const val FavoritePrefix = "shell-favorite-game-"
     const val Play = "shell-play"
@@ -74,8 +81,6 @@ internal object ShellTags {
     fun gameName(tag: String) = tag.takeIf { it.startsWith(GamePrefix) }?.removePrefix(GamePrefix)
     fun favorite(name: String) = "$FavoritePrefix$name"
     fun recent(name: String) = "shell-recent-game-$name"
-    const val Search = "shell-search"
-    const val ClearSearch = "shell-search-clear"
     const val JumpToLetter = "shell-jump-to-letter"
     const val LibraryFilter = "shell-library-filter"
     const val PreviousPage = "shell-library-previous-page"
@@ -123,31 +128,57 @@ private val Destinations = listOf(
 internal fun ShellPage(
     title: String,
     margin: Dp,
-    headerAction: @Composable (() -> Unit)? = null,
-    toolbar: @Composable (() -> Unit)? = null,
+    headerAction: @Composable ((Dp) -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().padding(margin),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                title,
-                modifier = Modifier.weight(1f).semantics { heading() },
-                style = MaterialTheme.typography.headlineSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            headerAction?.invoke()
+        BoxWithConstraints(Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight).testTag(ShellTags.Header)) {
+            val width = maxWidth
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                headerAction?.invoke(width)
+            }
         }
-        toolbar?.invoke()
         Box(Modifier.weight(1f).fillMaxWidth()) { content() }
     }
+}
+
+@Composable
+internal fun ShellHeaderButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit,
+) {
+    FbngButton(
+        onClick = onClick,
+        modifier = modifier.height(FbngDimens.buttonHeight),
+        enabled = enabled,
+        kind = FbngButtonKind.Neutral,
+        contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+        content = content,
+    )
+}
+
+@Composable
+internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier) {
+    ShellHeaderButton(
+        onClick = onClick,
+        modifier = modifier.width(FbngDimens.buttonHeight).semantics { contentDescription = label },
+    ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
 }
 
 @Composable
