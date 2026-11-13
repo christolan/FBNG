@@ -28,6 +28,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     private var canAutoSave = false
     private var quitSaved = false
     private var dialogOpen = false
+    private var pauseCover: ByteArray? = null
 
     init {
         life.lifecycle.addObserver(view)
@@ -42,7 +43,16 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     fun togglePause() {
         if (!ready || busy || dialogOpen) return
         paused = !paused
+        if (!paused) pauseCover = null
         updatePlayback()
+    }
+
+    suspend fun pauseForMenu() {
+        if (!ready || busy || paused) return
+        val cover = if (foreground) GameCover.source(view)?.let { GameCover.captureBeforePause(it) } else null
+        if (!ready || busy || paused) return
+        pauseCover = cover
+        togglePause()
     }
 
     fun setDialogOpen(open: Boolean) {
@@ -62,11 +72,11 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
 
     suspend fun save(id: Int = SaveStateStore.AUTO_SLOT) = withPausedCore {
         val bytes = snapshot()
-        val coverSource = GameCover.source(view)
+        val cachedCover = pauseCover
+        val coverSource = if (!paused && id == SaveStateStore.AUTO_SLOT) GameCover.source(view) else null
         // Once captured, finish the disk write even if the screen is disposed.
         withContext(NonCancellable + Dispatchers.IO) {
-            val cover = GameCover.capture(coverSource)
-            check(id == SaveStateStore.AUTO_SLOT || cover != null) { "无法截取游戏画面，请返回游戏后重试存档。" }
+            val cover = cachedCover ?: GameCover.capture(coverSource)
             store.write(bytes, BuildConfig.FBNEO_COMMIT, id = id, cover = cover)
         }
         hasSlot = store.hasSlot()
@@ -80,6 +90,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         check(id == SaveStateStore.AUTO_SLOT || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
         check(!closed && !failed) { "游戏已关闭或核心出错" }
         if (slot != null) {
+            pauseCover = null
             check(view.unserializeState(slot.bytes, useEmulationThread = false)) { "无法读取存档，请检查核心版本或重置游戏。" }
         }
         canAutoSave = true
@@ -91,6 +102,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         canAutoSave = false
         withContext(Dispatchers.IO) { store.clear() }
         hasSlot = store.hasSlot()
+        pauseCover = null
         view.reset(useEmulationThread = false)
         canAutoSave = true
     }
@@ -104,6 +116,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         failed = true
         ready = false
         canAutoSave = false
+        pauseCover = null
         life.pause()
     }
 
@@ -120,15 +133,19 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
             saveBeforeStop()
         } finally {
             closed = true
+            ready = false
+            pauseCover = null
             life.destroy()
         }
     }
 
     private fun saveBeforeStop() {
         if (!ready || busy || !canAutoSave || quitSaved || closed) return
-        // Android can kill the process immediately after onStop. Pause the GL thread,
-        // then capture directly and fsync before returning from the lifecycle callback.
-        store.write(snapshot(), BuildConfig.FBNEO_COMMIT, cover = GameCover.capture(GameCover.source(view)))
+        // Android can kill the process immediately after onStop. Finish the write
+        // before returning from the lifecycle callback.
+        val bytes = snapshot()
+        val cover = if (paused) pauseCover else GameCover.capture(GameCover.source(view))
+        store.write(bytes, BuildConfig.FBNEO_COMMIT, cover = cover)
         hasSlot = store.hasSlot()
     }
 

@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import android.view.PixelCopy
 import android.view.Surface
 import android.view.SurfaceView
@@ -12,7 +13,10 @@ import androidx.core.graphics.createBitmap
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 import kotlin.math.roundToInt
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Copies the game surface itself; Compose dialogs and HUD controls are never included. */
 internal object GameCover {
@@ -33,32 +37,52 @@ internal object GameCover {
         return Source(view.holder.surface, Rect(left, top, left + gameWidth, top + gameHeight))
     }
 
+    suspend fun captureBeforePause(source: Source): ByteArray? = withTimeoutOrNull(200L) {
+        suspendCancellableCoroutine { continuation ->
+            // Older Android versions can block inside PixelCopy.request itself.
+            handler.post {
+                if (continuation.isActive) request(source) { continuation.resume(it) }
+            }
+        }
+    }
+
     fun capture(source: Source?): ByteArray? {
         if (source == null) return null
-        val scale = minOf(1f, 640f / maxOf(source.bounds.width(), source.bounds.height()))
-        val bitmap = createBitmap((source.bounds.width() * scale).roundToInt().coerceAtLeast(1),
-            (source.bounds.height() * scale).roundToInt().coerceAtLeast(1))
         val done = CountDownLatch(1)
         var result: ByteArray? = null
-        try {
-            PixelCopy.request(source.surface, source.bounds, bitmap, { status ->
-                try {
-                    if (status == PixelCopy.SUCCESS) {
-                        result = ByteArrayOutputStream().use { out ->
-                            if (bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)) out.toByteArray() else null
-                        }
-                    }
-                } finally {
-                    // The callback owns the bitmap, even when the caller has already timed out.
-                    bitmap.recycle()
-                    done.countDown()
-                }
-            }, handler)
-        } catch (_: IllegalArgumentException) {
-            bitmap.recycle()
-            return null
+        request(source) {
+            result = it
+            done.countDown()
         }
         // The worker callback also lets Android's synchronous stop callback save its last frame.
         return if (done.await(1, TimeUnit.SECONDS)) result else null
+    }
+
+    private fun request(source: Source, onComplete: (ByteArray?) -> Unit) {
+        val scale = minOf(1f, 640f / maxOf(source.bounds.width(), source.bounds.height()))
+        val bitmap = createBitmap((source.bounds.width() * scale).roundToInt().coerceAtLeast(1),
+            (source.bounds.height() * scale).roundToInt().coerceAtLeast(1))
+        try {
+            PixelCopy.request(source.surface, source.bounds, bitmap, { status ->
+                val result = try {
+                    if (status != PixelCopy.SUCCESS) null else {
+                        ByteArrayOutputStream().use { out ->
+                            if (bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)) out.toByteArray() else null
+                        }
+                    }
+                } catch (error: RuntimeException) {
+                    Log.w("FBNG", "Could not encode save preview", error)
+                    null
+                } finally {
+                    // The callback owns the bitmap, even when the caller has already timed out.
+                    bitmap.recycle()
+                }
+                onComplete(result)
+            }, handler)
+        } catch (error: RuntimeException) {
+            bitmap.recycle()
+            Log.w("FBNG", "Could not capture save preview", error)
+            onComplete(null)
+        }
     }
 }
