@@ -81,18 +81,14 @@ Find N6 内外屏在默认「显示大小」下的实际 dp 还没在真机上�
 
 ## UI 验证（仅在用户明确要求时执行）
 
-Preview 覆盖、Compose 焦点测试、截图录制与比对、设备实测和验证报告均按用户要求执行。用户只要求其中一项时，按指定范围验证。
+Preview 覆盖、Compose 焦点测试、设备实测和验证报告均按用户要求执行。用户只要求其中一项时，按指定范围验证。项目已下线自动截图校验，不维护截图基线。
 
 1. `@Preview` 覆盖 loading、empty（无 ROM）、error（DAT 或核心缺失）、正常这四态，并覆盖这次改动实际会走到的宽度（compact，以及 medium 或 expanded）。使用深色。动到文字时加一档 `fontScale = 1.5`。
 2. 验证新界面或改过的焦点时，添加并运行 Compose 测试，用 `performKeyInput { pressKey(Key.DirectionDown) }` 移动焦点，再用 `assertIsFocused()` 断言。HUD 焦点测试直接组合 `GameHud`。
-3. 用 `./gradlew :app:recordRoborazziDebug` 录制截图。打开 `app/src/test/screenshots/` 里新生成的 PNG，按「元素 / 期望 / 实际 / 修复」列差异，最多改三轮。要证明间距或对齐变了，加 `-Proborazzi.dumpUiTree=true`，检查生成的 `.uitree.json` 里的 bounds。
-4. 做设备实测时，有真机或折叠模拟器就给外屏、内屏、tabletop 各留一张截图，并用手柄走完主流程，留下焦点态。没有设备就在结果里说明。
-5. 用 `./gradlew :app:verifyRoborazziDebug` 比对截图。对有意的视觉变化重新录制基线，并在 PR 里说明更新了哪些截图。
-6. 汇报已执行的命令、结果和生成的截图路径。
+3. 做设备实测时，有真机或折叠模拟器就给外屏、内屏、tabletop 各留一张截图，并用手柄走完主流程，留下焦点态。没有设备就在结果里说明。
+4. 汇报已执行的命令、结果，以及用户要求生成的验证材料路径。
 
-基线在 `app/src/test/screenshots/`。对比失败时的差异图在 `app/build/outputs/roborazzi/`，报告在 `app/build/reports/roborazzi/index.html`。普通的 `testDebugUnitTest` 会跑这些测试里的布局断言，但不会比对图片；比对只在 `verifyRoborazziDebug`。
-
-不要把加载中的圆形或条形进度画进基线，它们每一帧都不一样。现有基线是静帧：库页导入结果（手机竖屏）、库页双栏（手机横屏和展开宽屏）、DAT 错误、HUD 的上下黑边 / 左右黑边 / 黑边太薄时的叠加、以及缺少核心。不是 9 种尺寸乘全部状态。
+普通的 `testDebugUnitTest` 继续运行功能、布局规则、手柄焦点和颜色对比度测试。
 
 ## 本地构建签名 Release APK
 
