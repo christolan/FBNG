@@ -17,6 +17,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -29,6 +30,7 @@ internal class CoverRepository private constructor(private val context: Context)
     private val mutableImages = MutableStateFlow<Map<String, CoverImage>>(emptyMap())
     val images = mutableImages.asStateFlow()
     val downloadLock = Mutex()
+    private val imagesLock = Mutex()
 
     private val index: Map<String, String> by lazy {
         val json = context.assets.open("fbneo/cover-index.json").bufferedReader().use { JSONObject(it.readText()) }
@@ -45,10 +47,12 @@ internal class CoverRepository private constructor(private val context: Context)
     fun candidates(): Map<String?, List<String>> = eligibleNames().sorted().groupBy { index[it] }
 
     suspend fun reloadImages() = withContext(Dispatchers.IO) {
-        val existing = directory.listFiles().orEmpty().filter { it.extension == "png" }.associateBy { it.name }
-        mutableImages.value = index.mapNotNull { (name, path) ->
-            existing[fileName(path)]?.takeIf { it.length() > 0 }?.let { name to CoverImage(it, it.lastModified()) }
-        }.toMap()
+        imagesLock.withLock {
+            val existing = directory.listFiles().orEmpty().filter { it.extension == "png" }.associateBy { it.name }
+            mutableImages.value = index.mapNotNull { (name, path) ->
+                existing[fileName(path)]?.takeIf { it.length() > 0 }?.let { name to CoverImage(it, it.lastModified()) }
+            }.toMap()
+        }
     }
 
     fun hasImage(path: String): Boolean = File(directory, fileName(path)).let { it.isFile && it.length() > 0 }
