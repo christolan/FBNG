@@ -79,17 +79,6 @@ Find N6 内外屏在默认「显示大小」下的实际 dp 还没在真机上�
 
 先用 3 到 6 行说明界面用途、唯一的记忆点、使用的 token 和涉及的交互约束。有参考图时写明学哪一点。
 
-## UI 验证（仅在用户明确要求时执行）
-
-Preview 覆盖、Compose 焦点测试、设备实测和验证报告均按用户要求执行。用户只要求其中一项时，按指定范围验证。项目已下线自动截图校验，不维护截图基线。
-
-1. `@Preview` 覆盖 loading、empty（无 ROM）、error（DAT 或核心缺失）、正常这四态，并覆盖这次改动实际会走到的宽度（compact，以及 medium 或 expanded）。使用深色。动到文字时加一档 `fontScale = 1.5`。
-2. 验证新界面或改过的焦点时，添加并运行 Compose 测试，用 `performKeyInput { pressKey(Key.DirectionDown) }` 移动焦点，再用 `assertIsFocused()` 断言。HUD 焦点测试直接组合 `GameHud`。
-3. 做设备实测时，有真机或折叠模拟器就给外屏、内屏、tabletop 各留一张截图，并用手柄走完主流程，留下焦点态。没有设备就在结果里说明。
-4. 汇报已执行的命令、结果，以及用户要求生成的验证材料路径。
-
-普通的 `testDebugUnitTest` 继续运行功能、布局规则、手柄焦点和颜色对比度测试。
-
 ## 本地构建签名 Release APK
 
 以下签名配置仅用于本地构建。GitHub Actions 从仓库 Secrets 读取签名材料，并在 runner 上解码密钥库，无需本地配置文件或手动设置环境变量。流程见 [android-release.yml](.github/workflows/android-release.yml)。
