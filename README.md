@@ -20,7 +20,7 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 ./gradlew :app:assembleDebug
 ```
 
-产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，包大约 100 MB。测试证书和口令只放在私有仓库的 `keystore/`，APK 本身仍然不会提交。
+产物是 `app/build/outputs/apk/debug/app-debug.apk`。只含 `arm64-v8a`，对应 OPPO Find N6 和 RP6。`minSdk` 是 33，`targetSdk` 是 36，`compileSdk` 是当前稳定版 37.2。核心为了 16 KB 页对齐以未压缩形式放进 APK，包大约 100 MB。`keystore/` 中的证书和口令仅用于 Debug 构建，APK 本身仍然不会提交。
 
 要打 Release 包，把 PKCS12 证书留在仓库外面，设置四个环境变量后再执行 `./gradlew :app:assembleRelease`：
 
@@ -31,7 +31,9 @@ FBNeo 的许可全文在 `third_party/FBNeo/license.txt`。LibretroDroid 是 GPL
 
 产物是 `app/build/outputs/apk/release/app-release.apk`，签名是 v1、v2 和 v3。没有这四个变量时，Release 构建不使用 debug 测试证书。
 
-推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble release APK”，都会执行 `./gradlew :app:testDebugUnitTest :app:assembleRelease`。Actions 用上面同名的四个仓库 secrets 签名；keystore 的 secret 是 PKCS12 文件的 base64，解码后不进 git。如果 APK 里没有未压缩的 `lib/arm64-v8a/libfbneo_libretro_android.so`，构建会失败。`apksigner` 核对 v1、v2、v3，`zipalign -P 16` 核对 16 KB 对齐。Actions 里留下名为 `FBNG-<versionName>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本私有仓库的 Releases 里发一个版本号 Release：标题 `FBNG <versionName>`，tag `v<versionName>`，附件 `FBNG-<versionName>.apk`。0.x 仍是 prerelease，名字里不再带 debug。
+推送到 `main`、向 `main` 打开 pull request，或在 Actions 里手动运行 “Assemble release APK”，都会执行 `./gradlew :app:testDebugUnitTest :app:assembleRelease`。Actions 用上面同名的四个仓库 secrets 签名；keystore 的 secret 是 PKCS12 文件的 base64，解码后不进 git。如果 APK 里没有未压缩的 `lib/arm64-v8a/libfbneo_libretro_android.so`，构建会失败。`apksigner` 核对 v1、v2、v3，`zipalign -P 16` 核对 16 KB 对齐。Actions 里留下名为 `FBNG-<versionName>` 的 artifact（普通 zlib zip，保留 14 天）。推送到 `main` 或手动运行时，还会在本仓库的 Releases 里发一个版本号 Release：标题 `FBNG <versionName>`，tag `v<versionName>`，附件 `FBNG-<versionName>.apk`。0.x 仍是 prerelease，名字里不再带 debug。
+
+从 0.6.0 起，Release 版启动时会匿名查询本仓库的 GitHub Releases。「设置 → 应用更新」可以手动检查，发现新版后可以下载并安装。首次更新按系统提示允许 FBNG 安装未知应用，系统要求确认时会打开安装界面。以后发布时递增 `versionCode` 并沿用同一张 Release 签名证书。应用根据发布说明中的 `versionCode` 选出新版，安装前校验 APK 的 SHA-256、包名、版本和签名。
 
 构建会做两件和页面对齐有关的事：
 

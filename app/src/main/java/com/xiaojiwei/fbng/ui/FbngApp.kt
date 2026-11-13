@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.xiaojiwei.fbng.BuildConfig
+import com.xiaojiwei.fbng.FbngApplication
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.artwork.CoverRepository
 import com.xiaojiwei.fbng.artwork.CoverWorker
@@ -39,6 +41,7 @@ import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.library.RecentGames
 import com.xiaojiwei.fbng.library.readGameTitles
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
+import com.xiaojiwei.fbng.update.UpdateState
 import java.io.IOException
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
@@ -67,6 +70,10 @@ sealed interface CatalogLoad {
 @Composable
 fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
+    val updater = if (BuildConfig.DEBUG) null else (context as FbngApplication).appUpdate
+    val updateState = updater?.state?.collectAsStateWithLifecycle()?.value
+    val installingUpdate = updateState == UpdateState.Installed || updateState is UpdateState.Installing
+    LaunchedEffect(updater) { updater?.checkOnStartup() }
     val storage = remember { AppStorage(context.filesDir).also(AppStorage::ensure) }
     val folders = remember { FolderLibrary(context, storage) }
     val recentGames = remember { RecentGames(context) }
@@ -129,7 +136,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun updateLibrary(message: Int, action: suspend (DatCatalog) -> Unit = {}) {
-        if (workMessage != null || preparing || playing != null) return
+        if (workMessage != null || preparing || playing != null || updater?.installing == true) return
         workMessage = message
         folderError = null
         launchError = false
@@ -166,7 +173,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun play(setName: String) {
-        if (workMessage == R.string.importing || preparing || playing != null) return
+        if (workMessage == R.string.importing || preparing || playing != null || updater?.installing == true) return
         val game = library?.snapshot?.games?.firstOrNull { it.name == setName && it.canLaunch } ?: return
         preparing = true
         launchError = false
@@ -191,10 +198,14 @@ fun FbngApp(bridge: GamepadBridge) {
                     load = load,
                     snapshot = library?.snapshot,
                     reports = reports,
-                    busy = initialScan || workMessage != null || preparing,
-                    playBusy = preparing || workMessage == R.string.importing,
+                    busy = initialScan || workMessage != null || preparing || installingUpdate,
+                    playBusy = preparing || workMessage == R.string.importing || installingUpdate,
                     preparingGame = preparing,
-                    workMessage = workMessage ?: if (initialScan) R.string.folder_scanning else R.string.preparing_game,
+                    workMessage = workMessage ?: when {
+                        initialScan -> R.string.folder_scanning
+                        installingUpdate -> R.string.update_installing
+                        else -> R.string.preparing_game
+                    },
                     folders = library?.folders.orEmpty(),
                     folderError = folderError,
                     launchError = launchError,
@@ -214,6 +225,9 @@ fun FbngApp(bridge: GamepadBridge) {
                     favoriteNames = favoriteNames,
                     recentNames = recentNames,
                     covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
+                    appUpdate = if (updater != null && updateState != null) {
+                        UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing)
+                    } else null,
                     onToggleFavorite = { name ->
                         val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
                         favorites.edit().putStringSet("sets", updated).apply()
