@@ -31,6 +31,7 @@ import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.FolderLibrary
 import com.xiaojiwei.fbng.library.LibraryRefresh
 import com.xiaojiwei.fbng.library.PreparedGame
+import com.xiaojiwei.fbng.library.RecentGames
 import com.xiaojiwei.fbng.library.readGameTitles
 import java.io.IOException
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
@@ -62,6 +63,8 @@ fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
     val storage = remember { AppStorage(context.filesDir).also(AppStorage::ensure) }
     val folders = remember { FolderLibrary(context, storage) }
+    val recentGames = remember { RecentGames(context) }
+    var recentNames by remember { mutableStateOf(recentGames.read()) }
     val favorites = remember(context) { context.getSharedPreferences("library-favorites", Context.MODE_PRIVATE) }
     var favoriteNames by remember(favorites) {
         mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
@@ -183,6 +186,7 @@ fun FbngApp(bridge: GamepadBridge) {
                     onPlay = ::play,
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favoriteNames,
+                    recentNames = recentNames,
                     onToggleFavorite = { name ->
                         val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
                         favorites.edit().putStringSet("sets", updated).apply()
@@ -191,7 +195,12 @@ fun FbngApp(bridge: GamepadBridge) {
                 )
             }
         } else {
-            GameScreen(game = game, bridge = bridge, onQuit = { playing = null })
+            GameScreen(
+                game = game,
+                bridge = bridge,
+                onStarted = { recentNames = recentGames.record(game.rom.nameWithoutExtension) },
+                onQuit = { playing = null },
+            )
         }
     }
 }

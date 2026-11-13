@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.ui
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -31,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.focusable
@@ -38,11 +41,18 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -63,31 +73,28 @@ import com.xiaojiwei.fbng.game.CoreGeometry
 import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.SaveStateStore
-import com.xiaojiwei.fbng.game.SessionLifecycleOwner
+import com.xiaojiwei.fbng.game.RunningGame
+import com.xiaojiwei.fbng.game.SavedSlot
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
+import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import java.io.File
 import kotlin.math.abs
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private const val TAG = "FBNG"
 
 /** 48dp touch target plus 4dp of padding on each side of the bar. */
 internal val MinHudBar = 56.dp
 
-private class RunningSession(
-    val view: GLRetroView,
-    val life: SessionLifecycleOwner,
-)
-
 @Composable
 internal fun GameScreen(
     game: PreparedGame,
     bridge: GamepadBridge,
     onQuit: () -> Unit,
+    onStarted: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = context.findActivity()
@@ -98,7 +105,6 @@ internal fun GameScreen(
         info.splitSourceDirs?.forEach { apks.add(File(it)) }
         FbneoCore.resolveLoadPath(File(info.nativeLibraryDir), apks)
     }
-    BackHandler(onBack = onQuit)
     if (corePath == null) {
         LaunchedEffect(activity) {
             Log.e(
@@ -106,10 +112,12 @@ internal fun GameScreen(
                 "no ${FbneoCore.FILE_NAME} in ${activity.applicationInfo.nativeLibraryDir} and no stored ${FbneoCore.ZIP_ENTRY}",
             )
         }
+        BackHandler(onBack = onQuit)
         MissingCore(onQuit)
         return
     }
 
+    val store = remember(game.stateDir) { SaveStateStore(game.stateDir) }
     val session = remember(corePath, game.rom.absolutePath) {
         val data = GLRetroViewData(activity).apply {
             coreFilePath = corePath
@@ -124,67 +132,124 @@ internal fun GameScreen(
             enableMicrophone = false
         }
         val view = GLRetroView(activity, data)
-        val life = SessionLifecycleOwner()
         // Load the core before the GL surface exists so retro_load_game is not raced.
-        life.lifecycle.addObserver(view)
-        life.create()
+        val running = RunningGame(view, store)
         Log.i(
             TAG,
             "core $corePath game ${game.rom.absolutePath} system ${game.systemDir}",
         )
-        RunningSession(view, life)
+        running
     }
-    val store = remember { SaveStateStore(game.stateDir) }
     val scope = rememberCoroutineScope()
+    var message by remember(session) { mutableStateOf("") }
+    var reportedAspect by remember(session) { mutableStateOf(Float.NaN) }
+    var showReset by remember(session) { mutableStateOf(false) }
+    var pauseBeforeReset by remember(session) { mutableStateOf(false) }
+    var coreFailed by remember(session) { mutableStateOf(false) }
+    var foreground by remember(session) {
+        mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    val started by rememberUpdatedState(onStarted)
+
+    fun reportFailure(error: Exception, resource: Int) {
+        if (error is CancellationException) throw error
+        Log.e(TAG, "game operation failed", error)
+        message = context.getString(resource, error.message ?: error.javaClass.simpleName)
+    }
+
+    fun loadMessage(slot: SavedSlot?): String {
+        val warning = if (slot != null && slot.coreCommit.isNotEmpty() && slot.coreCommit != BuildConfig.FBNEO_COMMIT) {
+            "\n" + context.getString(R.string.load_version_warn, slot.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
+        } else ""
+        return (if (slot == null) context.getString(R.string.load_missing) else context.getString(R.string.load_ok)) + warning
+    }
+
+    fun quit() {
+        if (session.busy || showReset) return
+        scope.launch {
+            message = context.getString(R.string.save_working)
+            try {
+                session.saveBeforeQuit()
+                onQuit()
+            } catch (error: Exception) {
+                reportFailure(error, R.string.save_fail)
+            }
+        }
+    }
+
+    fun dismissReset() {
+        showReset = false
+        if (!pauseBeforeReset) session.togglePause()
+    }
+
+    BackHandler {
+        when {
+            showReset -> dismissReset()
+            session.paused -> session.togglePause()
+            else -> quit()
+        }
+    }
 
     DisposableEffect(session) {
-        bridge.target = session.view
         val window = activity.window
         val insets = WindowCompat.getInsetsController(window, window.decorView)
         insets.hide(WindowInsetsCompat.Type.systemBars())
         insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        session.life.resume()
+        if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) session.start()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> session.life.resume()
-                Lifecycle.Event.ON_PAUSE -> session.life.pause()
-                Lifecycle.Event.ON_DESTROY -> session.life.destroy()
+                Lifecycle.Event.ON_RESUME -> {
+                    foreground = true
+                    session.start()
+                }
+                Lifecycle.Event.ON_PAUSE -> try {
+                    foreground = false
+                    bridge.target = null
+                    session.stop()
+                } catch (error: Exception) {
+                    reportFailure(error, R.string.save_fail)
+                }
                 else -> Unit
             }
         }
         activity.lifecycle.addObserver(observer)
         onDispose {
+            bridge.onPauseToggle = null
             bridge.target = null
             activity.lifecycle.removeObserver(observer)
-            session.life.destroy()
+            try {
+                session.destroy()
+            } catch (error: Exception) {
+                Log.e(TAG, "Could not save on disposal", error)
+            }
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
+    DisposableEffect(session, session.paused, session.busy, showReset, coreFailed, foreground) {
+        bridge.target = if (!foreground || session.paused || session.busy || showReset || coreFailed) null else session.view
+        bridge.onPauseToggle = {
+            if (!showReset && !coreFailed) session.togglePause()
+        }
+        onDispose { bridge.target = null }
+    }
 
-    var ready by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf("") }
-    var busy by remember { mutableStateOf(false) }
-    var hasSlot by remember { mutableStateOf(store.hasSlot()) }
-    var reportedAspect by remember { mutableStateOf(Float.NaN) }
-    val notReadyText = stringResource(R.string.core_not_ready)
-    val saveWorking = stringResource(R.string.save_working)
-    val saveOk = stringResource(R.string.save_ok)
-    val saveEmpty = stringResource(R.string.save_empty)
-    val saveFail = stringResource(R.string.save_fail)
-    val loadWorking = stringResource(R.string.load_working)
-    val loadOk = stringResource(R.string.load_ok)
-    val loadMissing = stringResource(R.string.load_missing)
-    val loadFail = stringResource(R.string.load_fail)
-
-    val fold = rememberFoldSnapshot()
-    LaunchedEffect(session.view, fold?.separating, fold?.hingeStartPx, fold?.orientationVertical) {
+    LaunchedEffect(session.view) {
         var loggedMissing = false
         var last = Float.NaN
         session.view.getGLRetroEvents().collect { event ->
             if (event is GLRetroView.GLRetroEvents.SurfaceCreated ||
                 event is GLRetroView.GLRetroEvents.FrameRendered
             ) {
-                ready = true
+                if (!session.initializationStarted && !coreFailed) {
+                    message = context.getString(R.string.load_working)
+                    try {
+                        val slot = session.initialize()
+                        message = if (slot == null) "" else loadMessage(slot)
+                    } catch (error: Exception) {
+                        reportFailure(error, R.string.auto_load_fail)
+                    }
+                    started()
+                }
                 val next = CoreGeometry.reportedAspectRatio()
                 if (next == null) {
                     if (!loggedMissing) {
@@ -201,6 +266,8 @@ internal fun GameScreen(
     }
     LaunchedEffect(session.view) {
         session.view.getGLRetroErrors().collect { code ->
+            coreFailed = true
+            session.fail()
             message = when (code) {
                 GLRetroView.ERROR_LOAD_LIBRARY -> context.getString(R.string.core_error_library)
                 GLRetroView.ERROR_LOAD_GAME -> context.getString(R.string.core_error_game)
@@ -210,7 +277,12 @@ internal fun GameScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(Modifier.fillMaxSize().background(Color.Black).onKeyEvent { event ->
+        if (session.paused && !showReset && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
+            session.togglePause()
+            true
+        } else false
+    }) {
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -231,70 +303,79 @@ internal fun GameScreen(
             AndroidView(factory = { session.view }, modifier = Modifier.fillMaxSize())
             GameHud(
                 layout = layout,
-                ready = ready,
-                busy = busy,
-                hasSlot = hasSlot,
-                message = message,
+                ready = session.ready && !coreFailed,
+                busy = session.busy,
+                hasSlot = session.hasSlot,
+                paused = session.paused,
+                dialogOpen = showReset,
+                message = if (session.paused && message.isEmpty()) stringResource(R.string.game_paused) else message,
                 onSave = {
-                    if (!ready || busy) {
-                        message = notReadyText
-                        return@GameHud
-                    }
-                    busy = true
-                    message = saveWorking
                     scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            runCatching {
-                                val bytes = session.view.serializeState()
-                                if (bytes.isEmpty()) {
-                                    saveEmpty
-                                } else {
-                                    store.write(bytes, BuildConfig.FBNEO_COMMIT)
-                                    saveOk
-                                }
-                            }.getOrElse { error ->
-                                Log.e(TAG, "save failed", error)
-                                saveFail.format(error.message ?: error.javaClass.simpleName)
-                            }
+                        message = context.getString(R.string.save_working)
+                        try {
+                            session.save()
+                            message = context.getString(R.string.save_ok)
+                        } catch (error: Exception) {
+                            reportFailure(error, R.string.save_fail)
                         }
-                        hasSlot = store.hasSlot()
-                        busy = false
-                        message = result
                     }
                 },
                 onLoad = {
-                    if (!ready || busy) {
-                        message = notReadyText
-                        return@GameHud
-                    }
-                    busy = true
-                    message = loadWorking
                     scope.launch {
-                        val result = withContext(Dispatchers.IO) {
-                            val slot = store.read()
-                            if (slot == null) {
-                                loadMissing
-                            } else {
-                                val warn = if (slot.coreCommit.isNotEmpty() && slot.coreCommit != BuildConfig.FBNEO_COMMIT) {
-                                    "\n" + context.getString(
-                                        R.string.load_version_warn,
-                                        slot.coreCommit.take(12),
-                                        BuildConfig.FBNEO_COMMIT_SHORT,
-                                    )
-                                } else {
-                                    ""
-                                }
-                                val loaded = runCatching { session.view.unserializeState(slot.bytes) }.getOrDefault(false)
-                                if (loaded) loadOk + warn else loadFail + warn
-                            }
+                        message = context.getString(R.string.load_working)
+                        try {
+                            message = loadMessage(session.load())
+                        } catch (error: Exception) {
+                            reportFailure(error, R.string.auto_load_fail)
                         }
-                        busy = false
-                        message = result
                     }
                 },
-                onQuit = onQuit,
+                onPause = { session.togglePause() },
+                onReset = {
+                    pauseBeforeReset = session.paused
+                    if (!session.paused) session.togglePause()
+                    showReset = true
+                },
+                onQuit = ::quit,
             )
         }
+    }
+    if (showReset) {
+        val cancelFocus = remember { FocusRequester() }
+        LaunchedEffect(Unit) { cancelFocus.requestFocus() }
+        AlertDialog(
+            modifier = Modifier.onKeyEvent { event ->
+                if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
+                    dismissReset()
+                    true
+                } else false
+            },
+            onDismissRequest = ::dismissReset,
+            title = { Text(stringResource(R.string.reset_title)) },
+            text = { Text(stringResource(R.string.reset_body)) },
+            confirmButton = {
+                FbngButton(onClick = {
+                    showReset = false
+                    scope.launch {
+                        try {
+                            session.reset()
+                            message = context.getString(R.string.reset_ok)
+                        } catch (error: Exception) {
+                            reportFailure(error, R.string.reset_fail)
+                        } finally {
+                            if (!pauseBeforeReset) session.togglePause()
+                        }
+                    }
+                }) { Text(stringResource(R.string.reset)) }
+            },
+            dismissButton = {
+                FbngButton(
+                    onClick = ::dismissReset,
+                    kind = FbngButtonKind.Neutral,
+                    modifier = Modifier.focusRequester(cancelFocus),
+                ) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 }
 
@@ -308,7 +389,17 @@ internal fun BoxScope.GameHud(
     onSave: () -> Unit,
     onLoad: () -> Unit,
     onQuit: () -> Unit,
+    paused: Boolean = false,
+    dialogOpen: Boolean = false,
+    onPause: () -> Unit = {},
+    onReset: () -> Unit = {},
 ) {
+    val focus = remember { HudFocus() }
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(paused, busy, ready, dialogOpen, layout.band, layout.axis) {
+        if (paused && ready && !busy && !dialogOpen) focus.requesters.getValue(focus.tag).requestFocus()
+        else if (!paused) focusManager.clearFocus(force = true)
+    }
     when (layout.band) {
         HudBand.Sides -> {
             StatusDock(
@@ -325,6 +416,10 @@ internal fun BoxScope.GameHud(
                 onSave = onSave,
                 onLoad = onLoad,
                 onQuit = onQuit,
+                paused = paused,
+                focus = focus,
+                onPause = onPause,
+                onReset = onReset,
             )
         }
         HudBand.Ends -> {
@@ -342,6 +437,10 @@ internal fun BoxScope.GameHud(
                 onSave = onSave,
                 onLoad = onLoad,
                 onQuit = onQuit,
+                paused = paused,
+                focus = focus,
+                onPause = onPause,
+                onReset = onReset,
             )
         }
         HudBand.Overlay -> OverlayDock(
@@ -353,6 +452,10 @@ internal fun BoxScope.GameHud(
             onSave = onSave,
             onLoad = onLoad,
             onQuit = onQuit,
+            paused = paused,
+            focus = focus,
+            onPause = onPause,
+            onReset = onReset,
         )
     }
 }
@@ -432,62 +535,38 @@ private fun ButtonDock(
     onSave: () -> Unit,
     onLoad: () -> Unit,
     onQuit: () -> Unit,
+    paused: Boolean,
+    focus: HudFocus,
+    onPause: () -> Unit,
+    onReset: () -> Unit,
 ) {
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .padding(4.dp)
-                    .then(
-                        if (vertical) {
-                            Modifier.fillMaxWidth()
-                        } else {
-                            Modifier.widthIn(max = 520.dp).fillMaxWidth()
-                        },
-                    )
-                    .heightIn(max = maxHeight - 8.dp),
+                    .padding(FbngDimens.space4)
+                    .then(if (vertical) Modifier.fillMaxWidth() else Modifier.widthIn(max = FbngDimens.hudActionsWidth).fillMaxWidth())
+                    .heightIn(max = maxHeight - FbngDimens.space8),
                 color = Color.Transparent,
                 contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
                 if (vertical) {
                     Column(
-                        Modifier
-                            .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 2.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        Modifier.verticalScroll(rememberScrollState()).padding(vertical = FbngDimens.space4),
+                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                     ) {
-                        ActionButton(stringResource(R.string.save), ShellTags.Save, enabled = ready && !busy, onClick = onSave)
-                        ActionButton(stringResource(R.string.load), ShellTags.Load, enabled = ready && !busy, onClick = onLoad)
-                        ActionButton(stringResource(R.string.quit), ShellTags.Quit, enabled = !busy, onClick = onQuit)
+                        HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
+                            Modifier.fillMaxWidth().heightIn(min = FbngDimens.buttonHeight))
                     }
                 } else {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = FbngDimens.space4),
+                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ActionButton(
-                            stringResource(R.string.save),
-                            ShellTags.Save,
-                            enabled = ready && !busy,
-                            onClick = onSave,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        )
-                        ActionButton(
-                            stringResource(R.string.load),
-                            ShellTags.Load,
-                            enabled = ready && !busy,
-                            onClick = onLoad,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        )
-                        ActionButton(
-                            stringResource(R.string.quit),
-                            ShellTags.Quit,
-                            enabled = !busy,
-                            onClick = onQuit,
-                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                        )
+                        HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
+                            Modifier.widthIn(min = FbngDimens.hudActionWidth).heightIn(min = FbngDimens.buttonHeight))
                     }
                 }
             }
@@ -505,6 +584,10 @@ private fun BoxScope.OverlayDock(
     onSave: () -> Unit,
     onLoad: () -> Unit,
     onQuit: () -> Unit,
+    paused: Boolean,
+    focus: HudFocus,
+    onPause: () -> Unit,
+    onReset: () -> Unit,
 ) {
     val align = when (axis) {
         BarAxis.Sides -> Alignment.CenterEnd
@@ -512,36 +595,20 @@ private fun BoxScope.OverlayDock(
         BarAxis.None -> Alignment.TopCenter
     }
     Surface(
-        modifier = Modifier.align(align).padding(8.dp).widthIn(max = 420.dp),
+        modifier = Modifier.align(align).padding(FbngDimens.space8).widthIn(max = FbngDimens.hudActionsWidth),
         color = Color.Transparent,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
-            Modifier.padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.padding(FbngDimens.space8),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton(
-                    stringResource(R.string.save),
-                    ShellTags.Save,
-                    enabled = ready && !busy,
-                    onClick = onSave,
-                    modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
-                )
-                ActionButton(
-                    stringResource(R.string.load),
-                    ShellTags.Load,
-                    enabled = ready && !busy,
-                    onClick = onLoad,
-                    modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
-                )
-                ActionButton(
-                    stringResource(R.string.quit),
-                    ShellTags.Quit,
-                    enabled = !busy,
-                    onClick = onQuit,
-                    modifier = Modifier.widthIn(min = 72.dp).heightIn(min = 48.dp),
-                )
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            ) {
+                HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
+                    Modifier.widthIn(min = FbngDimens.hudActionWidth).heightIn(min = FbngDimens.buttonHeight))
             }
             Text(
                 stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
@@ -559,6 +626,40 @@ private fun BoxScope.OverlayDock(
             }
         }
     }
+}
+
+private class HudFocus {
+    val requesters = listOf(ShellTags.Pause, ShellTags.Save, ShellTags.Load, ShellTags.Reset, ShellTags.Quit)
+        .associateWith { FocusRequester() }
+    var tag = ShellTags.Pause
+
+    fun target(id: String): Modifier = Modifier
+        .focusRequester(requesters.getValue(id))
+        .onFocusChanged { if (it.isFocused) tag = id }
+}
+
+@Composable
+private fun HudActions(
+    ready: Boolean,
+    busy: Boolean,
+    paused: Boolean,
+    focus: HudFocus,
+    onSave: () -> Unit,
+    onLoad: () -> Unit,
+    onPause: () -> Unit,
+    onReset: () -> Unit,
+    onQuit: () -> Unit,
+    modifier: Modifier,
+) {
+    ActionButton(
+        stringResource(if (paused) R.string.resume else R.string.pause), ShellTags.Pause,
+        enabled = ready && !busy, onClick = onPause,
+        modifier = modifier.then(focus.target(ShellTags.Pause)),
+    )
+    ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy, onSave, modifier.then(focus.target(ShellTags.Save)))
+    ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy, onLoad, modifier.then(focus.target(ShellTags.Load)))
+    ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy, onReset, modifier.then(focus.target(ShellTags.Reset)))
+    ActionButton(stringResource(R.string.quit), ShellTags.Quit, !busy, onQuit, modifier.then(focus.target(ShellTags.Quit)))
 }
 
 @Composable

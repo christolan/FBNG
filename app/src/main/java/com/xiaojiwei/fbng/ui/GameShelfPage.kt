@@ -33,9 +33,9 @@ import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 
 @Composable
-internal fun FavoritesPage(
+internal fun GameShelfPage(
     entries: List<LibraryEntry>,
-    hasFavorites: Boolean,
+    hasSavedGames: Boolean,
     scanning: Boolean,
     preparing: Boolean,
     launchError: Boolean,
@@ -46,6 +46,7 @@ internal fun FavoritesPage(
     onFocused: (String) -> Unit,
     onOpenLibrary: () -> Unit,
     onChoose: (LibraryEntry) -> Unit,
+    recent: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
     val repeatedTitles = remember(entries) {
@@ -57,7 +58,7 @@ internal fun FavoritesPage(
             .padding(start = margin, top = margin, end = margin),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        Text(stringResource(R.string.favorites_title), style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(if (recent) R.string.recent_title else R.string.favorites_title), style = MaterialTheme.typography.headlineSmall)
         if (entries.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth()
@@ -66,14 +67,17 @@ internal fun FavoritesPage(
                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
             ) {
                 val title = when {
-                    !hasFavorites -> R.string.favorites_empty
+                    !hasSavedGames -> if (recent) R.string.recent_empty else R.string.favorites_empty
                     scanning -> R.string.scanning
-                    else -> R.string.favorites_unavailable
+                    else -> if (recent) R.string.recent_unavailable else R.string.favorites_unavailable
                 }
                 Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = scheme.onSurface)
-                if (!hasFavorites || !scanning) {
+                if (!hasSavedGames || !scanning) {
                     Text(
-                        stringResource(if (hasFavorites) R.string.favorites_unavailable_hint else R.string.favorites_empty_hint),
+                        stringResource(
+                            if (hasSavedGames) R.string.favorites_unavailable_hint
+                            else if (recent) R.string.recent_empty_hint else R.string.favorites_empty_hint,
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         color = scheme.onSurfaceVariant,
                     )
@@ -100,8 +104,8 @@ internal fun FavoritesPage(
             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16),
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
         ) {
-            items(entries, key = { ShellTags.favorite(it.game.name) }) { entry ->
-                val tag = ShellTags.favorite(entry.game.name)
+            items(entries, key = { if (recent) ShellTags.recent(it.game.name) else ShellTags.favorite(it.game.name) }) { entry ->
+                val tag = if (recent) ShellTags.recent(entry.game.name) else ShellTags.favorite(entry.game.name)
                 val requester = remember { FocusRequester() }
                 DisposableEffect(tag, requester) {
                     cardRequesters[tag] = requester
