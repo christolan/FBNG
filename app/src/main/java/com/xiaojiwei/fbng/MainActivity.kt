@@ -1,5 +1,6 @@
 package com.xiaojiwei.fbng
 
+import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
 import android.os.SystemClock
@@ -31,6 +32,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Window.Callback's public hook is required to route controller input before Compose.
+    // Lint inherits the restriction on androidx.core.app.ComponentActivity, an internal
+    // ancestor of the public androidx.activity.ComponentActivity we extend.
+    @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (gamepadBridge.dispatchKey(event)) return true
         return super.dispatchKeyEvent(event)
