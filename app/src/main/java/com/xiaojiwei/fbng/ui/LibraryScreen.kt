@@ -97,6 +97,7 @@ internal fun LibraryContent(
     favoriteNames: Set<String> = emptySet(),
     recentNames: List<String> = emptyList(),
     onToggleFavorite: (String) -> Unit = {},
+    covers: CoverUiState? = null,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -144,6 +145,7 @@ internal fun LibraryContent(
                 favoriteNames = favoriteNames,
                 recentNames = recentNames,
                 onToggleFavorite = onToggleFavorite,
+                covers = covers,
             )
         }
     }
@@ -169,6 +171,7 @@ private fun LibraryShell(
     favoriteNames: Set<String>,
     recentNames: List<String>,
     onToggleFavorite: (String) -> Unit,
+    covers: CoverUiState?,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -213,6 +216,8 @@ private fun LibraryShell(
             ShellTags.SettingsBack,
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
+            ShellTags.FetchCovers,
+            ShellTags.RefreshCovers,
             ShellTags.NavFavorites,
             ShellTags.NavRecent,
             ShellTags.NavLibrary,
@@ -470,6 +475,7 @@ private fun LibraryShell(
                         entries = if (section == ShellSection.Recent) recentEntries else favoriteEntries,
                         hasSavedGames = if (section == ShellSection.Recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
                         recent = section == ShellSection.Recent,
+                        covers = covers,
                         scanning = workMessage == R.string.folder_scanning && busy,
                         preparing = preparingGame,
                         launchError = launchError,
@@ -498,6 +504,7 @@ private fun LibraryShell(
                         },
                     )
                     ShellSection.Library -> GameLibraryPage(
+                        covers = covers,
                         results = results,
                         selected = selected,
                         totalGames = entries.size,
@@ -572,6 +579,7 @@ private fun LibraryShell(
                         onBack = ::back,
                     )
                     ShellSection.Settings -> SettingsPage(
+                        covers = covers,
                         margin = margin,
                         requesters = requesters,
                         onFocused = ::focusSaved,
@@ -721,6 +729,7 @@ private fun SettingsPage(
     onFocused: (String) -> Unit,
     onOpenImport: () -> Unit,
     onOpenSync: () -> Unit,
+    covers: CoverUiState?,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
@@ -737,6 +746,7 @@ private fun SettingsPage(
         )
         SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport, requesters, onFocused, onOpenImport)
         SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync, requesters, onFocused, onOpenSync)
+        if (covers != null) CoverSettings(covers, requesters, onFocused)
         FocusableMessage(
             tag = ShellTags.SettingsInfo,
             requester = requesters.getValue(ShellTags.SettingsInfo),

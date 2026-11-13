@@ -72,6 +72,7 @@ internal fun GameLibraryPage(
     onOpenFilter: () -> Unit,
     search: @Composable () -> Unit,
     letterPicker: (@Composable () -> Unit)?,
+    covers: CoverUiState? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     fun control(tag: String) = Modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused)
@@ -88,6 +89,7 @@ internal fun GameLibraryPage(
             onPlay = { onPlay(entry.game.name) },
             onToggleFavorite = { onToggleFavorite(entry.game.name) },
             onOpenImport = onOpenImport,
+            covers = covers,
         )
     }
     if (compactDetails && selected != null) {
@@ -260,6 +262,7 @@ private fun GameDetails(
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
     onOpenImport: () -> Unit,
+    covers: CoverUiState? = null,
 ) {
     val game = entry.game
     val scheme = MaterialTheme.colorScheme
@@ -268,6 +271,9 @@ private fun GameDetails(
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {
+        if (covers != null) {
+            GameCover(entry.title, covers.images[game.name], Modifier.fillMaxWidth())
+        }
         Text(entry.title, style = MaterialTheme.typography.headlineSmall)
         if (entry.title != game.description) {
             Text(game.description, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
