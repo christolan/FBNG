@@ -1,9 +1,6 @@
 package com.xiaojiwei.fbng.dat
 
-import com.xiaojiwei.fbng.importing.InstallOutcome
-import com.xiaojiwei.fbng.importing.RomInstaller
 import com.xiaojiwei.fbng.importing.ZipArchives
-import com.xiaojiwei.fbng.library.AppStorage
 import java.io.File
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
@@ -66,17 +63,15 @@ class RomIdentificationTest {
     }
 
     @Test
-    fun crcMismatchIsReportedAndNotInstalled() {
+    fun crcMismatchIsReported() {
         val file = zip(
             "kovsh.zip",
             "pgm_p0605_v104.u1" to bytes(9, 9, 9, 9),
             "kovsh_v100_china.asic" to asic,
         )
-        val storage = AppStorage(folder.newFolder("storage"))
-        val report = RomInstaller(storage, catalog).importFile(file, "whatever.zip")
-        assertEquals(InstallOutcome.REJECTED_MISMATCH, report.outcome)
-        assertTrue(report.match!!.problems.any { it.kind == ProblemKind.CRC_MISMATCH && it.expectedName == "pgm_p0605_v104.u1" })
-        assertFalse(storage.archive("kovsh", isBios = false).exists())
+        val match = checkNotNull(RomSetMatcher.identify(ZipArchives.read(file), catalog, "whatever.zip").best)
+        assertFalse(match.isClean)
+        assertTrue(match.problems.any { it.kind == ProblemKind.CRC_MISMATCH && it.expectedName == "pgm_p0605_v104.u1" })
     }
 
     @Test
@@ -93,23 +88,21 @@ class RomIdentificationTest {
     }
 
     @Test
-    fun renamedInnerFileIsReportedAndNotInstalled() {
+    fun renamedInnerFileIsReported() {
         val file = zip(
             "kovsh.zip",
             "wrong-program.u1" to program,
             "kovsh_v100_china.asic" to asic,
         )
-        val storage = AppStorage(folder.newFolder("storage"))
-        val report = RomInstaller(storage, catalog).importFile(file, "kovsh.zip")
-        assertEquals(InstallOutcome.REJECTED_MISMATCH, report.outcome)
+        val match = checkNotNull(RomSetMatcher.identify(ZipArchives.read(file), catalog, file.name).best)
+        assertFalse(match.isClean)
         assertTrue(
-            report.match!!.problems.any {
+            match.problems.any {
                 it.kind == ProblemKind.NAME_MISMATCH &&
                     it.expectedName == "pgm_p0605_v104.u1" &&
                     it.actualName == "wrong-program.u1"
             },
         )
-        assertFalse(storage.archive("kovsh", isBios = false).exists())
     }
 
     @Test
@@ -121,39 +114,17 @@ class RomIdentificationTest {
     }
 
     @Test
-    fun extraFileStillInstallsUnderTheCanonicalName() {
+    fun extraFileStillMatchesTheCanonicalName() {
         val file = zip(
             "renamed.zip",
             "pgm_p0605_v104.u1" to program,
             "kovsh_v100_china.asic" to asic,
             "readme.txt" to bytes(1),
         )
-        val storage = AppStorage(folder.newFolder("storage"))
-        val report = RomInstaller(storage, catalog).importFile(file, "renamed.zip")
-        assertEquals(InstallOutcome.INSTALLED, report.outcome)
-        assertEquals("kovsh.zip", report.installedFileName)
-        assertTrue(storage.archive("kovsh", isBios = false).isFile)
-        assertTrue(report.match!!.problems.any { it.kind == ProblemKind.EXTRA })
-    }
-
-    @Test
-    fun pgmIsInstalledWhereTheCoreLooks() {
-        val file = zip("bios-dump.zip", "bios.u42" to bios)
-        val storage = AppStorage(folder.newFolder("storage"))
-        val report = RomInstaller(storage, catalog).importFile(file, "bios-dump.zip")
-        assertEquals(InstallOutcome.INSTALLED, report.outcome)
-        assertTrue(storage.archive("pgm", isBios = true).isFile)
-        assertEquals(file.length(), storage.archive("pgm", isBios = true).length())
-    }
-
-    @Test
-    fun otherCleanSetIsInstalled() {
-        val file = zip("other.zip", "other.bin" to bytes(1, 2))
-        val storage = AppStorage(folder.newFolder("storage"))
-        val report = RomInstaller(storage, catalog).importFile(file, "other.zip")
-        assertEquals(InstallOutcome.INSTALLED, report.outcome)
-        assertEquals("other", report.match?.setName)
-        assertTrue(storage.archive("other", isBios = false).isFile)
+        val match = checkNotNull(RomSetMatcher.identify(ZipArchives.read(file), catalog, file.name).best)
+        assertEquals("kovsh", match.setName)
+        assertTrue(match.isClean)
+        assertTrue(match.problems.any { it.kind == ProblemKind.EXTRA })
     }
 
     @Test
@@ -161,11 +132,9 @@ class RomIdentificationTest {
         val original = catalog.byName.getValue("other")
         val withTwin = DatCatalog(catalog.version, catalog.games + original.copy(name = "otherj"))
         val file = zip("renamed.zip", "other.bin" to bytes(1, 2))
-        val storage = AppStorage(folder.newFolder("storage"))
-        val installer = RomInstaller(storage, withTwin)
-        assertEquals(InstallOutcome.AMBIGUOUS, installer.importFile(file, file.name).outcome)
-        assertEquals("otherj.zip", installer.importFile(file, "otherj.ZIP").installedFileName)
-        assertTrue(storage.archive("otherj", isBios = false).isFile)
+        val members = ZipArchives.read(file)
+        assertTrue(RomSetMatcher.identify(members, withTwin, file.name).ambiguous)
+        assertEquals("otherj", RomSetMatcher.identify(members, withTwin, "otherj.ZIP").best?.setName)
     }
 
     @Test

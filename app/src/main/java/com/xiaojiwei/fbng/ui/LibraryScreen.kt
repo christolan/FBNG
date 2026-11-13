@@ -1,7 +1,6 @@
 package com.xiaojiwei.fbng.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,14 +12,12 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -37,11 +34,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -50,7 +45,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
@@ -61,11 +55,6 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.dat.ProblemKind
-import com.xiaojiwei.fbng.dat.RomProblem
-import com.xiaojiwei.fbng.dat.crcHex
-import com.xiaojiwei.fbng.importing.ImportReport
-import com.xiaojiwei.fbng.importing.InstallOutcome
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryResults
 import com.xiaojiwei.fbng.library.LibrarySnapshot
@@ -81,13 +70,11 @@ private enum class LibraryPicker { Letters, Status }
 internal fun LibraryContent(
     load: CatalogLoad,
     snapshot: LibrarySnapshot?,
-    reports: List<ImportReport>,
     busy: Boolean,
     readFold: @Composable () -> FoldSnapshot?,
-    onImport: () -> Unit,
     onPlay: (String) -> Unit,
     initialSection: ShellSection = ShellSection.Library,
-    workMessage: Int = R.string.importing,
+    workMessage: Int = R.string.folder_scanning,
     folders: List<FolderScan> = emptyList(),
     folderError: Int? = null,
     launchError: Boolean = false,
@@ -130,12 +117,10 @@ internal fun LibraryContent(
             LibraryShell(
                 snapshot = snapshot,
                 localizedTitles = localizedTitles,
-                reports = reports,
                 busy = busy,
                 playBusy = playBusy,
                 preparingGame = preparingGame,
                 readFold = readFold,
-                onImport = onImport,
                 onPlay = onPlay,
                 initialSection = initialSection,
                 workMessage = workMessage,
@@ -157,12 +142,10 @@ internal fun LibraryContent(
 private fun LibraryShell(
     snapshot: LibrarySnapshot,
     localizedTitles: Map<String, String>,
-    reports: List<ImportReport>,
     busy: Boolean,
     playBusy: Boolean,
     preparingGame: Boolean,
     readFold: @Composable () -> FoldSnapshot?,
-    onImport: () -> Unit,
     onPlay: (String) -> Unit,
     initialSection: ShellSection,
     workMessage: Int,
@@ -192,8 +175,8 @@ private fun LibraryShell(
     var focusRequest by remember { mutableStateOf(0) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
     var libraryPageSize by rememberSaveable { mutableStateOf(1) }
-    val favoritesGridState = rememberLazyGridState()
-    val recentGridState = rememberLazyGridState()
+    val favoritesListState = rememberLazyListState()
+    val recentListState = rememberLazyListState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
@@ -211,7 +194,6 @@ private fun LibraryShell(
             ShellTags.LibraryFilter,
             ShellTags.PreviousPage,
             ShellTags.NextPage,
-            ShellTags.Import,
             ShellTags.AddFolder,
             ShellTags.ScanFolders,
             ShellTags.Sync,
@@ -406,12 +388,12 @@ private fun LibraryShell(
                 ShellSection.Favorites, ShellSection.Recent -> {
                     val cards = if (section == ShellSection.Recent) recentCards else favoriteCards
                     val saved = if (section == ShellSection.Recent) recentFocus else favoritesFocus
-                    val grid = if (section == ShellSection.Recent) recentGridState else favoritesGridState
+                    val listState = if (section == ShellSection.Recent) recentListState else favoritesListState
                     val card = saved.takeIf { it in cards } ?: cards.firstOrNull()
                     if (card != null &&
-                        grid.layoutInfo.visibleItemsInfo.none { it.key == card }
+                        listState.layoutInfo.visibleItemsInfo.none { it.key == card }
                     ) {
-                        grid.scrollToItem(cards.indexOf(card))
+                        listState.scrollToItem(cards.indexOf(card))
                     }
                     listOfNotNull(
                         card,
@@ -433,7 +415,7 @@ private fun LibraryShell(
                 }
                 ShellSection.Import -> listOf(
                     savedFocus,
-                    if (reports.isEmpty()) ShellTags.AddFolder else ShellTags.Import,
+                    ShellTags.AddFolder,
                     ShellTags.SettingsBack,
                 )
                 ShellSection.Sync -> listOf(savedFocus, ShellTags.SettingsBack, ShellTags.Sync)
@@ -490,7 +472,7 @@ private fun LibraryShell(
                         preparing = preparingGame,
                         launchError = launchError,
                         margin = margin,
-                        gridState = if (section == ShellSection.Recent) recentGridState else favoritesGridState,
+                        listState = if (section == ShellSection.Recent) recentListState else favoritesListState,
                         cardRequesters = cardRequesters,
                         libraryRequester = requesters.getValue(ShellTags.OpenLibrary),
                         onFocused = ::focusSaved,
@@ -588,13 +570,11 @@ private fun LibraryShell(
                         },
                     )
                     ShellSection.Import -> ImportPage(
-                        reports = reports,
                         busy = busy,
                         margin = margin,
                         requesters = requesters,
                         onFocused = ::focusSaved,
                         onBack = ::back,
-                        onImport = onImport,
                         workMessage = workMessage,
                         folders = folders,
                         folderError = folderError,
@@ -635,32 +615,17 @@ private fun LibraryShell(
 
 @Composable
 private fun ImportPage(
-    reports: List<ImportReport>,
     busy: Boolean,
     margin: Dp,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onBack: () -> Unit,
-    onImport: () -> Unit,
     workMessage: Int,
     folders: List<FolderScan>,
     folderError: Int?,
     folderActions: FolderActions,
 ) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(margin),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
-    ) {
-        SettingsBack(requesters, onFocused, onBack)
-        Text(
-            stringResource(R.string.import_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = scheme.onBackground,
-        )
+    SettingsSubpage(R.string.shell_import, margin, requesters, onFocused, onBack) {
         FolderManagement(
             folders = folders,
             busy = busy,
@@ -670,36 +635,6 @@ private fun ImportPage(
             onFocused = onFocused,
             actions = folderActions,
         )
-        Text(
-            stringResource(R.string.import_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = scheme.onSurface,
-        )
-        Text(
-            stringResource(R.string.legal_notice),
-            style = MaterialTheme.typography.bodyLarge,
-            color = scheme.onSurfaceVariant,
-        )
-        FbngButton(
-            onClick = onImport,
-            enabled = !busy,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = FbngDimens.buttonHeight)
-                .onFocusChanged { if (it.isFocused) onFocused(ShellTags.Import) }
-                .testTag(ShellTags.Import)
-                .focusRequester(requesters.getValue(ShellTags.Import)),
-        ) {
-            Text(stringResource(R.string.import_button))
-        }
-        if (reports.isNotEmpty()) {
-            Text(
-                stringResource(R.string.reports_heading),
-                style = MaterialTheme.typography.titleMedium,
-                color = scheme.onBackground,
-            )
-            reports.forEach { report -> ImportReportBlock(report) }
-        }
     }
 }
 
@@ -710,19 +645,7 @@ private fun SyncPage(
     onFocused: (String) -> Unit,
     onBack: () -> Unit,
 ) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(margin),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
-    ) {
-        SettingsBack(requesters, onFocused, onBack)
-        Text(
-            stringResource(R.string.sync_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
+    SettingsSubpage(R.string.shell_sync, margin, requesters, onFocused, onBack) {
         FocusableMessage(
             tag = ShellTags.Sync,
             requester = requesters.getValue(ShellTags.Sync),
@@ -739,17 +662,30 @@ private fun SyncPage(
 }
 
 @Composable
-private fun SettingsBack(
+private fun SettingsSubpage(
+    title: Int,
+    margin: Dp,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onBack: () -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    FbngButton(
-        onClick = onBack,
-        modifier = Modifier.libraryFocus(ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused),
-        kind = FbngButtonKind.Neutral,
+    ShellPage(
+        title = stringResource(
+            R.string.shell_page_path, stringResource(R.string.shell_settings), stringResource(title),
+        ),
+        margin = margin,
+        headerAction = {
+            FbngButton(
+                onClick = onBack,
+                modifier = Modifier.libraryFocus(
+                    ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused,
+                ),
+                kind = FbngButtonKind.Neutral,
+            ) { Text(stringResource(R.string.settings_back)) }
+        },
     ) {
-        Text(stringResource(R.string.settings_back))
+        Column(Modifier.verticalScroll(rememberScrollState()), content = { content() })
     }
 }
 
@@ -764,55 +700,49 @@ private fun SettingsPage(
     appUpdate: UpdateUiState?,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(margin),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
-    ) {
-        Text(
-            stringResource(R.string.settings_title),
-            style = MaterialTheme.typography.headlineSmall,
-            color = scheme.onBackground,
-        )
-        SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport, requesters, onFocused, onOpenImport)
-        SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync, requesters, onFocused, onOpenSync)
-        if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
-        if (covers != null) CoverSettings(covers, requesters, onFocused)
-        FocusableMessage(
-            tag = ShellTags.SettingsInfo,
-            requester = requesters.getValue(ShellTags.SettingsInfo),
-            onFocused = onFocused,
-            container = scheme.surface,
+    ShellPage(title = stringResource(R.string.shell_settings), margin = margin) {
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
         ) {
-            Text(
-                stringResource(R.string.gamepad_hint),
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurfaceVariant,
-            )
-            Text(
-                stringResource(R.string.legal_notice),
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurfaceVariant,
-            )
-        }
-        FocusableMessage(
-            tag = ShellTags.SettingsCore,
-            requester = requesters.getValue(ShellTags.SettingsCore),
-            onFocused = onFocused,
-            container = scheme.surface,
-        ) {
-            Text(
-                stringResource(
-                    R.string.footer_core,
-                    BuildConfig.FBNEO_COMMIT_SHORT,
-                    BuildConfig.FBNEO_BUILD_DATE,
-                    BuildConfig.LIBRETRODROID_VERSION,
-                ),
-                style = MaterialTheme.typography.bodyLarge,
-                color = scheme.onSurface,
-            )
+            SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport, requesters, onFocused, onOpenImport)
+            SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync, requesters, onFocused, onOpenSync)
+            if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
+            if (covers != null) CoverSettings(covers, requesters, onFocused)
+            FocusableMessage(
+                tag = ShellTags.SettingsInfo,
+                requester = requesters.getValue(ShellTags.SettingsInfo),
+                onFocused = onFocused,
+                container = scheme.surface,
+            ) {
+                Text(
+                    stringResource(R.string.gamepad_hint),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = scheme.onSurfaceVariant,
+                )
+                Text(
+                    stringResource(R.string.legal_notice),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = scheme.onSurfaceVariant,
+                )
+            }
+            FocusableMessage(
+                tag = ShellTags.SettingsCore,
+                requester = requesters.getValue(ShellTags.SettingsCore),
+                onFocused = onFocused,
+                container = scheme.surface,
+            ) {
+                Text(
+                    stringResource(
+                        R.string.footer_core,
+                        BuildConfig.FBNEO_COMMIT_SHORT,
+                        BuildConfig.FBNEO_BUILD_DATE,
+                        BuildConfig.LIBRETRODROID_VERSION,
+                    ),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = scheme.onSurface,
+                )
+            }
         }
     }
 }
@@ -886,92 +816,6 @@ private fun DatError(message: String) {
             color = MaterialTheme.colorScheme.onSurface,
         )
     }
-}
-
-@Composable
-private fun ImportReportBlock(report: ImportReport) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(FbngDimens.cardRadius))
-            .background(scheme.surface)
-            .padding(FbngDimens.space16),
-    ) {
-        val headline = when (report.outcome) {
-            InstallOutcome.INSTALLED -> stringResource(
-                R.string.installed_as,
-                report.installedFileName ?: report.displayName,
-            )
-            InstallOutcome.AMBIGUOUS -> stringResource(R.string.import_ambiguous, report.displayName)
-            InstallOutcome.REJECTED_MISMATCH -> stringResource(
-                R.string.mismatch_header,
-                report.displayName,
-                report.match?.setName ?: "?",
-            )
-            InstallOutcome.UNRECOGNIZED -> stringResource(R.string.unrecognized, report.displayName)
-            InstallOutcome.UNREADABLE -> stringResource(R.string.not_a_zip, report.displayName)
-        }
-        Text(
-            report.displayName,
-            style = MaterialTheme.typography.titleMedium,
-            color = scheme.onSurface,
-        )
-        Text(
-            headline,
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (report.outcome == InstallOutcome.INSTALLED) scheme.secondary else scheme.error,
-        )
-        report.match?.let { ProblemList(it.problems) }
-    }
-}
-
-@Composable
-internal fun ProblemList(problems: List<RomProblem>) {
-    val shown = problems.take(12)
-    shown.forEach { problem ->
-        Text(
-            problemText(problem),
-            style = MaterialTheme.typography.bodyLarge,
-            color = if (problem.kind == ProblemKind.EXTRA) {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            } else {
-                MaterialTheme.colorScheme.error
-            },
-        )
-    }
-    if (problems.size > shown.size) {
-        Text(
-            "+${problems.size - shown.size}",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun problemText(problem: RomProblem): String = when (problem.kind) {
-    ProblemKind.MISSING -> stringResource(R.string.problem_missing, problem.expectedName.orEmpty())
-    ProblemKind.CRC_MISMATCH -> stringResource(
-        R.string.problem_crc,
-        problem.actualName ?: problem.expectedName.orEmpty(),
-        crcHex(problem.actualCrc ?: 0L),
-        crcHex(problem.expectedCrc ?: 0L),
-    )
-    ProblemKind.SIZE_MISMATCH -> stringResource(
-        R.string.problem_size,
-        problem.actualName ?: problem.expectedName.orEmpty(),
-        (problem.actualSize ?: 0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        (problem.expectedSize ?: 0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-    )
-    ProblemKind.NAME_MISMATCH -> stringResource(
-        R.string.problem_name,
-        problem.actualName.orEmpty(),
-        problem.expectedName.orEmpty(),
-    )
-    ProblemKind.DUPLICATE_NAME -> stringResource(R.string.problem_dupe, problem.actualName.orEmpty())
-    ProblemKind.EXTRA -> stringResource(R.string.problem_extra, problem.actualName.orEmpty())
 }
 
 private fun FocusRequester.tryFocus() {

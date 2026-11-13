@@ -116,7 +116,7 @@ class FolderLibraryTest {
         assertTrue(unavailable.folders.single { it.folder.uri == gamesFolder }.unavailable)
         assertTrue(unavailable.snapshot.games.isEmpty())
 
-        storage.install(game, "arcade", isBios = false)
+        game.copyTo(storage.archive("arcade", isBios = false))
         val mixed = reopened.refresh(catalog).snapshot.games.single()
         assertTrue(mixed.canLaunch)
         assertTrue(reopened.prepare(mixed).rom.readBytes().contentEquals(game.readBytes()))
@@ -126,7 +126,7 @@ class FolderLibraryTest {
         assertEquals(listOf(gamesFolder), afterRemoval.folders.map { it.folder.uri })
         assertTrue(bios.isFile)
         assertTrue(storage.archive("arcade", isBios = false).isFile)
-        storage.install(embedded, "arcade", isBios = false)
+        embedded.copyTo(storage.archive("arcade", isBios = false), overwrite = true)
         val nonMerged = reopened.refresh(catalog).snapshot.games.single()
         assertTrue(nonMerged.canLaunch)
         assertEquals(listOf("arcade"), nonMerged.archives.map { it.set.name })

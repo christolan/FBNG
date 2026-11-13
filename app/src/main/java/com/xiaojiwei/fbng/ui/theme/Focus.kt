@@ -8,7 +8,6 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
@@ -19,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -36,8 +34,8 @@ import androidx.compose.ui.semantics.semantics
  * Gamepad focus for a shell control. [focusable] is the first modifier so a
  * caller's [androidx.compose.ui.focus.focusRequester] sits directly above it —
  * anything between the two makes requestFocus() miss the target.
- * Focus scale changes immediately to provide clear gamepad feedback. Disabled
- * targets keep solid colors so their labels remain readable.
+ * An outline marks focus. Disabled targets keep solid colors so their labels
+ * remain readable.
  */
 @Composable
 internal fun Modifier.fbngFocusTarget(
@@ -45,20 +43,13 @@ internal fun Modifier.fbngFocusTarget(
     container: Color,
     shape: Shape = RoundedCornerShape(FbngDimens.cardRadius),
     enabled: Boolean = true,
-    large: Boolean = false,
     role: Role = Role.Button,
     restingStroke: Color = Color.Transparent,
     focusedStroke: Color? = null,
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    val pressed by interaction.collectIsPressedAsState()
     val scheme = MaterialTheme.colorScheme
-    val scale = when {
-        !enabled || !focused || pressed -> 1f
-        large -> FbngDimens.focusScaleLarge
-        else -> FbngDimens.focusScale
-    }
     val stroke = when {
         !enabled -> scheme.outlineVariant
         focused -> focusedStroke ?: scheme.primary
@@ -98,10 +89,6 @@ internal fun Modifier.fbngFocusTarget(
         .semantics(mergeDescendants = true) {
             this.role = role
             if (enabled) onClick { onClick(); true } else disabled()
-        }
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
         }
         .border(FbngDimens.focusStroke, stroke, shape)
         .clip(shape)

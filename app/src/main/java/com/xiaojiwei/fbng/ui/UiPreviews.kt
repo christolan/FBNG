@@ -13,11 +13,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.dat.DatCatalog
-import com.xiaojiwei.fbng.dat.ProblemKind
-import com.xiaojiwei.fbng.dat.RomProblem
-import com.xiaojiwei.fbng.dat.SetMatch
-import com.xiaojiwei.fbng.importing.ImportReport
-import com.xiaojiwei.fbng.importing.InstallOutcome
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.library.MissingDependency
@@ -55,17 +50,6 @@ private fun PreviewExpandedReady() {
 @Composable
 private fun PreviewDatError() {
     LibraryPreview(load = CatalogLoad.Failed("内置 DAT 无法解析。"), snapshot = null)
-}
-
-@Preview(name = "compact import", widthDp = 400, heightDp = 800)
-@Composable
-private fun PreviewImport() {
-    LibraryPreview(
-        load = ready(),
-        snapshot = emptySnapshot(),
-        reports = listOf(mismatchReport()),
-        initialSection = ShellSection.Import,
-    )
 }
 
 @Preview(name = "compact folders empty", widthDp = 400, heightDp = 800)
@@ -151,7 +135,6 @@ private fun PreviewHud() {
 private fun LibraryPreview(
     load: CatalogLoad,
     snapshot: LibrarySnapshot?,
-    reports: List<ImportReport> = emptyList(),
     initialSection: ShellSection = ShellSection.Library,
     folders: List<FolderScan> = emptyList(),
     busy: Boolean = false,
@@ -161,11 +144,9 @@ private fun LibraryPreview(
             LibraryContent(
                 load = load,
                 snapshot = snapshot,
-                reports = reports,
                 busy = busy,
                 workMessage = R.string.folder_scanning,
                 readFold = { null },
-                onImport = {},
                 onPlay = {},
                 initialSection = initialSection,
                 folders = folders,
@@ -184,19 +165,3 @@ private fun readySnapshot() = LibrarySnapshot(listOf(
     LibraryGame("galaga", "Galaga (Namco rev. B)"),
     LibraryGame("mslug", "Metal Slug - Super Vehicle-001", listOf(MissingDependency("neogeo", true))),
 ))
-
-private fun mismatchReport() = ImportReport(
-    displayName = "import.zip",
-    outcome = InstallOutcome.REJECTED_MISMATCH,
-    match = SetMatch(
-        setName = "kovsh",
-        description = "import.zip",
-        isBios = false,
-        requiredCount = 2,
-        matchedOwnCount = 1,
-        contentHits = 1,
-        explainedCount = 1,
-        problems = listOf(RomProblem(kind = ProblemKind.MISSING, expectedName = "missing.bin")),
-    ),
-    installedFileName = null,
-)

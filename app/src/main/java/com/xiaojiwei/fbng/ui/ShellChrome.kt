@@ -40,10 +40,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
@@ -79,7 +81,6 @@ internal object ShellTags {
     const val PreviousPage = "shell-library-previous-page"
     const val NextPage = "shell-library-next-page"
     fun letter(value: Char) = "shell-letter-$value"
-    const val Import = "shell-import"
     const val AddFolder = "shell-add-folder"
     const val ScanFolders = "shell-scan-folders"
     fun removeFolder(uri: Uri) = "shell-remove-folder-$uri"
@@ -117,6 +118,37 @@ private val Destinations = listOf(
     ShellDestination(ShellSection.Library, R.string.shell_library, ShellTags.NavLibrary),
     ShellDestination(ShellSection.Settings, R.string.shell_settings, ShellTags.NavSettings),
 )
+
+@Composable
+internal fun ShellPage(
+    title: String,
+    margin: Dp,
+    headerAction: @Composable (() -> Unit)? = null,
+    toolbar: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().padding(margin),
+        verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                modifier = Modifier.weight(1f).semantics { heading() },
+                style = MaterialTheme.typography.headlineSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            headerAction?.invoke()
+        }
+        toolbar?.invoke()
+        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+    }
+}
 
 @Composable
 internal fun ShellScaffold(
@@ -504,7 +536,6 @@ internal fun FocusableMessage(
             .fbngFocusTarget(
                 onClick = {},
                 container = container,
-                large = true,
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.panelRadius),
             )
             .padding(FbngDimens.space16),
