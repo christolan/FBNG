@@ -27,6 +27,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 
@@ -93,7 +95,10 @@ internal fun Modifier.fbngFocusTarget(
             )
         }
         .indication(interaction, ripple(color = scheme.primary))
-        .semantics(mergeDescendants = true) { this.role = role }
+        .semantics(mergeDescendants = true) {
+            this.role = role
+            if (enabled) onClick { onClick(); true } else disabled()
+        }
         .graphicsLayer {
             scaleX = scale
             scaleY = scale

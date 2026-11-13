@@ -142,7 +142,7 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
-    fun buttonBReturnsFromImportToTheLibrary() {
+    fun buttonBReturnsFromImportToItsSettingsEntry() {
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -159,7 +159,7 @@ class ShellFocusTest {
         }
         rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
         rule.onNodeWithTag(ShellTags.AddFolder).performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.EmptyImport).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.OpenImport).assertIsFocused()
     }
 
     @Test

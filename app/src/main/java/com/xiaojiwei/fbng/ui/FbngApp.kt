@@ -31,6 +31,8 @@ import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.FolderLibrary
 import com.xiaojiwei.fbng.library.LibraryRefresh
 import com.xiaojiwei.fbng.library.PreparedGame
+import com.xiaojiwei.fbng.library.readGameTitles
+import java.io.IOException
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -41,13 +43,17 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 private const val DAT_ASSET = "fbneo/FinalBurn Neo (ClrMame Pro XML, Arcade only).dat"
+private const val GAME_TITLES_ASSET = "fbneo/game-titles-zh-Hans.tsv"
 private const val TAG = "FBNG"
 private val libraryLock = Mutex()
 private val prepareLock = Mutex()
 
 sealed interface CatalogLoad {
     data object Loading : CatalogLoad
-    data class Ready(val catalog: DatCatalog) : CatalogLoad
+    data class Ready(
+        val catalog: DatCatalog,
+        val localizedTitles: Map<String, String> = emptyMap(),
+    ) : CatalogLoad
     data class Failed(val message: String) : CatalogLoad
 }
 
@@ -56,6 +62,10 @@ fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
     val storage = remember { AppStorage(context.filesDir).also(AppStorage::ensure) }
     val folders = remember { FolderLibrary(context, storage) }
+    val favorites = remember(context) { context.getSharedPreferences("library-favorites", Context.MODE_PRIVATE) }
+    var favoriteNames by remember(favorites) {
+        mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
+    }
     val scope = rememberCoroutineScope()
     val saveableState = rememberSaveableStateHolder()
     val load by produceState<CatalogLoad>(CatalogLoad.Loading, context) {
@@ -171,6 +181,13 @@ fun FbngApp(bridge: GamepadBridge) {
                     readFold = { rememberFoldSnapshot() },
                     onImport = { zipPicker.launch(ZIP_MIME) },
                     onPlay = ::play,
+                    initialSection = ShellSection.Favorites,
+                    favoriteNames = favoriteNames,
+                    onToggleFavorite = { name ->
+                        val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
+                        favorites.edit().putStringSet("sets", updated).apply()
+                        favoriteNames = updated
+                    },
                 )
             }
         } else {
@@ -209,7 +226,13 @@ private fun loadBundledCatalog(context: Context): CatalogLoad {
         when (val parsed = FbneoDat.parse(text)) {
             is DatParse.Ok -> {
                 Log.i(TAG, "DAT ${parsed.catalog.version}: ${parsed.catalog.games.size} games")
-                CatalogLoad.Ready(parsed.catalog)
+                val localizedTitles = try {
+                    context.assets.open(GAME_TITLES_ASSET).bufferedReader(Charsets.UTF_8).use(::readGameTitles)
+                } catch (error: IOException) {
+                    Log.w(TAG, "Could not load the Chinese game titles", error)
+                    emptyMap()
+                }
+                CatalogLoad.Ready(parsed.catalog, localizedTitles)
             }
             is DatParse.Error -> {
                 Log.e(TAG, "DAT parse failed: ${parsed.message}")

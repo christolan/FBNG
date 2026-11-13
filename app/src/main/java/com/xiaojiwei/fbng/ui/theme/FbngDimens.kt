@@ -29,6 +29,8 @@ internal object FbngDimens {
     val buttonHeight = space48
     val icon = space24
     val padKey = space32
+    val favoriteCardWidth = 280.dp
+    val favoriteCardHeight = space48 * 2
 
     /** 5 × 32dp. Wide enough for a 16sp Chinese nav label plus the icon. */
     val railWidthMedium = 160.dp
@@ -36,8 +38,8 @@ internal object FbngDimens {
     /** 4 × 48dp. */
     val railWidthExpanded = 192.dp
 
-    /** 5 × 32dp. One grid cell; the column count is the width divided by this. */
-    val cardMin = 160.dp
+    /** Enough for seven letter keys at their normal size with gaps and panel padding. */
+    val libraryPickerWidth = space48 * 9
 
     /** 10 × 48dp. Below this, the banner collapses to one row so the grid stays on screen. */
     val shortWindow = 480.dp

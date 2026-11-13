@@ -1,13 +1,26 @@
 package com.xiaojiwei.fbng.dat
 
+import com.xiaojiwei.fbng.library.readGameTitles
 import java.io.File
 import java.security.MessageDigest
 import java.util.Properties
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BundledDatTest {
+    @Test
+    fun bundledChineseTitlesKeepRomSetsAndVersionsDistinct() {
+        val titles = File(repoRoot(), "app/src/main/assets/fbneo/game-titles-zh-Hans.tsv")
+            .bufferedReader(Charsets.UTF_8).use(::readGameTitles)
+
+        assertEquals("合金弹头 3 (NGM-2560)", titles["mslug3"])
+        assertEquals("合金弹头 3 (NGH-2560)", titles["mslug3h"])
+        assertNull(titles["neogeo"])
+        assertNull(titles["asukaja"])
+    }
+
     @Test
     fun bundledDatMatchesThePinnedCore() {
         val root = repoRoot()

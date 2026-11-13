@@ -33,6 +33,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
@@ -44,8 +45,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 internal enum class ShellSection {
+    Favorites,
     Library,
     Import,
     Sync,
@@ -53,21 +58,33 @@ internal enum class ShellSection {
 }
 
 internal object ShellTags {
+    private const val GamePrefix = "shell-game-"
+    private const val FavoritePrefix = "shell-favorite-game-"
     const val Play = "shell-play"
+    const val OpenLibrary = "shell-open-library"
+    const val ToggleFavorite = "shell-toggle-favorite"
     const val EmptyImport = "shell-library-import"
     const val DetailBack = "shell-detail-back"
-    fun game(name: String) = "shell-game-$name"
+    fun game(name: String) = "$GamePrefix$name"
+    fun gameName(tag: String) = tag.takeIf { it.startsWith(GamePrefix) }?.removePrefix(GamePrefix)
+    fun favorite(name: String) = "$FavoritePrefix$name"
     const val Search = "shell-search"
+    const val ClearSearch = "shell-search-clear"
+    const val JumpToLetter = "shell-jump-to-letter"
+    const val LibraryFilter = "shell-library-filter"
+    fun letter(value: Char) = "shell-letter-$value"
     const val Import = "shell-import"
     const val AddFolder = "shell-add-folder"
     const val ScanFolders = "shell-scan-folders"
     fun removeFolder(uri: Uri) = "shell-remove-folder-$uri"
     const val Sync = "shell-sync"
+    const val OpenImport = "shell-open-import"
+    const val OpenSync = "shell-open-sync"
+    const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
+    const val NavFavorites = "shell-nav-favorites"
     const val NavLibrary = "shell-nav-library"
-    const val NavImport = "shell-nav-import"
-    const val NavSync = "shell-nav-sync"
     const val NavSettings = "shell-nav-settings"
     const val Save = "shell-save"
     const val Load = "shell-load"
@@ -83,9 +100,8 @@ private data class ShellDestination(
 )
 
 private val Destinations = listOf(
+    ShellDestination(ShellSection.Favorites, R.string.favorites_title, ShellTags.NavFavorites),
     ShellDestination(ShellSection.Library, R.string.shell_library, ShellTags.NavLibrary),
-    ShellDestination(ShellSection.Import, R.string.shell_import, ShellTags.NavImport),
-    ShellDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.NavSync),
     ShellDestination(ShellSection.Settings, R.string.shell_settings, ShellTags.NavSettings),
 )
 
@@ -96,11 +112,12 @@ internal fun ShellScaffold(
     expanded: Boolean,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
-    onFocused: (String) -> Unit,
+    onNavFocused: (String) -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxSize().background(scheme.background)) {
+    Column(modifier.fillMaxSize().background(scheme.background)) {
         if (rail) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 ShellRail(
@@ -108,7 +125,7 @@ internal fun ShellScaffold(
                     expanded = expanded,
                     requesters = requesters,
                     onSection = onSection,
-                    onFocused = onFocused,
+                    onNavFocused = onNavFocused,
                 )
                 Box(Modifier.weight(1f).fillMaxHeight()) { content() }
             }
@@ -121,7 +138,7 @@ internal fun ShellScaffold(
                 section = section,
                 requesters = requesters,
                 onSection = onSection,
-                onFocused = onFocused,
+                onNavFocused = onNavFocused,
             )
         }
     }
@@ -133,7 +150,7 @@ private fun ShellRail(
     expanded: Boolean,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
-    onFocused: (String) -> Unit,
+    onNavFocused: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val width = if (expanded) FbngDimens.railWidthExpanded else FbngDimens.railWidthMedium
@@ -162,7 +179,7 @@ private fun ShellRail(
                 selected = destination.section == section,
                 requester = requesters.getValue(destination.tag),
                 onClick = { onSection(destination.section) },
-                onFocused = onFocused,
+                onFocused = { onNavFocused(destination.tag) },
             )
         }
     }
@@ -187,7 +204,7 @@ private fun RailItem(
     selected: Boolean,
     requester: FocusRequester,
     onClick: () -> Unit,
-    onFocused: (String) -> Unit,
+    onFocused: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
@@ -195,7 +212,7 @@ private fun RailItem(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = FbngDimens.buttonHeight)
-            .onFocusChanged { if (it.isFocused) onFocused(destination.tag) }
+            .onFocusChanged { if (it.isFocused) onFocused() }
             .testTag(destination.tag)
             .semantics { this.selected = selected }
             .focusRequester(requester)
@@ -231,7 +248,7 @@ private fun ShellBottomBar(
     section: ShellSection,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
-    onFocused: (String) -> Unit,
+    onNavFocused: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Row(
@@ -248,7 +265,7 @@ private fun ShellBottomBar(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = FbngDimens.buttonHeight)
-                    .onFocusChanged { if (it.isFocused) onFocused(destination.tag) }
+                    .onFocusChanged { if (it.isFocused) onNavFocused(destination.tag) }
                     .testTag(destination.tag)
                     .semantics { this.selected = selected }
                     .focusRequester(requesters.getValue(destination.tag))
@@ -322,6 +339,19 @@ internal fun ShellGlyph(section: ShellSection, color: Color, modifier: Modifier 
     Canvas(modifier) {
         val stroke = Stroke(width = size.minDimension * 0.08f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
         when (section) {
+            ShellSection.Favorites -> {
+                val radius = size.minDimension / 2f - stroke.width
+                val star = Path()
+                for (vertex in 0 until 10) {
+                    val angle = vertex * PI / 5 - PI / 2
+                    val distance = if (vertex % 2 == 0) radius else radius * 0.45f
+                    val x = center.x + cos(angle).toFloat() * distance
+                    val y = center.y + sin(angle).toFloat() * distance
+                    if (vertex == 0) star.moveTo(x, y) else star.lineTo(x, y)
+                }
+                star.close()
+                drawPath(star, color, style = stroke)
+            }
             ShellSection.Library -> {
                 val gap = size.minDimension * 0.16f
                 val cell = (size.minDimension - gap) / 2f

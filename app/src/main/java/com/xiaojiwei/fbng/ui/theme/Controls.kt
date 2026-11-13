@@ -21,6 +21,8 @@ enum class FbngButtonKind {
 
     /** Charcoal fill and a thin electric-blue stroke. Used on the black letterbox bars. */
     Outline,
+
+    Neutral,
 }
 
 @Composable
@@ -36,14 +38,19 @@ fun FbngButton(
     val container = when {
         !enabled -> scheme.surfaceContainerHighest
         kind == FbngButtonKind.Outline -> scheme.surfaceContainer
+        kind == FbngButtonKind.Neutral -> scheme.surface
         else -> scheme.primary
     }
-    val resting = if (kind == FbngButtonKind.Outline && enabled) scheme.primary else Color.Transparent
+    val resting = when (kind) {
+        FbngButtonKind.Outline -> scheme.primary
+        FbngButtonKind.Neutral -> scheme.outline
+        FbngButtonKind.Filled -> Color.Transparent
+    }
     val focused = if (kind == FbngButtonKind.Filled) scheme.onPrimary else scheme.primary
     val contentColor = when {
         !enabled -> scheme.onSurfaceVariant
-        kind == FbngButtonKind.Outline -> scheme.onSurface
-        else -> scheme.onPrimary
+        kind == FbngButtonKind.Filled -> scheme.onPrimary
+        else -> scheme.onSurface
     }
     CompositionLocalProvider(LocalContentColor provides contentColor) {
     Row(
