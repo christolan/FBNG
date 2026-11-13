@@ -24,7 +24,7 @@ data class SaveSlotInfo(
     val automatic: Boolean get() = id == SaveStateStore.AUTO_SLOT
 }
 
-/** Each new slot is one atomic bundle: state, metadata and the matching screenshot. */
+/** Each new slot atomically bundles the state, metadata and any available screenshot. */
 class SaveStateStore(private val directory: File) {
     companion object {
         const val AUTO_SLOT = 0

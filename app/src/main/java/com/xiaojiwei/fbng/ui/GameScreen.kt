@@ -145,6 +145,7 @@ internal fun GameScreen(
     var showReset by remember(session) { mutableStateOf(false) }
     var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
     var pausePageOpen by remember(session) { mutableStateOf(false) }
+    var openingPausePage by remember(session) { mutableStateOf(false) }
     var pauseBeforeReset by remember(session) { mutableStateOf(false) }
     var coreFailed by remember(session) { mutableStateOf(false) }
     var foreground by remember(session) {
@@ -201,9 +202,17 @@ internal fun GameScreen(
     }
 
     fun openPausePage() {
+        if (openingPausePage) return
+        openingPausePage = true
         bridge.target = null
-        pausePageOpen = true
-        if (!session.paused) session.togglePause()
+        scope.launch {
+            try {
+                session.pauseForMenu()
+                pausePageOpen = true
+            } finally {
+                openingPausePage = false
+            }
+        }
     }
 
     fun resume() {
@@ -264,8 +273,8 @@ internal fun GameScreen(
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    DisposableEffect(session, pausePageOpen, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
-        bridge.target = if (!foreground || pausePageOpen || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
+    DisposableEffect(session, pausePageOpen, openingPausePage, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
+        bridge.target = if (!foreground || openingPausePage || pausePageOpen || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
         bridge.onPauseToggle = {
             if (!showReset && slotMode == null && !coreFailed && !session.busy) {
                 if (pausePageOpen) resume() else openPausePage()
