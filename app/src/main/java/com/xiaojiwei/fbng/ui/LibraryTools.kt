@@ -64,7 +64,6 @@ import kotlin.math.max
 
 @Composable
 internal fun LibraryTools(
-    hasResults: Boolean,
     playableOnly: Boolean,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
@@ -84,7 +83,6 @@ internal fun LibraryTools(
         FbngButton(
             onOpenLetters,
             modifier.libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused),
-            enabled = hasResults,
             kind = FbngButtonKind.Neutral,
         ) {
             Text(jumpLabel, style = textStyle)

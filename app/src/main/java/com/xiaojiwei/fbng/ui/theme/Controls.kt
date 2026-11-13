@@ -42,7 +42,7 @@ fun FbngButton(
         else -> scheme.primary
     }
     val resting = when (kind) {
-        FbngButtonKind.Outline -> scheme.primary
+        FbngButtonKind.Outline -> scheme.outlineVariant
         FbngButtonKind.Neutral -> scheme.outline
         FbngButtonKind.Filled -> Color.Transparent
     }

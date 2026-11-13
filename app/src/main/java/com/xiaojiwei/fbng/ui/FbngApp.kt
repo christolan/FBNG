@@ -3,7 +3,6 @@ package com.xiaojiwei.fbng.ui
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,10 +29,6 @@ import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.dat.DatParse
 import com.xiaojiwei.fbng.dat.FbneoDat
 import com.xiaojiwei.fbng.game.GamepadBridge
-import com.xiaojiwei.fbng.importing.ImportReport
-import com.xiaojiwei.fbng.importing.InstallOutcome
-import com.xiaojiwei.fbng.importing.RomInstaller
-import com.xiaojiwei.fbng.importing.withLocalZip
 import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.FolderLibrary
 import com.xiaojiwei.fbng.library.LibraryRefresh
@@ -108,7 +103,6 @@ fun FbngApp(bridge: GamepadBridge) {
         value = withContext(Dispatchers.IO) { loadBundledCatalog(context) }
     }
     var library by remember { mutableStateOf<LibraryRefresh?>(null) }
-    var reports by remember { mutableStateOf<List<ImportReport>>(emptyList()) }
     var playing by remember { mutableStateOf<PreparedGame?>(null) }
     var workMessage by remember { mutableStateOf<Int?>(null) }
     var initialScan by remember { mutableStateOf(true) }
@@ -153,11 +147,6 @@ fun FbngApp(bridge: GamepadBridge) {
         }
     }
 
-    val zipPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) updateLibrary(R.string.importing) { catalog ->
-            reports = importUris(context, uris, storage, catalog)
-        }
-    }
     val folderPicker = rememberLauncherForActivityResult(LocalFolderPicker) { uri ->
         if (uri != null) updateLibrary(R.string.folder_scanning) {
             try {
@@ -173,7 +162,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun play(setName: String) {
-        if (workMessage == R.string.importing || preparing || playing != null || updater?.installing == true) return
+        if (preparing || playing != null || updater?.installing == true) return
         val game = library?.snapshot?.games?.firstOrNull { it.name == setName && it.canLaunch } ?: return
         preparing = true
         launchError = false
@@ -197,9 +186,8 @@ fun FbngApp(bridge: GamepadBridge) {
                 LibraryContent(
                     load = load,
                     snapshot = library?.snapshot,
-                    reports = reports,
                     busy = initialScan || workMessage != null || preparing || installingUpdate,
-                    playBusy = preparing || workMessage == R.string.importing || installingUpdate,
+                    playBusy = preparing || installingUpdate,
                     preparingGame = preparing,
                     workMessage = workMessage ?: when {
                         initialScan -> R.string.folder_scanning
@@ -219,7 +207,6 @@ fun FbngApp(bridge: GamepadBridge) {
                         },
                     ),
                     readFold = { rememberFoldSnapshot() },
-                    onImport = { zipPicker.launch(ZIP_MIME) },
                     onPlay = ::play,
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favoriteNames,
@@ -246,30 +233,6 @@ fun FbngApp(bridge: GamepadBridge) {
                 },
                 onQuit = { playing = null },
             )
-        }
-    }
-}
-
-private suspend fun importUris(
-    context: Context,
-    uris: List<Uri>,
-    storage: AppStorage,
-    catalog: DatCatalog,
-): List<ImportReport> = withContext(Dispatchers.IO) {
-    val installer = RomInstaller(storage, catalog)
-    uris.map { uri ->
-        var name = uri.lastPathSegment ?: "zip"
-        try {
-            name = displayName(context, uri) ?: name
-            context.contentResolver.withLocalZip(uri, storage.cacheDir) { temp ->
-                installer.importFile(temp, name).also { report ->
-                    Log.i(TAG, "import $name -> ${report.outcome} ${report.match?.setName}")
-                }
-            }
-        } catch (error: Exception) {
-            if (error is CancellationException) throw error
-            Log.w(TAG, "import failed for $name", error)
-            ImportReport(name, InstallOutcome.UNREADABLE, null, null)
         }
     }
 }
@@ -301,17 +264,7 @@ private fun loadBundledCatalog(context: Context): CatalogLoad {
     }
 }
 
-private fun displayName(context: Context, uri: Uri): String? {
-    val queried = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-        ?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
-        }
-    return queried?.takeIf { it.isNotBlank() }
-}
-
 private object LocalFolderPicker : ActivityResultContracts.OpenDocumentTree() {
     override fun createIntent(context: Context, input: Uri?): Intent =
         super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
 }
-
-private val ZIP_MIME = arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")

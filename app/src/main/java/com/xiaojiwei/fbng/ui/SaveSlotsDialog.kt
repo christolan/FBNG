@@ -146,7 +146,7 @@ internal fun SaveSlotsDialog(
                                     target("new").width(FbngDimens.saveCardWidth).fillMaxHeight()
                                         .fbngFocusTarget(onClick = {
                                             onChoose(Math.addExact(current.maxOf { it.id }, 1))
-                                        }, enabled = !busy, large = true,
+                                        }, enabled = !busy,
                                             container = MaterialTheme.colorScheme.surfaceContainerHigh)
                                         .padding(FbngDimens.space16),
                                     verticalArrangement = Arrangement.Center,
@@ -226,9 +226,9 @@ private fun SlotCard(
     }
     Column(
         modifier.width(FbngDimens.saveCardWidth).fillMaxHeight()
-            .fbngFocusTarget(onClick = onClick, enabled = enabled, large = true,
+            .fbngFocusTarget(onClick = onClick, enabled = enabled,
                 container = MaterialTheme.colorScheme.surfaceContainerHigh,
-                restingStroke = if (slot.automatic) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+                restingStroke = if (slot.automatic) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant)
             .padding(FbngDimens.space8),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {

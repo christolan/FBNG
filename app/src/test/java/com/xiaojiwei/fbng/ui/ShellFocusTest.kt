@@ -7,13 +7,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
@@ -25,6 +32,7 @@ import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,10 +56,8 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = readySnapshot(),
-                    reports = emptyList(),
                     busy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = { played = it },
                 )
             }
@@ -74,11 +80,9 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = snapshot,
-                    reports = emptyList(),
                     busy = true,
                     playBusy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = { played = it },
                 )
             }
@@ -101,10 +105,8 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = readySnapshot(),
-                    reports = emptyList(),
                     busy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = {},
                 )
             }
@@ -118,6 +120,75 @@ class ShellFocusTest {
     }
 
     @Test
+    @Config(sdk = [33], qualifiers = "w400dp-h360dp-mdpi")
+    fun controllerScrollsTheRecentCoversAndRestoresFocusAfterPlay() {
+        var inGame by mutableStateOf(false)
+        val names = listOf("galaga", "mslug", "sf2", "kof98")
+        rule.setContent {
+            FbngTheme {
+                val state = rememberSaveableStateHolder()
+                if (!inGame) state.SaveableStateProvider("shell") {
+                    LibraryContent(
+                        load = readyCatalog(),
+                        snapshot = LibrarySnapshot(names.map { LibraryGame(it, it) }),
+                        busy = false,
+                        readFold = { null },
+                        onPlay = { inGame = true },
+                        initialSection = ShellSection.Recent,
+                        recentNames = names,
+                    )
+                }
+            }
+        }
+        names.zipWithNext().forEach { (current, next) ->
+            rule.onNodeWithTag(ShellTags.recent(current)).assertIsFocused()
+                .performKeyInput { pressKey(Key.DirectionRight) }
+            rule.onNodeWithTag(ShellTags.recent(next)).assertIsFocused()
+        }
+        rule.onNodeWithTag(ShellTags.recent(names.last())).performKeyInput { pressKey(Key.ButtonA) }
+        rule.runOnIdle {
+            assertTrue(inGame)
+            inGame = false
+        }
+        rule.onNodeWithTag(ShellTags.recent(names.last())).assertIsFocused()
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
+    fun pagingKeepsTheHeaderFixedAndGameCardsTheSameSize() {
+        val games = (1..20).map { index ->
+            LibraryGame("game$index", if (index == 1) "Arcade 1" else "Arcade $index with a very long title")
+        }
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = LibrarySnapshot(games),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                )
+            }
+        }
+        val title = rule.onNode(hasText("游戏库") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertIsDisplayed()
+        val titleBounds = title.getUnclippedBoundsInRoot()
+        val first = rule.onNodeWithTag(ShellTags.game(games[0].name))
+        val firstBounds = first.getUnclippedBoundsInRoot()
+        val secondBounds = rule.onNodeWithTag(ShellTags.game(games[1].name)).getUnclippedBoundsInRoot()
+        assertEquals(firstBounds.right - firstBounds.left, secondBounds.right - secondBounds.left)
+        assertEquals(firstBounds.bottom - firstBounds.top, secondBounds.bottom - secondBounds.top)
+        val nextPage = rule.onNodeWithTag(ShellTags.NextPage).getUnclippedBoundsInRoot()
+        assertTrue(nextPage.bottom < firstBounds.top)
+        rule.onNodeWithTag(ShellTags.Search).assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.LibraryFilter).assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.game(games[0].name)).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag(ShellTags.game(games[0].name)).assertDoesNotExist()
+        assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
+    }
+
+    @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
     fun buttonBLeavesTheSearchFieldWithoutLeavingTheLibrary() {
         rule.setContent {
@@ -125,10 +196,8 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = readySnapshot(),
-                    reports = emptyList(),
                     busy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = {},
                 )
             }
@@ -148,15 +217,15 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = LibrarySnapshot(),
-                    reports = emptyList(),
                     busy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = {},
                     initialSection = ShellSection.Import,
                 )
             }
         }
+        rule.onNodeWithText("设置/导入").assertIsDisplayed()
+        rule.onNodeWithText("导入 zip").assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
         rule.onNodeWithTag(ShellTags.AddFolder).performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.OpenImport).assertIsFocused()
@@ -173,10 +242,8 @@ class ShellFocusTest {
                 LibraryContent(
                     load = readyCatalog(),
                     snapshot = LibrarySnapshot(),
-                    reports = emptyList(),
                     busy = false,
                     readFold = { null },
-                    onImport = {},
                     onPlay = {},
                     initialSection = ShellSection.Import,
                     folders = folders,

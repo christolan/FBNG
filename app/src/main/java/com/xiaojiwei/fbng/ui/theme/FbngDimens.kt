@@ -23,18 +23,15 @@ internal object FbngDimens {
     val panelRadius = 24.dp
 
     val focusStroke = 2.dp
-    const val focusScale = 1.05f
-    const val focusScaleLarge = 1.025f
 
     val buttonHeight = space48
     val icon = space24
     val padKey = space32
-    val favoriteCardWidth = space48 * 5
-    val shelfCoverWidth = space48 * 2
-    val favoriteCardHeight = space48 * 2
+    val shelfCardWidth = space48 * 4
+    val detailCoverWidth = space48 * 5
     val libraryCellWidth = space48 * 5
-    val libraryRowHeight = space48 + space24
     val libraryToolsWidth = space48 * 5
+    val librarySearchWidth = space48 * 4
     val libraryToolbarBreakpoint = space48 * 13
     val railItemHeight = space48 + space16
     val hudActionWidth = space48 + space24
@@ -50,9 +47,6 @@ internal object FbngDimens {
 
     /** Enough for seven letter keys at their normal size with gaps and panel padding. */
     val libraryPickerWidth = space48 * 9
-
-    /** 10 × 48dp. Below this, the banner collapses to one row so the grid stays on screen. */
-    val shortWindow = 480.dp
 }
 
 internal val FbngShapes = Shapes(
