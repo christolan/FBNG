@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.game
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.Properties
@@ -28,6 +29,7 @@ data class SaveSlotInfo(
 class SaveStateStore(private val directory: File) {
     companion object {
         const val AUTO_SLOT = 0
+        const val MAX_MANUAL_SLOTS = 10
         private val SLOT_NAME = Regex("slot([0-9]+)\\.save")
     }
 
@@ -42,19 +44,25 @@ class SaveStateStore(private val directory: File) {
     fun hasSlot(id: Int = AUTO_SLOT): Boolean = bundle(id).isFile ||
         (id == AUTO_SLOT && legacyState.isFile && legacyState.length() > 0L)
 
-    fun listSlots(): List<SaveSlotInfo> {
-        val ids = directory.listFiles().orEmpty().mapNotNull {
-            SLOT_NAME.matchEntire(it.name)?.groupValues?.get(1)?.toIntOrNull()
-        }.filter { it > AUTO_SLOT }.distinct().sorted()
-        return (listOf(AUTO_SLOT) + ids).map { id ->
-            val file = bundle(id)
-            val available = hasSlot(id)
-            // A damaged slot stays visible and cannot be silently overwritten as a new slot.
-            val timestamp = runCatching {
-                metadata(id).getProperty("savedAtEpochMs")?.toLongOrNull()
-            }.getOrNull() ?: if (file.isFile) file.lastModified() else legacyState.lastModified()
-            SaveSlotInfo(id, timestamp, available)
+    private fun manualSlotIds(): Set<Int> {
+        val files = directory.listFiles() ?: if (directory.exists()) {
+            throw IOException("无法读取存档目录，请检查剩余空间。")
+        } else {
+            return emptySet()
         }
+        return files.mapNotNull {
+            SLOT_NAME.matchEntire(it.name)?.groupValues?.get(1)?.toIntOrNull()
+        }.filter { it > AUTO_SLOT }.toSet()
+    }
+
+    fun listSlots(): List<SaveSlotInfo> = (listOf(AUTO_SLOT) + manualSlotIds().sorted()).map { id ->
+        val file = bundle(id)
+        val available = hasSlot(id)
+        // A damaged slot stays visible and cannot be silently overwritten as a new slot.
+        val timestamp = runCatching {
+            metadata(id).getProperty("savedAtEpochMs")?.toLongOrNull()
+        }.getOrNull() ?: if (file.isFile) file.lastModified() else legacyState.lastModified()
+        SaveSlotInfo(id, timestamp, available)
     }
 
     fun read(id: Int = AUTO_SLOT): SavedSlot? {
@@ -84,6 +92,17 @@ class SaveStateStore(private val directory: File) {
         return ZipFile(file).use { zip ->
             zip.getEntry("cover.jpg")?.let { entry -> zip.getInputStream(entry).use { it.readBytes() } }
         }
+    }
+
+    @Synchronized
+    fun createManualSlot(bytes: ByteArray, coreCommit: String, cover: ByteArray? = null): Int {
+        val occupied = manualSlotIds()
+        check(occupied.size < MAX_MANUAL_SLOTS) {
+            "已达到 $MAX_MANUAL_SLOTS 个手动槽位的上限，请选择已有槽位覆盖。"
+        }
+        val id = (1..MAX_MANUAL_SLOTS).first { it !in occupied }
+        write(bytes, coreCommit, id = id, cover = cover)
+        return id
     }
 
     fun write(

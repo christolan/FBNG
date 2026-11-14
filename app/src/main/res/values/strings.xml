@@ -146,7 +146,8 @@
     <string name="close">关闭</string>
     <string name="save_slots_title">存档 · 游戏已暂停</string>
     <string name="load_slots_title">读档 · 游戏已暂停</string>
-    <string name="save_slots_hint">新建槽位或选择要覆盖的存档，左右滑动或用手柄选择。</string>
+    <string name="save_slots_hint">选择已有槽位可覆盖存档。</string>
+    <string name="manual_slots_full">已达 %1$d 个手动槽位上限，可覆盖已有存档。</string>
     <string name="load_slots_hint">选择要读取的存档，左右滑动或用手柄选择。</string>
     <string name="slots_loading">正在读取存档槽位…</string>
     <string name="slots_list_failed">无法读取存档目录，请关闭弹窗后重试，并检查剩余空间。</string>
