@@ -51,7 +51,7 @@ internal fun Modifier.fbngFocusTarget(
     val focused by interaction.collectIsFocusedAsState()
     val scheme = MaterialTheme.colorScheme
     val stroke = when {
-        !enabled -> scheme.outlineVariant
+        !enabled -> Color.Transparent
         focused -> focusedStroke ?: scheme.primary
         else -> restingStroke
     }

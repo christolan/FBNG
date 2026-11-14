@@ -8,14 +8,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +26,7 @@ import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 
 @Composable
@@ -58,12 +55,7 @@ internal fun GameShelfPage(
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
         ) {
             if (entries.isEmpty()) {
-                Column(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                        .background(scheme.surface, RoundedCornerShape(FbngDimens.panelRadius))
-                        .padding(FbngDimens.space16),
-                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
-                ) {
+                FbngEmptyState {
                     val title = when {
                         !hasSavedGames -> if (recent) R.string.recent_empty else R.string.favorites_empty
                         scanning -> R.string.scanning
@@ -113,7 +105,7 @@ internal fun GameShelfPage(
                         Column(
                             Modifier.width(cardWidth).fillMaxHeight()
                                 .libraryFocus(tag, requester, onFocused)
-                                .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surface),
+                                .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surfaceContainerHigh),
                         ) {
                             GameCover(
                                 entry.title,
@@ -121,7 +113,7 @@ internal fun GameShelfPage(
                                 Modifier.fillMaxWidth().weight(1f),
                                 contentScale = ContentScale.Crop,
                             )
-                            GameCardText(entry, Modifier.fillMaxWidth().height(textHeight))
+                            GameCardText(entry, Modifier.fillMaxWidth().height(textHeight).background(scheme.surface))
                         }
                     }
                 }

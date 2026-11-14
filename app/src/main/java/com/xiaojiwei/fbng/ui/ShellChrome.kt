@@ -53,6 +53,7 @@ import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -127,19 +128,25 @@ internal fun ShellPage(
     title: String,
     margin: Dp,
     headerAction: @Composable ((Dp) -> Unit)? = null,
+    leadingAction: @Composable (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().padding(margin),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        BoxWithConstraints(Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight).testTag(ShellTags.Header)) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight)
+                .testTag(ShellTags.Header).fbngIsland()
+                .padding(horizontal = FbngDimens.space12),
+        ) {
             val width = maxWidth
             Row(
                 Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                leadingAction?.invoke()
                 Text(
                     title,
                     modifier = Modifier.weight(1f).semantics { heading() },
@@ -235,7 +242,8 @@ private fun ShellRail(
         Modifier
             .width(width)
             .fillMaxHeight()
-            .background(scheme.surfaceContainerLow)
+            .padding(start = FbngDimens.space16, top = FbngDimens.space16, bottom = FbngDimens.space16)
+            .fbngIsland()
             .verticalScroll(rememberScrollState())
             .padding(vertical = FbngDimens.space16, horizontal = FbngDimens.space8),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
@@ -292,7 +300,7 @@ private fun RailItem(
             .focusRequester(requester)
             .fbngFocusTarget(
                 onClick = onClick,
-                container = if (selected) scheme.surface else scheme.surfaceContainerLow,
+                container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
                 shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.controlRadius),
                 role = Role.Tab,
             )
@@ -329,8 +337,9 @@ private fun ShellBottomBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(scheme.surfaceContainerLow)
-            .padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space8),
+            .padding(start = FbngDimens.space16, end = FbngDimens.space16, bottom = FbngDimens.space16)
+            .fbngIsland()
+            .padding(FbngDimens.space8),
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {
         Destinations.forEach { destination ->
@@ -351,7 +360,7 @@ private fun ShellBottomBar(
                     .focusRequester(requesters.getValue(destination.tag))
                     .fbngFocusTarget(
                         onClick = { onSection(destination.section) },
-                        container = if (selected) scheme.surface else scheme.surfaceContainerLow,
+                        container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.controlRadius),
                         role = Role.Tab,
                     )

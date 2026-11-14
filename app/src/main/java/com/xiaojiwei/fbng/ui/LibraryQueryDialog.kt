@@ -62,7 +62,7 @@ internal fun LibraryQueryDialog(query: String, resultCount: Int, onQuery: (Strin
                     } else false
                 },
             shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Column(Modifier.padding(FbngDimens.space12), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                 Row(

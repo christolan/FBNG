@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,13 +26,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
@@ -42,8 +43,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
@@ -61,6 +62,8 @@ import com.xiaojiwei.fbng.library.indexLibrary
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import com.xiaojiwei.fbng.update.UpdateState
 
 private enum class LibraryPicker { Letters, Status }
@@ -587,7 +590,7 @@ private fun SyncPage(
             tag = ShellTags.Sync,
             requester = requesters.getValue(ShellTags.Sync),
             onFocused = onFocused,
-            container = MaterialTheme.colorScheme.surface,
+            container = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
             Text(
                 stringResource(R.string.sync_body),
@@ -612,7 +615,7 @@ private fun SettingsSubpage(
             R.string.shell_page_path, stringResource(R.string.shell_settings), stringResource(title),
         ),
         margin = margin,
-        headerAction = {
+        leadingAction = {
             ShellHeaderBack(
                 label = stringResource(R.string.settings_back),
                 onClick = onBack,
@@ -642,15 +645,30 @@ private fun SettingsPage(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
         ) {
-            SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport, requesters, onFocused, onOpenImport)
-            SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync, requesters, onFocused, onOpenSync)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                if (maxWidth >= FbngDimens.libraryHeaderWide) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+                        SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport,
+                            requesters, onFocused, onOpenImport, Modifier.weight(1f))
+                        SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync,
+                            requesters, onFocused, onOpenSync, Modifier.weight(1f))
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+                        SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport,
+                            requesters, onFocused, onOpenImport)
+                        SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync,
+                            requesters, onFocused, onOpenSync)
+                    }
+                }
+            }
             if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
             if (covers != null) CoverSettings(covers, requesters, onFocused)
             FocusableMessage(
                 tag = ShellTags.SettingsInfo,
                 requester = requesters.getValue(ShellTags.SettingsInfo),
                 onFocused = onFocused,
-                container = scheme.surface,
+                container = scheme.surfaceContainerHigh,
             ) {
                 Text(
                     stringResource(R.string.gamepad_hint),
@@ -667,7 +685,7 @@ private fun SettingsPage(
                 tag = ShellTags.SettingsCore,
                 requester = requesters.getValue(ShellTags.SettingsCore),
                 onFocused = onFocused,
-                container = scheme.surface,
+                container = scheme.surfaceContainerHigh,
             ) {
                 Text(
                     stringResource(
@@ -692,15 +710,23 @@ private fun SettingsDestination(
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    FbngButton(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused),
-        kind = FbngButtonKind.Neutral,
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused)
+            .fbngFocusTarget(
+                onClick = onClick,
+                container = scheme.surfaceContainerHigh,
+                shape = MaterialTheme.shapes.large,
+            ).padding(FbngDimens.space16),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        ShellGlyph(section, MaterialTheme.colorScheme.onSurface, Modifier.size(FbngDimens.icon))
-        Spacer(Modifier.size(FbngDimens.space8))
-        Text(stringResource(label))
+        ShellGlyph(section, scheme.onSurface, Modifier.size(FbngDimens.icon))
+        Text(stringResource(label), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.weight(1f))
+        Text("›", style = MaterialTheme.typography.titleLarge, color = scheme.onSurfaceVariant)
     }
 }
 
@@ -712,7 +738,8 @@ private fun BoxScope.LoadingColumn(message: String) {
         modifier = Modifier
             .align(Alignment.Center)
             .focusRequester(requester)
-            .focusable(),
+            .focusable()
+            .fbngIsland().padding(FbngDimens.space24),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -735,7 +762,8 @@ private fun DatError(message: String) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(FbngDimens.space24),
+            .padding(FbngDimens.space24)
+            .fbngIsland().padding(FbngDimens.space24),
     ) {
         Text(
             stringResource(R.string.app_name),
