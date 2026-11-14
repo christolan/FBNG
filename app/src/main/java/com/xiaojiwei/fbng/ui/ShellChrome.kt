@@ -236,7 +236,6 @@ private fun ShellRail(
     onNavFocused: (String) -> Unit,
     updateAvailable: Boolean,
 ) {
-    val scheme = MaterialTheme.colorScheme
     val width = if (expanded) FbngDimens.railWidthExpanded else FbngDimens.railWidthMedium
     Column(
         Modifier
@@ -248,7 +247,7 @@ private fun ShellRail(
             .padding(vertical = FbngDimens.space16, horizontal = FbngDimens.space8),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {
-        Wordmark(Modifier.padding(horizontal = FbngDimens.space8))
+        Wordmark(Modifier.align(Alignment.CenterHorizontally))
         Destinations.forEach { destination ->
             RailItem(
                 destination = destination,
