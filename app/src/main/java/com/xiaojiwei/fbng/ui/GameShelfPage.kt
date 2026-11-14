@@ -2,9 +2,12 @@ package com.xiaojiwei.fbng.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
@@ -34,7 +37,6 @@ internal fun GameShelfPage(
     entries: List<LibraryEntry>,
     hasSavedGames: Boolean,
     scanning: Boolean,
-    preparing: Boolean,
     launchError: Boolean,
     margin: Dp,
     listState: LazyListState,
@@ -52,12 +54,12 @@ internal fun GameShelfPage(
         margin = margin,
     ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
         ) {
             if (entries.isEmpty()) {
                 Column(
-                    Modifier.fillMaxWidth()
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                         .background(scheme.surface, RoundedCornerShape(FbngDimens.panelRadius))
                         .padding(FbngDimens.space16),
                     verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
@@ -85,37 +87,42 @@ internal fun GameShelfPage(
                 }
                 return@Column
             }
-            if (preparing || launchError) {
+            if (launchError) {
                 Text(
-                    stringResource(if (preparing) R.string.preparing_game else R.string.preparing_game_failed),
+                    stringResource(R.string.preparing_game_failed),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (preparing) scheme.onBackground else scheme.error,
+                    color = scheme.error,
                 )
             }
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                state = listState,
-                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
-            ) {
-                items(entries, key = { if (recent) ShellTags.recent(it.game.name) else ShellTags.favorite(it.game.name) }) { entry ->
-                    val tag = if (recent) ShellTags.recent(entry.game.name) else ShellTags.favorite(entry.game.name)
-                    val requester = remember { FocusRequester() }
-                    DisposableEffect(tag, requester) {
-                        cardRequesters[tag] = requester
-                        onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
-                    }
-                    Column(
-                        Modifier.width(FbngDimens.shelfCardWidth)
-                            .libraryFocus(tag, requester, onFocused)
-                            .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surface),
-                    ) {
-                        GameCover(
-                            entry.title,
-                            covers?.images?.get(entry.game.name),
-                            Modifier.fillMaxWidth().aspectRatio(FbngDimens.coverAspectRatio),
-                            contentScale = ContentScale.Crop,
-                        )
-                        GameCardText(entry, Modifier.fillMaxWidth())
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val textHeight = gameCardTextHeight()
+                val coverHeight = (maxHeight - textHeight).coerceAtLeast(FbngDimens.space48)
+                val cardWidth = minOf(maxWidth, coverHeight * FbngDimens.coverAspectRatio)
+                LazyRow(
+                    modifier = Modifier.fillMaxSize(),
+                    state = listState,
+                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+                ) {
+                    items(entries, key = { if (recent) ShellTags.recent(it.game.name) else ShellTags.favorite(it.game.name) }) { entry ->
+                        val tag = if (recent) ShellTags.recent(entry.game.name) else ShellTags.favorite(entry.game.name)
+                        val requester = remember { FocusRequester() }
+                        DisposableEffect(tag, requester) {
+                            cardRequesters[tag] = requester
+                            onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
+                        }
+                        Column(
+                            Modifier.width(cardWidth).fillMaxHeight()
+                                .libraryFocus(tag, requester, onFocused)
+                                .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surface),
+                        ) {
+                            GameCover(
+                                entry.title,
+                                covers?.images?.get(entry.game.name),
+                                Modifier.fillMaxWidth().weight(1f),
+                                contentScale = ContentScale.Crop,
+                            )
+                            GameCardText(entry, Modifier.fillMaxWidth().height(textHeight))
+                        }
                     }
                 }
             }
