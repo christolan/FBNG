@@ -8,7 +8,6 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -41,7 +40,7 @@ import androidx.compose.ui.semantics.semantics
 internal fun Modifier.fbngFocusTarget(
     onClick: () -> Unit,
     container: Color,
-    shape: Shape = RoundedCornerShape(FbngDimens.cardRadius),
+    shape: Shape = MaterialTheme.shapes.medium,
     enabled: Boolean = true,
     role: Role = Role.Button,
     restingStroke: Color = Color.Transparent,
@@ -85,12 +84,12 @@ internal fun Modifier.fbngFocusTarget(
                 onTap = { onClick() },
             )
         }
-        .indication(interaction, ripple(color = scheme.primary))
         .semantics(mergeDescendants = true) {
             this.role = role
             if (enabled) onClick { onClick(); true } else disabled()
         }
         .border(FbngDimens.focusStroke, stroke, shape)
         .clip(shape)
-        .background(container, shape)
+        .indication(interaction, ripple(color = scheme.primary))
+        .background(container)
 }

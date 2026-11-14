@@ -43,6 +43,7 @@ import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 
 @Composable
 internal fun LibraryFilters(
@@ -59,10 +60,10 @@ internal fun LibraryFilters(
     val status = stringResource(filterLabel(playableOnly))
     val statusFilter = stringResource(R.string.library_filter_title)
     val scheme = MaterialTheme.colorScheme
-    val lettersColor = if (query.isEmpty()) scheme.onSurface else scheme.secondary
     val statusColor = if (playableOnly) scheme.secondary else scheme.onSurface
     ShellHeaderButton(
         onClick = onOpenLetters,
+        selected = query.isNotEmpty(),
         modifier = Modifier
             .width(if (wide) FbngDimens.libraryLetterFilterWidth else compactWidth)
             .libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused)
@@ -73,7 +74,6 @@ internal fun LibraryFilters(
     ) {
         Text(
             if (wide) query.ifEmpty { letters } else stringResource(R.string.library_letters_short),
-            color = lettersColor,
             style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -81,6 +81,7 @@ internal fun LibraryFilters(
     }
     ShellHeaderButton(
         onClick = onOpenFilter,
+        selected = playableOnly,
         modifier = Modifier
             .width(if (wide) FbngDimens.libraryStatusFilterWidth else compactWidth)
             .libraryFocus(ShellTags.LibraryFilter, requesters.getValue(ShellTags.LibraryFilter), onFocused)
@@ -92,7 +93,6 @@ internal fun LibraryFilters(
         if (wide) {
             Text(
                 status,
-                color = statusColor,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -118,7 +118,6 @@ internal fun LibraryStatusPicker(
     onChoose: (Boolean) -> Unit,
 ) {
     val current = remember { FocusRequester() }
-    val scheme = MaterialTheme.colorScheme
     LibraryPickerPanel(R.string.library_filter_title, onDismiss) {
         LaunchedEffect(Unit) { current.requestFocus() }
         Column(
@@ -131,11 +130,11 @@ internal fun LibraryStatusPicker(
                     onClick = { onChoose(option) },
                     modifier = modifier.fillMaxWidth().semantics { selected = option == playableOnly },
                     kind = FbngButtonKind.Neutral,
+                    selected = option == playableOnly,
                 ) {
                     Text(
                         stringResource(filterLabel(option)),
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (option == playableOnly) scheme.secondary else scheme.onSurface,
                     )
                 }
             }
@@ -177,7 +176,7 @@ private fun LibraryPickerCard(title: Int, modifier: Modifier, content: @Composab
             .focusGroup()
             .pointerInput(Unit) { detectTapGestures {} }
             .semantics { paneTitle = panelTitle }
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.large)
+            .fbngIsland()
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {

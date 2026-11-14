@@ -1,19 +1,16 @@
 package com.xiaojiwei.fbng.ui
 
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -27,6 +24,7 @@ import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.FbngPanel
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 
 internal data class FolderActions(
     val add: () -> Unit = {},
@@ -101,8 +99,7 @@ private fun FolderCard(scan: FolderScan, busy: Boolean, removeModifier: Modifier
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(FbngDimens.cardRadius))
-            .background(scheme.surfaceContainerHigh)
+            .fbngIsland(panel = false)
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {

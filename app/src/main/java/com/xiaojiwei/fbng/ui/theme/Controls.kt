@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -23,6 +22,8 @@ enum class FbngButtonKind {
     Outline,
 
     Neutral,
+
+    Toolbar,
 }
 
 @Composable
@@ -32,42 +33,45 @@ fun FbngButton(
     enabled: Boolean = true,
     kind: FbngButtonKind = FbngButtonKind.Filled,
     contentPadding: PaddingValues = PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8),
+    selected: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(FbngDimens.controlRadius)
     val container = when {
         !enabled -> scheme.surfaceContainerHighest
-        kind != FbngButtonKind.Filled -> scheme.surfaceVariant
-        else -> scheme.primary
+        selected -> scheme.secondaryContainer
+        kind == FbngButtonKind.Filled -> scheme.primary
+        kind == FbngButtonKind.Toolbar -> scheme.background
+        else -> scheme.surfaceVariant
     }
-    val resting = when (kind) {
-        FbngButtonKind.Outline -> scheme.outlineVariant.copy(alpha = 0.35f)
-        FbngButtonKind.Neutral -> Color.Transparent
-        FbngButtonKind.Filled -> Color.Transparent
+    val resting = when {
+        kind == FbngButtonKind.Toolbar -> if (selected) scheme.secondary else scheme.outlineVariant
+        kind == FbngButtonKind.Outline -> scheme.outlineVariant.copy(alpha = 0.35f)
+        else -> Color.Transparent
     }
-    val focused = if (kind == FbngButtonKind.Filled) scheme.onPrimary else scheme.primary
+    val focused = if (kind == FbngButtonKind.Filled && !selected) scheme.onPrimary else scheme.primary
     val contentColor = when {
         !enabled -> scheme.onSurfaceVariant
+        selected -> scheme.secondary
         kind == FbngButtonKind.Filled -> scheme.onPrimary
         else -> scheme.onSurface
     }
     CompositionLocalProvider(LocalContentColor provides contentColor) {
-    Row(
-        modifier = modifier
-            .fbngFocusTarget(
-                onClick = onClick,
-                container = container,
-                shape = shape,
-                enabled = enabled,
-                restingStroke = resting,
-                focusedStroke = focused,
-            )
-            .heightIn(min = FbngDimens.buttonHeight)
-            .padding(contentPadding),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
+        Row(
+            modifier = modifier
+                .fbngFocusTarget(
+                    onClick = onClick,
+                    container = container,
+                    shape = MaterialTheme.shapes.small,
+                    enabled = enabled,
+                    restingStroke = resting,
+                    focusedStroke = focused,
+                )
+                .heightIn(min = FbngDimens.buttonHeight)
+                .padding(contentPadding),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
     }
 }

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -21,17 +20,18 @@ import androidx.compose.ui.draw.clip
 /** Flat tonal islands; the surrounding layout supplies the dark gutter. */
 @Composable
 internal fun Modifier.fbngIsland(panel: Boolean = true): Modifier {
-    val shape = RoundedCornerShape(if (panel) FbngDimens.panelRadius else FbngDimens.cardRadius)
-    return clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+    val shape = if (panel) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
+    return clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
 }
 
 @Composable
 internal fun FbngPanel(
     modifier: Modifier = Modifier,
+    panel: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.space16),
+        modifier.fillMaxWidth().fbngIsland(panel = panel).padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
         content = content,
     )

@@ -143,6 +143,9 @@ class ShellFocusTest {
                 }
             }
         }
+        val thirdCard = rule.onNodeWithTag(ShellTags.recent(names[2])).getUnclippedBoundsInRoot()
+        val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
+        assertTrue(thirdCard.right <= header.right)
         names.zipWithNext().forEach { (current, next) ->
             rule.onNodeWithTag(ShellTags.recent(current)).assertIsFocused()
                 .performKeyInput { pressKey(Key.DirectionRight) }
@@ -193,7 +196,7 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
-    fun shortLibraryKeepsFiveRowsTallEnoughForGameTitles() {
+    fun shortLibraryStacksBothLinesAndScrollsToTheFifthRowWithTheDpad() {
         val games = (1..10).map { LibraryGame("game$it", "Game $it") }
         rule.setContent {
             FbngTheme {
@@ -207,11 +210,23 @@ class ShellFocusTest {
                 )
             }
         }
-        games.forEach { game ->
-            val bounds = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
-            assertTrue("${game.name} is shorter than the 28dp title line", bounds.bottom - bounds.top >= 28.dp)
+        val header = rule.onNodeWithTag(ShellTags.Header)
+        val headerBounds = header.getUnclippedBoundsInRoot()
+        games.take(5).forEachIndexed { index, game ->
+            val card = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsFocused().assertIsDisplayed()
+            val title = rule.onNodeWithText(game.description, useUnmergedTree = true)
+                .assertIsDisplayed().getUnclippedBoundsInRoot()
+            val file = rule.onNodeWithText("${game.name}.zip", useUnmergedTree = true)
+                .assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue(title.bottom <= file.top)
+            val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
+            assertTrue(file.bottom <= nav.top)
+            if (index < 4) card.performKeyInput { pressKey(Key.DirectionDown) }
         }
-        rule.onNodeWithTag(ShellTags.NavSettings).assertIsDisplayed()
+        assertEquals(headerBounds, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.game(games[4].name)).performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag(ShellTags.game(games[4].name)).assertIsFocused().assertIsDisplayed()
     }
 
     @Test
@@ -284,6 +299,24 @@ class ShellFocusTest {
         filter.assertIsFocused()
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.game("galaga")).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w320dp-h540dp-port-mdpi")
+    fun letterPickerKeepsItsSideMarginsAndAllKeysInACompactWindow() {
+        rule.setContent {
+            FbngTheme {
+                LibraryQueryDialog(query = "", resultCount = 2, onQuery = {}, onDismiss = {})
+            }
+        }
+        val panel = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))
+            .getUnclippedBoundsInRoot()
+        assertEquals(16.dp, panel.left)
+        assertEquals(304.dp, panel.right)
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-".forEach { character ->
+            rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
+        }
+        listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
     }
 
     @Test

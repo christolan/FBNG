@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
@@ -89,11 +90,20 @@ internal fun GameShelfPage(
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val textHeight = gameCardTextHeight()
                 val coverHeight = (maxHeight - textHeight).coerceAtLeast(FbngDimens.space48)
-                val cardWidth = minOf(maxWidth, coverHeight * FbngDimens.coverAspectRatio)
+                val gap = FbngDimens.space12
+                val threeCardWidth = with(LocalDensity.current) {
+                    ((maxWidth.roundToPx() - gap.roundToPx() * 2) / 3).toDp()
+                }
+                val cardWidth = minOf(
+                    maxWidth,
+                    FbngDimens.shelfCardMaxWidth,
+                    threeCardWidth.coerceAtLeast(FbngDimens.shelfCardMinWidth),
+                    coverHeight.coerceAtLeast(FbngDimens.shelfCardMinWidth),
+                )
                 LazyRow(
                     modifier = Modifier.fillMaxSize(),
                     state = listState,
-                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+                    horizontalArrangement = Arrangement.spacedBy(gap),
                 ) {
                     items(entries, key = { if (recent) ShellTags.recent(it.game.name) else ShellTags.favorite(it.game.name) }) { entry ->
                         val tag = if (recent) ShellTags.recent(entry.game.name) else ShellTags.favorite(entry.game.name)
