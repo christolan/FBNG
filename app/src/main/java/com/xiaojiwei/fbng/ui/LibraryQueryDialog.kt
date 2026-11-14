@@ -52,7 +52,8 @@ internal fun LibraryQueryDialog(query: String, resultCount: Int, onQuery: (Strin
             initial.requestFocus()
         }
         Surface(
-            modifier = Modifier.padding(FbngDimens.space8).widthIn(max = FbngDimens.libraryKeyboardWidth)
+            modifier = Modifier.padding(horizontal = FbngDimens.compactMargin, vertical = FbngDimens.space8)
+                .widthIn(max = FbngDimens.libraryKeyboardWidth)
                 .fillMaxWidth()
                 .semantics { paneTitle = title }
                 .onKeyEvent { event ->

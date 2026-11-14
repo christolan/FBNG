@@ -178,6 +178,9 @@ class ContrastTest {
         )
         assertRatio("outline/background", FbngPalette.outline, FbngPalette.background, 3.0)
         assertRatio("outline/surface", FbngPalette.outline, FbngPalette.surface, 3.0)
+        assertRatio("toolbar outline/header", FbngPalette.outlineVariant, FbngPalette.surfaceContainerHigh, 3.0)
+        assertRatio("toolbar outline/button", FbngPalette.outlineVariant, FbngPalette.background, 3.0)
+        assertRatio("selected toolbar label/button", FbngPalette.secondary, FbngPalette.secondaryContainer, 4.5)
     }
 }
 

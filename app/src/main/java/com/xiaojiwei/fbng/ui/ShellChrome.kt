@@ -167,14 +167,16 @@ internal fun ShellHeaderButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    selected: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     FbngButton(
         onClick = onClick,
         modifier = modifier.height(FbngDimens.buttonHeight),
         enabled = enabled,
-        kind = FbngButtonKind.Neutral,
+        kind = FbngButtonKind.Toolbar,
         contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+        selected = selected,
         content = content,
     )
 }
@@ -303,7 +305,7 @@ private fun RailItem(
             .fbngFocusTarget(
                 onClick = onClick,
                 container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.controlRadius),
+                shape = MaterialTheme.shapes.small,
                 role = Role.Tab,
             )
             .padding(horizontal = FbngDimens.space8),
@@ -314,7 +316,7 @@ private fun RailItem(
             Modifier
                 .width(FbngDimens.space24)
                 .height(FbngDimens.space4)
-                .background(if (selected) scheme.primary else Color.Transparent),
+                .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.small),
         )
         NavigationGlyph(destination.section, tint, showUpdate)
         Text(
@@ -364,15 +366,16 @@ private fun ShellBottomBar(
                     .fbngFocusTarget(
                         onClick = { onSection(destination.section) },
                         container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.controlRadius),
+                        shape = MaterialTheme.shapes.small,
                         role = Role.Tab,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (compact) {
                     if (selected) {
-                        Box(Modifier.align(Alignment.BottomCenter).width(FbngDimens.space24)
-                            .height(FbngDimens.space4).background(scheme.primary))
+                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = FbngDimens.space4)
+                            .width(FbngDimens.space24).height(FbngDimens.space4)
+                            .background(scheme.primary, MaterialTheme.shapes.small))
                     }
                     if (showUpdate) {
                         Badge(Modifier.align(Alignment.TopEnd).padding(FbngDimens.space4), containerColor = scheme.primary)
@@ -381,7 +384,7 @@ private fun ShellBottomBar(
                 } else {
                     Column(Modifier.padding(vertical = FbngDimens.space4), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.width(FbngDimens.space24).height(FbngDimens.space4)
-                            .background(if (selected) scheme.primary else Color.Transparent))
+                            .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.small))
                         Spacer(Modifier.height(FbngDimens.space4))
                         NavigationGlyph(destination.section, tint, showUpdate)
                         BottomNavLabel(destination, tint)
@@ -553,7 +556,6 @@ internal fun FocusableMessage(
             .fbngFocusTarget(
                 onClick = {},
                 container = container,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.panelRadius),
             )
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),

@@ -721,7 +721,6 @@ private fun SettingsDestination(
             .fbngFocusTarget(
                 onClick = onClick,
                 container = scheme.surfaceContainerHigh,
-                shape = MaterialTheme.shapes.large,
             ).padding(FbngDimens.space16),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),

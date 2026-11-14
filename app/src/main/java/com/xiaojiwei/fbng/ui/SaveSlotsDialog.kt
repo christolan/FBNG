@@ -33,6 +33,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -237,6 +238,7 @@ internal fun SaveSlotsDialog(
         val cancel = remember { FocusRequester() }
         LaunchedEffect(slot.id) { cancel.requestFocus() }
         AlertDialog(
+            shape = MaterialTheme.shapes.large,
             modifier = Modifier.onKeyEvent { event ->
                 if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
                     pending = null
@@ -322,6 +324,7 @@ private fun SlotCard(
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {
         Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
+            .clip(MaterialTheme.shapes.small)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
             val bitmap = cover
             if (bitmap != null) Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
