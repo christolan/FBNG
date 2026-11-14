@@ -1,6 +1,5 @@
 package com.xiaojiwei.fbng.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,7 +40,9 @@ import com.xiaojiwei.fbng.library.LibraryResults
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 
 private const val LibraryColumns = 2
 private const val LibraryRows = 5
@@ -84,7 +84,7 @@ internal fun GameLibraryPage(
         ShellPage(
             title = stringResource(R.string.shell_page_path, libraryTitle, selected.title),
             margin = margin,
-            headerAction = {
+            leadingAction = {
                 ShellHeaderBack(
                     label = stringResource(R.string.library_back),
                     onClick = onBack,
@@ -136,12 +136,7 @@ internal fun GameLibraryPage(
         },
     ) {
         if (totalGames == 0) {
-            Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                    .background(scheme.surface, RoundedCornerShape(FbngDimens.panelRadius))
-                    .padding(FbngDimens.space16),
-                verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
-            ) {
+            FbngEmptyState {
                 Text(stringResource(R.string.library_empty), style = MaterialTheme.typography.titleMedium)
                 Text(
                     stringResource(R.string.library_empty_hint),
@@ -153,7 +148,9 @@ internal fun GameLibraryPage(
             return@ShellPage
         }
         if (games.isEmpty()) {
-            Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+            FbngEmptyState {
+                Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+            }
         } else {
             Row(
                 Modifier.fillMaxSize(),
@@ -185,7 +182,7 @@ internal fun GameLibraryPage(
                                         onSelected(name)
                                     }.fbngFocusTarget(
                                         onClick = { onDetails(name) },
-                                        container = if (selected?.game?.name == name) scheme.surfaceContainerHigh else scheme.surface,
+                                        container = scheme.surfaceContainerHigh,
                                     )
                                     GameCardText(entry, cardModifier)
                                 }
@@ -326,6 +323,7 @@ private fun GameDetails(
             infoModifier,
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         ) {
+            Text(entry.title, style = MaterialTheme.typography.headlineSmall, color = scheme.onSurface)
             if (entry.title != game.description) {
                 Text(game.description, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
             }
@@ -363,8 +361,7 @@ private fun GameDetails(
         }
     }
 
-    BoxWithConstraints(modifier.background(scheme.surface, RoundedCornerShape(FbngDimens.cardRadius))
-        .padding(FbngDimens.space16)) {
+    BoxWithConstraints(modifier.fbngIsland().padding(FbngDimens.space16)) {
         val image = covers?.images?.get(game.name)
         if (maxWidth >= FbngDimens.libraryToolbarBreakpoint && image != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space24)) {

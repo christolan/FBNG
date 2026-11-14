@@ -26,6 +26,7 @@ import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngPanel
 
 internal data class FolderActions(
     val add: () -> Unit = {},
@@ -51,31 +52,33 @@ internal fun FolderManagement(
         .focusRequester(requesters.getValue(tag))
 
     Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-        Text(stringResource(R.string.folder_heading), style = MaterialTheme.typography.titleMedium)
-        Text(
-            stringResource(R.string.folder_body),
-            style = MaterialTheme.typography.bodyLarge,
-            color = scheme.onSurfaceVariant,
-        )
-        FbngButton(onClick = actions.add, enabled = !busy, modifier = control(ShellTags.AddFolder)) {
-            Text(stringResource(R.string.folder_add))
-        }
-        if (folders.isNotEmpty()) {
-            FbngButton(
-                onClick = actions.rescan,
-                enabled = !busy,
-                modifier = control(ShellTags.ScanFolders),
-                kind = FbngButtonKind.Outline,
-            ) {
-                Text(stringResource(R.string.folder_rescan))
+        FbngPanel {
+            Text(stringResource(R.string.folder_heading), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.folder_body),
+                style = MaterialTheme.typography.bodyLarge,
+                color = scheme.onSurfaceVariant,
+            )
+            FbngButton(onClick = actions.add, enabled = !busy, modifier = control(ShellTags.AddFolder)) {
+                Text(stringResource(R.string.folder_add))
             }
-        }
-        if (busy) {
-            LinearProgressIndicator(Modifier.fillMaxWidth(), color = scheme.primary, trackColor = scheme.secondaryContainer)
-            Text(stringResource(workMessage), style = MaterialTheme.typography.bodyLarge)
-        }
-        if (error != null) {
-            Text(stringResource(error), style = MaterialTheme.typography.bodyLarge, color = scheme.error)
+            if (folders.isNotEmpty()) {
+                FbngButton(
+                    onClick = actions.rescan,
+                    enabled = !busy,
+                    modifier = control(ShellTags.ScanFolders),
+                    kind = FbngButtonKind.Outline,
+                ) {
+                    Text(stringResource(R.string.folder_rescan))
+                }
+            }
+            if (busy) {
+                LinearProgressIndicator(Modifier.fillMaxWidth(), color = scheme.primary, trackColor = scheme.secondaryContainer)
+                Text(stringResource(workMessage), style = MaterialTheme.typography.bodyLarge)
+            }
+            if (error != null) {
+                Text(stringResource(error), style = MaterialTheme.typography.bodyLarge, color = scheme.error)
+            }
         }
         for (scan in folders) {
             val folder = scan.folder
@@ -99,7 +102,7 @@ private fun FolderCard(scan: FolderScan, busy: Boolean, removeModifier: Modifier
     Column(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(FbngDimens.cardRadius))
-            .background(scheme.surface)
+            .background(scheme.surfaceContainerHigh)
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {

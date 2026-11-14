@@ -155,6 +155,7 @@
     <string name="slot_read_only">系统维护 · 仅可读档</string>
     <string name="slot_number">槽位 %1$d</string>
     <string name="slot_new">新建槽位</string>
+    <string name="slot_limit">已达上限</string>
     <string name="slot_no_cover">暂无截图</string>
     <string name="slot_no_save">暂无存档</string>
     <string name="manual_slots_empty">还没有手动存档，可在「存档」中新建槽位。</string>

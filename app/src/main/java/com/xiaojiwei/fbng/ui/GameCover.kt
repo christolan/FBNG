@@ -1,11 +1,10 @@
 package com.xiaojiwei.fbng.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +30,7 @@ import com.xiaojiwei.fbng.artwork.CoverWorker
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngPanel
 
 internal data class CoverUiState(
     val images: Map<String, CoverImage> = emptyMap(),
@@ -56,7 +56,7 @@ internal fun GameCover(
         if (!loaded) Text(
             title,
             modifier = Modifier.padding(FbngDimens.space16),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 3,
@@ -83,7 +83,7 @@ internal fun CoverSettings(
     onFocused: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+    FbngPanel {
         Text(stringResource(R.string.covers_title), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.covers_body), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
         FbngButton(
@@ -111,6 +111,9 @@ internal fun CoverSettings(
                 color = if (work.state == WorkInfo.State.FAILED || work.outputData.getInt(CoverWorker.FAILED, 0) > 0) {
                     scheme.error
                 } else scheme.onSurfaceVariant)
+            if (work.state == WorkInfo.State.RUNNING) {
+                LinearProgressIndicator(Modifier.fillMaxWidth(), color = scheme.primary, trackColor = scheme.secondaryContainer)
+            }
             val data = if (work.state.isFinished) work.outputData else work.progress
             if (data.keyValueMap.isNotEmpty()) {
                 Text(stringResource(R.string.covers_result,

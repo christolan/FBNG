@@ -53,6 +53,7 @@ import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
@@ -106,7 +107,18 @@ internal fun SaveSlotsDialog(
             else -> "close"
         }
         val initial = focusedKey?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
-        // LazyRow may need a frame to attach the requested card.
+        // The create card lives at the end of LazyRow. Materialize it (or a saved
+        // manual target) before requesting focus, including after creating a slot.
+        val manualIndex = when {
+            initial == "new" -> manualSlots.size
+            initial.startsWith("slot") -> manualSlots.indexOfFirst { "slot${it.id}" == initial }
+            else -> -1
+        }
+        if (!listingError && current != null && manualIndex >= 0 &&
+            manualListState.layoutInfo.visibleItemsInfo.none { it.index == manualIndex }
+        ) {
+            manualListState.scrollToItem(manualIndex)
+        }
         repeat(4) {
             withFrameNanos { }
             val focused = runCatching { requester(initial).requestFocus() }.getOrDefault(false)
@@ -132,7 +144,7 @@ internal fun SaveSlotsDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(Modifier.padding(FbngDimens.space16), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                Row(Modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.space8), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
                     Text(stringResource(if (mode == SaveSlotMode.Save) R.string.save_slots_title else R.string.load_slots_title),
                         modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
@@ -140,21 +152,12 @@ internal fun SaveSlotsDialog(
                         modifier = target("close")) { Text(stringResource(R.string.close)) }
                 }
                 if (mode == SaveSlotMode.Save) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            if (slotsFull) stringResource(R.string.manual_slots_full, SaveStateStore.MAX_MANUAL_SLOTS)
-                            else stringResource(R.string.save_slots_hint),
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        FbngButton(onClick = onCreate, enabled = canCreate, modifier = target("new")) {
-                            Text(stringResource(R.string.slot_new), style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
+                    Text(
+                        if (slotsFull) stringResource(R.string.manual_slots_full, SaveStateStore.MAX_MANUAL_SLOTS)
+                        else stringResource(R.string.save_slots_hint),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else {
                     Text(stringResource(R.string.load_slots_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -175,6 +178,14 @@ internal fun SaveSlotsDialog(
                             items(manualSlots, key = { it.id }) { slot ->
                                 SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}"),
                                     onClick = { pending = slot })
+                            }
+                            if (mode == SaveSlotMode.Save) item(key = "new") {
+                                NewSlotCard(
+                                    enabled = canCreate,
+                                    full = slotsFull,
+                                    modifier = target("new"),
+                                    onClick = onCreate,
+                                )
                             }
                             if (mode == SaveSlotMode.Load && manualSlots.isEmpty()) item(key = "empty") {
                                 Box(Modifier.width(FbngDimens.saveCardWidth).fillMaxHeight(), contentAlignment = Alignment.Center) {
@@ -218,6 +229,37 @@ internal fun SaveSlotsDialog(
     }
 }
 
+/** The last item of the manual shelf, never a pinned toolbar action. */
+@Composable
+private fun NewSlotCard(
+    enabled: Boolean,
+    full: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    Column(
+        modifier.width(FbngDimens.saveCardWidth).fillMaxHeight()
+            .fbngFocusTarget(
+                onClick = onClick,
+                enabled = enabled,
+                container = scheme.surfaceContainerHigh,
+            )
+            .padding(FbngDimens.space16),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(FbngDimens.space12, Alignment.CenterVertically),
+    ) {
+        val color = if (enabled) scheme.onSurface else scheme.onSurfaceVariant
+        Text("+", style = MaterialTheme.typography.headlineMedium, color = color)
+        Text(stringResource(R.string.slot_new), style = MaterialTheme.typography.titleMedium, color = color)
+        if (full) Text(
+            stringResource(R.string.slot_limit),
+            style = MaterialTheme.typography.bodyLarge,
+            color = scheme.onSurfaceVariant,
+        )
+    }
+}
+
 @Composable
 private fun slotName(slot: SaveSlotInfo): String = stringResource(
     if (slot.automatic) R.string.slot_automatic else R.string.slot_number, slot.id)
@@ -243,8 +285,7 @@ private fun SlotCard(
     Column(
         modifier.width(FbngDimens.saveCardWidth).fillMaxHeight()
             .fbngFocusTarget(onClick = onClick, enabled = enabled,
-                container = MaterialTheme.colorScheme.surfaceContainerHigh,
-                restingStroke = if (slot.automatic) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.outlineVariant)
+                container = MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(FbngDimens.space8),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {

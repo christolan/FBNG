@@ -5,8 +5,6 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -28,7 +26,7 @@ import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
-import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngPanel
 import com.xiaojiwei.fbng.update.AppUpdate
 import com.xiaojiwei.fbng.update.UpdateState
 
@@ -103,7 +101,7 @@ internal fun UpdateSettings(
         else -> true
     }
     val scheme = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+    FbngPanel {
         Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleLarge)
         Text(
             stringResource(R.string.update_installed_version, BuildConfig.VERSION_NAME),

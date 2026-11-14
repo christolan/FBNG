@@ -19,7 +19,7 @@ enum class FbngButtonKind {
     /** Electric-blue fill. The focus ring is onPrimary, because primary-on-primary disappears. */
     Filled,
 
-    /** Charcoal fill and a thin electric-blue stroke. Used on the black letterbox bars. */
+    /** Neutral raised action with a quiet resting outline. */
     Outline,
 
     Neutral,
@@ -35,16 +35,16 @@ fun FbngButton(
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(FbngDimens.cardRadius)
+    val shape = RoundedCornerShape(FbngDimens.controlRadius)
     val container = when {
         !enabled -> scheme.surfaceContainerHighest
-        kind == FbngButtonKind.Outline -> scheme.surfaceContainer
-        kind == FbngButtonKind.Neutral -> scheme.surface
+        kind == FbngButtonKind.Outline -> scheme.surfaceContainerHighest
+        kind == FbngButtonKind.Neutral -> scheme.surfaceContainerHighest
         else -> scheme.primary
     }
     val resting = when (kind) {
-        FbngButtonKind.Outline -> scheme.outlineVariant
-        FbngButtonKind.Neutral -> scheme.outline
+        FbngButtonKind.Outline -> scheme.outlineVariant.copy(alpha = 0.35f)
+        FbngButtonKind.Neutral -> Color.Transparent
         FbngButtonKind.Filled -> Color.Transparent
     }
     val focused = if (kind == FbngButtonKind.Filled) scheme.onPrimary else scheme.primary

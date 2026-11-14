@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.ui
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,33 +28,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.focusable
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -72,13 +72,15 @@ import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
-import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.RunningGame
+import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SavedSlot
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngPanel
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -454,16 +456,18 @@ private fun GamePausePage(
                     .verticalScroll(rememberScrollState()).padding(FbngDimens.space4),
                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
             ) {
-                Text(
-                    stringResource(when {
-                        failed -> R.string.game_stopped
-                        !ready -> R.string.pause_loading
-                        else -> R.string.game_paused
-                    }),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-                Text(stringResource(R.string.pause_back_hint), style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                FbngPanel {
+                    Text(
+                        stringResource(when {
+                            failed -> R.string.game_stopped
+                            !ready -> R.string.pause_loading
+                            else -> R.string.game_paused
+                        }),
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Text(stringResource(R.string.pause_back_hint), style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                     val button = Modifier.fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
                     FbngButton(onClick = onResume, enabled = ready && !busy,
@@ -483,10 +487,12 @@ private fun GamePausePage(
                             Modifier.weight(1f).then(focus.target(ShellTags.Quit)))
                     }
                 }
-                Text(stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
-                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (message.isNotEmpty()) Text(message, style = MaterialTheme.typography.bodyLarge,
-                    color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                FbngPanel {
+                    Text(stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
+                        style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (message.isNotEmpty()) Text(message, style = MaterialTheme.typography.bodyLarge,
+                        color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
+                }
             }
         }
     }
@@ -826,8 +832,9 @@ internal fun MissingCore(onQuit: () -> Unit) {
             Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+                .padding(FbngDimens.space24)
+                .fbngIsland().padding(FbngDimens.space24),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space16, Alignment.CenterVertically),
         ) {
             Text(
                 stringResource(R.string.core_missing),
