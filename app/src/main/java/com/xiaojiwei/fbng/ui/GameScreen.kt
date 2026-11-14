@@ -144,6 +144,7 @@ internal fun GameScreen(
     var message by remember(session) { mutableStateOf("") }
     var showReset by remember(session) { mutableStateOf(false) }
     var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
+    var slotRevision by remember(session) { mutableStateOf(0) }
     var pausePageOpen by remember(session) { mutableStateOf(false) }
     var openingPausePage by remember(session) { mutableStateOf(false) }
     var pauseBeforeReset by remember(session) { mutableStateOf(false) }
@@ -351,30 +352,33 @@ internal fun GameScreen(
         }
     }
     slotMode?.let { mode ->
+        fun chooseSlot(id: Int?) {
+            scope.launch {
+                if (session.busy || coreFailed || slotMode != mode) return@launch
+                message = resources.getString(if (mode == SaveSlotMode.Save) R.string.save_working else R.string.load_working)
+                try {
+                    if (mode == SaveSlotMode.Save) {
+                        if (id == null) session.createManualSave() else session.save(id)
+                        message = resources.getString(R.string.save_ok)
+                        slotRevision++
+                    } else {
+                        message = loadMessage(session.load(requireNotNull(id)))
+                        dismissSlots()
+                    }
+                } catch (error: Exception) {
+                    reportFailure(error, if (mode == SaveSlotMode.Save) R.string.save_fail else R.string.auto_load_fail)
+                }
+            }
+        }
         SaveSlotsDialog(
             store = store,
             mode = mode,
             busy = session.busy,
             message = message,
+            revision = slotRevision,
             onDismiss = ::dismissSlots,
-            onChoose = { id ->
-                if (!session.busy && !coreFailed && (mode != SaveSlotMode.Save || id > SaveStateStore.AUTO_SLOT)) {
-                    scope.launch {
-                        message = resources.getString(if (mode == SaveSlotMode.Save) R.string.save_working else R.string.load_working)
-                        try {
-                            if (mode == SaveSlotMode.Save) {
-                                session.save(id)
-                                message = resources.getString(R.string.save_ok)
-                            } else {
-                                message = loadMessage(session.load(id))
-                            }
-                            dismissSlots()
-                        } catch (error: Exception) {
-                            reportFailure(error, if (mode == SaveSlotMode.Save) R.string.save_fail else R.string.auto_load_fail)
-                        }
-                    }
-                }
-            },
+            onChoose = ::chooseSlot,
+            onCreate = { chooseSlot(null) },
         )
     }
     if (showReset) {

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -65,34 +66,46 @@ internal fun SaveSlotsDialog(
     mode: SaveSlotMode,
     busy: Boolean,
     message: String,
+    revision: Int,
     onChoose: (Int) -> Unit,
+    onCreate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var slots by remember(store) { mutableStateOf<List<SaveSlotInfo>?>(null) }
-    var listingError by remember { mutableStateOf(false) }
+    var listedRevision by remember(store) { mutableStateOf<Int?>(null) }
+    var listingError by remember(store) { mutableStateOf(false) }
     var pending by remember { mutableStateOf<SaveSlotInfo?>(null) }
+    val current = slots
+    val manualSlots = current?.drop(1).orEmpty()
+    val slotsFull = manualSlots.size >= SaveStateStore.MAX_MANUAL_SLOTS
+    val slotControlsEnabled = !busy && !listingError && listedRevision == revision
+    val canCreate = mode == SaveSlotMode.Save && slotControlsEnabled && !slotsFull
+    val manualListState = rememberLazyListState()
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requester(key: String) = requesters.getOrPut(key) { FocusRequester() }
     var focusedKey by remember { mutableStateOf<String?>(null) }
     fun target(key: String) = Modifier.focusRequester(requester(key))
         .onFocusChanged { if (it.isFocused) focusedKey = key }
 
-    LaunchedEffect(store) {
+    LaunchedEffect(store, revision) {
+        listingError = false
         try {
             slots = withContext(Dispatchers.IO) { store.listSlots() }
+            listedRevision = revision
         } catch (_: java.io.IOException) {
             listingError = true
         }
     }
-    LaunchedEffect(slots, pending, busy, listingError) {
-        if (pending != null || busy || (slots == null && !listingError)) return@LaunchedEffect
-        val initial = focusedKey ?: when {
-            slots == null -> "close"
-            mode == SaveSlotMode.Save -> "new"
-            slots!!.first().available -> "slot0"
-            slots!!.size > 1 -> "slot${slots!![1].id}"
+    LaunchedEffect(current, pending, busy, listingError, slotControlsEnabled) {
+        if (pending != null || busy || (!slotControlsEnabled && !listingError)) return@LaunchedEffect
+        val defaultTarget = when {
+            listingError -> "close"
+            canCreate -> "new"
+            mode == SaveSlotMode.Load && current?.first()?.available == true -> "slot0"
+            manualSlots.isNotEmpty() -> "slot${manualSlots[manualListState.firstVisibleItemIndex.coerceAtMost(manualSlots.lastIndex)].id}"
             else -> "close"
         }
+        val initial = focusedKey?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
         // LazyRow may need a frame to attach the requested card.
         repeat(4) {
             withFrameNanos { }
@@ -126,10 +139,27 @@ internal fun SaveSlotsDialog(
                     FbngButton(onClick = onDismiss, enabled = !busy, kind = FbngButtonKind.Neutral,
                         modifier = target("close")) { Text(stringResource(R.string.close)) }
                 }
-                Text(stringResource(if (mode == SaveSlotMode.Save) R.string.save_slots_hint else R.string.load_slots_hint),
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                val current = slots
-                if (current == null) {
+                if (mode == SaveSlotMode.Save) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            if (slotsFull) stringResource(R.string.manual_slots_full, SaveStateStore.MAX_MANUAL_SLOTS)
+                            else stringResource(R.string.save_slots_hint),
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FbngButton(onClick = onCreate, enabled = canCreate, modifier = target("new")) {
+                            Text(stringResource(R.string.slot_new), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                } else {
+                    Text(stringResource(R.string.load_slots_hint), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (current == null || listingError) {
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text(stringResource(if (listingError) R.string.slots_list_failed else R.string.slots_loading))
                     }
@@ -137,30 +167,16 @@ internal fun SaveSlotsDialog(
                     Row(Modifier.weight(1f).fillMaxWidth().padding(FbngDimens.space4),
                         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
                         val automatic = current.first()
-                        SlotCard(store, automatic, enabled = !busy && mode == SaveSlotMode.Load && automatic.available,
+                        SlotCard(store, automatic, enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
                             modifier = target("slot0"), onClick = { pending = automatic })
                         LazyRow(Modifier.weight(1f).fillMaxHeight(),
+                            state = manualListState,
                             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                            if (mode == SaveSlotMode.Save) item(key = "new") {
-                                Column(
-                                    target("new").width(FbngDimens.saveCardWidth).fillMaxHeight()
-                                        .fbngFocusTarget(onClick = {
-                                            onChoose(Math.addExact(current.maxOf { it.id }, 1))
-                                        }, enabled = !busy,
-                                            container = MaterialTheme.colorScheme.surfaceContainerHigh)
-                                        .padding(FbngDimens.space16),
-                                    verticalArrangement = Arrangement.Center,
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text("+", style = MaterialTheme.typography.headlineLarge)
-                                    Text(stringResource(R.string.slot_new), style = MaterialTheme.typography.titleMedium)
-                                }
-                            }
-                            items(current.drop(1), key = { it.id }) { slot ->
-                                SlotCard(store, slot, enabled = !busy, modifier = target("slot${slot.id}"),
+                            items(manualSlots, key = { it.id }) { slot ->
+                                SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}"),
                                     onClick = { pending = slot })
                             }
-                            if (mode == SaveSlotMode.Load && current.size == 1) item(key = "empty") {
+                            if (mode == SaveSlotMode.Load && manualSlots.isEmpty()) item(key = "empty") {
                                 Box(Modifier.width(FbngDimens.saveCardWidth).fillMaxHeight(), contentAlignment = Alignment.Center) {
                                     Text(stringResource(R.string.manual_slots_empty), style = MaterialTheme.typography.bodyMedium)
                                 }

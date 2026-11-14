@@ -70,14 +70,23 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         }
     }
 
-    suspend fun save(id: Int = SaveStateStore.AUTO_SLOT) = withPausedCore {
+    suspend fun save(id: Int = SaveStateStore.AUTO_SLOT) = saveToSlot(id)
+
+    suspend fun createManualSave() = saveToSlot(null)
+
+    private suspend fun saveToSlot(id: Int?) = withPausedCore {
         val bytes = snapshot()
         val cachedCover = pauseCover
         val coverSource = if (!paused && id == SaveStateStore.AUTO_SLOT) GameCover.source(view) else null
         // Once captured, finish the disk write even if the screen is disposed.
         withContext(NonCancellable + Dispatchers.IO) {
             val cover = cachedCover ?: GameCover.capture(coverSource)
-            store.write(bytes, BuildConfig.FBNEO_COMMIT, id = id, cover = cover)
+            if (id == null) {
+                store.createManualSlot(bytes, BuildConfig.FBNEO_COMMIT, cover)
+            } else {
+                check(id == SaveStateStore.AUTO_SLOT || store.hasSlot(id)) { "这个槽位没有存档，请选择其他槽位。" }
+                store.write(bytes, BuildConfig.FBNEO_COMMIT, id = id, cover = cover)
+            }
         }
         hasSlot = store.hasSlot()
         canAutoSave = true
