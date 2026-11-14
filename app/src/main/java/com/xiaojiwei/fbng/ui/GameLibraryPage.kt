@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -19,7 +19,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,6 +44,10 @@ import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 
+private const val LibraryColumns = 2
+private const val LibraryRows = 5
+internal const val LibraryPageSize = LibraryColumns * LibraryRows
+
 @Composable
 internal fun GameLibraryPage(
     results: LibraryResults,
@@ -53,15 +56,12 @@ internal fun GameLibraryPage(
     playableOnly: Boolean,
     emptyMessage: Int,
     pageIndex: Int,
-    pageSize: Int,
     onPage: (Int) -> Unit,
-    onPageSize: (Int) -> Unit,
     cardRequesters: MutableMap<String, FocusRequester>,
     wide: Boolean,
     showDetails: Boolean,
     margin: Dp,
     busy: Boolean,
-    preparing: Boolean,
     launchError: Boolean,
     favoriteNames: Set<String>,
     onToggleFavorite: (String) -> Unit,
@@ -101,7 +101,6 @@ internal fun GameLibraryPage(
                 favoriteModifier = control(ShellTags.ToggleFavorite),
                 isFavorite = selected.game.name in favoriteNames,
                 busy = busy,
-                preparing = preparing,
                 launchError = launchError,
                 onPlay = { onPlay(selected.game.name) },
                 onToggleFavorite = { onToggleFavorite(selected.game.name) },
@@ -112,8 +111,8 @@ internal fun GameLibraryPage(
         return
     }
 
-    val games = results.entries.drop(pageIndex * pageSize).take(pageSize)
-    val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / pageSize + 1
+    val games = results.entries.drop(pageIndex * LibraryPageSize).take(LibraryPageSize)
+    val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / LibraryPageSize + 1
     ShellPage(
         title = libraryTitle,
         margin = margin,
@@ -153,24 +152,24 @@ internal fun GameLibraryPage(
             }
             return@ShellPage
         }
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val rowHeight = gameCardTextHeight()
-            val gap = FbngDimens.space8
-            val cardWidth = minOf(maxWidth, FbngDimens.libraryCellWidth)
-            val columns = ((maxWidth + gap) / (cardWidth + gap)).toInt().coerceAtLeast(1)
-            val rows = ((maxHeight + gap) / (rowHeight + gap)).toInt().coerceAtLeast(1)
-            LaunchedEffect(columns, rows) { onPageSize(columns * rows) }
-            if (games.isEmpty()) {
-                Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-            } else {
-                Row(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(gap),
-                ) {
-                    // Fill down each column so up/down follows the list order.
-                    games.take(columns * rows).chunked(rows).forEachIndexed { column, entries ->
-                        Column(Modifier.width(cardWidth), verticalArrangement = Arrangement.spacedBy(gap)) {
-                            entries.forEach { entry ->
+        if (games.isEmpty()) {
+            Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+        } else {
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            ) {
+                // Fill down each column so up/down follows the list order.
+                repeat(LibraryColumns) { column ->
+                    Column(
+                        Modifier.weight(1f).fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                    ) {
+                        repeat(LibraryRows) { row ->
+                            val entry = games.getOrNull(column * LibraryRows + row)
+                            if (entry == null) {
+                                Spacer(Modifier.weight(1f).fillMaxWidth())
+                            } else {
                                 val name = entry.game.name
                                 key(name) {
                                     val tag = ShellTags.game(name)
@@ -179,7 +178,7 @@ internal fun GameLibraryPage(
                                         cardRequesters[tag] = requester
                                         onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
                                     }
-                                    val cardModifier = Modifier.fillMaxWidth().focusProperties {
+                                    val cardModifier = Modifier.weight(1f).fillMaxWidth().focusProperties {
                                         if (column == 0 && wide) left = requesters.getValue(ShellTags.NavLibrary)
                                     }.libraryFocus(tag, requester) {
                                         onFocused(it)
@@ -243,10 +242,10 @@ private fun LibraryPagination(
 }
 
 @Composable
-private fun gameCardTextHeight(): Dp {
+internal fun gameCardTextHeight(): Dp {
     val type = MaterialTheme.typography
     return with(LocalDensity.current) {
-        type.titleMedium.lineHeight.toDp() * 2 + type.bodySmall.lineHeight.toDp() +
+        type.titleMedium.lineHeight.toDp() + type.bodySmall.lineHeight.toDp() +
             FbngDimens.space16 + FbngDimens.space4
     }
 }
@@ -254,19 +253,17 @@ private fun gameCardTextHeight(): Dp {
 @Composable
 internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier.height(gameCardTextHeight())
-            .padding(horizontal = FbngDimens.space12, vertical = FbngDimens.space8),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-    ) {
+    val title: @Composable (Modifier) -> Unit = { textModifier ->
         Text(
             entry.title,
+            modifier = textModifier,
             style = MaterialTheme.typography.titleMedium,
-            minLines = 2,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+    }
+    val file: @Composable (Modifier) -> Unit = { textModifier ->
+        Row(textModifier, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
             Text(
                 entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
                 modifier = Modifier.weight(1f),
@@ -281,7 +278,28 @@ internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.error,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+    BoxWithConstraints(modifier.padding(horizontal = FbngDimens.space12)) {
+        if (maxHeight < gameCardTextHeight()) {
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                title(Modifier.weight(1f))
+                file(Modifier.weight(1f))
+            }
+        } else {
+            Column(
+                Modifier.fillMaxSize().padding(vertical = FbngDimens.space8),
+                verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
+            ) {
+                title(Modifier.fillMaxWidth())
+                file(Modifier.fillMaxWidth())
             }
         }
     }
@@ -295,7 +313,6 @@ private fun GameDetails(
     favoriteModifier: Modifier,
     isFavorite: Boolean,
     busy: Boolean,
-    preparing: Boolean,
     launchError: Boolean,
     onPlay: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -326,7 +343,6 @@ private fun GameDetails(
                     color = scheme.error,
                 )
             }
-            if (preparing) Text(stringResource(R.string.preparing_game), style = MaterialTheme.typography.bodyLarge)
             if (launchError) {
                 Text(stringResource(R.string.preparing_game_failed), style = MaterialTheme.typography.bodyLarge, color = scheme.error)
             }

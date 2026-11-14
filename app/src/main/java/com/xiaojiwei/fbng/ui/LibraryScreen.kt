@@ -79,7 +79,6 @@ internal fun LibraryContent(
     launchError: Boolean = false,
     folderActions: FolderActions = FolderActions(),
     playBusy: Boolean = busy,
-    preparingGame: Boolean = busy && workMessage == R.string.preparing_game,
     favoriteNames: Set<String> = emptySet(),
     recentNames: List<String> = emptyList(),
     onToggleFavorite: (String) -> Unit = {},
@@ -118,7 +117,6 @@ internal fun LibraryContent(
                 localizedTitles = localizedTitles,
                 busy = busy,
                 playBusy = playBusy,
-                preparingGame = preparingGame,
                 readFold = readFold,
                 onPlay = onPlay,
                 initialSection = initialSection,
@@ -143,7 +141,6 @@ private fun LibraryShell(
     localizedTitles: Map<String, String>,
     busy: Boolean,
     playBusy: Boolean,
-    preparingGame: Boolean,
     readFold: @Composable () -> FoldSnapshot?,
     onPlay: (String) -> Unit,
     initialSection: ShellSection,
@@ -171,7 +168,7 @@ private fun LibraryShell(
     var picker by rememberSaveable { mutableStateOf<LibraryPicker?>(null) }
     var focusRequest by remember { mutableStateOf(0) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
-    var libraryPageSize by rememberSaveable { mutableStateOf(1) }
+    val libraryPageSize = LibraryPageSize
     val favoritesListState = rememberLazyListState()
     val recentListState = rememberLazyListState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
@@ -442,7 +439,6 @@ private fun LibraryShell(
                         recent = section == ShellSection.Recent,
                         covers = covers,
                         scanning = workMessage == R.string.folder_scanning && busy,
-                        preparing = preparingGame,
                         launchError = launchError,
                         margin = margin,
                         listState = if (section == ShellSection.Recent) recentListState else favoritesListState,
@@ -480,24 +476,12 @@ private fun LibraryShell(
                             R.string.search_empty
                         },
                         pageIndex = currentPage,
-                        pageSize = libraryPageSize,
                         onPage = ::changePage,
-                        onPageSize = { size ->
-                            if (size != libraryPageSize) {
-                                val anchor = ShellTags.gameName(libraryFocus) ?: selectedName
-                                val index = results.entries.indexOfFirst { it.game.name == anchor }
-                                    .takeIf { it >= 0 } ?: currentPage * libraryPageSize
-                                libraryPageSize = size
-                                libraryPage = index / size
-                            }
-                            focusRequest++
-                        },
                         cardRequesters = cardRequesters,
                         wide = rail,
                         showDetails = showDetails,
                         margin = margin,
                         busy = playBusy,
-                        preparing = preparingGame,
                         launchError = launchError,
                         favoriteNames = favoriteNames,
                         onToggleFavorite = onToggleFavorite,

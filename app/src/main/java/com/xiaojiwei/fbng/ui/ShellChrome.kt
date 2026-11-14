@@ -3,7 +3,6 @@ package com.xiaojiwei.fbng.ui
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
@@ -210,7 +208,6 @@ internal fun ShellScaffold(
         } else {
             Box(Modifier.weight(1f).fillMaxWidth()) { content() }
         }
-        if (section != ShellSection.Library) PadHint()
         if (!rail) {
             ShellBottomBar(
                 section = section,
@@ -392,41 +389,6 @@ private fun NavigationGlyph(section: ShellSection, tint: Color, showUpdate: Bool
                 containerColor = MaterialTheme.colorScheme.primary,
             )
         }
-    }
-}
-
-@Composable
-internal fun PadHint(modifier: Modifier = Modifier) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier
-            .fillMaxWidth()
-            .background(scheme.surfaceContainerLow)
-            .padding(horizontal = FbngDimens.space16, vertical = FbngDimens.space8),
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space24),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PadKey("A", stringResource(R.string.pad_confirm))
-        PadKey("B", stringResource(R.string.pad_back))
-    }
-}
-
-@Composable
-private fun PadKey(symbol: String, label: String) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier
-                .size(FbngDimens.padKey)
-                .border(FbngDimens.focusStroke, scheme.primary, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(symbol, color = scheme.onSurface, style = MaterialTheme.typography.labelLarge)
-        }
-        Text(label, color = scheme.onSurface, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

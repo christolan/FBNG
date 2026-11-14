@@ -188,7 +188,6 @@ fun FbngApp(bridge: GamepadBridge) {
                     snapshot = library?.snapshot,
                     busy = initialScan || workMessage != null || preparing || installingUpdate,
                     playBusy = preparing || installingUpdate,
-                    preparingGame = preparing,
                     workMessage = workMessage ?: when {
                         initialScan -> R.string.folder_scanning
                         installingUpdate -> R.string.update_installing
