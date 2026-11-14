@@ -1,7 +1,7 @@
 # Builds the personal release APK.
 # Actions artifact: zlib zip (not LZMA), kept for 14 days.
-# Push to main and workflow_dispatch also publish a release in this repository,
-# with the raw APK attached. Pull requests only upload the artifact.
+# Pushes to main publish when the app version changes. Manual runs can also
+# publish a release with the raw APK attached. Pull requests only upload the artifact.
 # 0.x stays a prerelease. The tag, title, and asset use the version, not "debug".
 name: Assemble release APK
 
@@ -18,7 +18,8 @@ permissions:
 
 concurrency:
   group: android-release-${{ github.ref }}
-  cancel-in-progress: true
+  # A later push with the same version must not cancel a version-changing push.
+  queue: max
 
 jobs:
   assemble-release:
@@ -193,8 +194,39 @@ jobs:
           compression-level: 6
           overwrite: true
 
+      - name: Check whether the push changed the app version
+        if: github.event_name == 'push'
+        id: version_change
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          VERSION: ${{ steps.apk.outputs.version }}
+          CODE: ${{ steps.apk.outputs.code }}
+        run: |
+          set -euo pipefail
+          if [[ "$BEFORE_SHA" == 0000000000000000000000000000000000000000 ]]; then
+            echo "No previous branch tip. Use a manual run to publish the initial release."
+            exit 0
+          fi
+          git fetch --no-tags --depth=1 origin "$BEFORE_SHA"
+          git show "$BEFORE_SHA:app/build.gradle.kts" | python3 -c '
+          import os, re, sys
+
+          previous_gradle = sys.stdin.read()
+          previous_name = re.search(r"(?m)^[ \t]*versionName[ \t]*=[ \t]*\"([^\"\n]+)\"", previous_gradle)
+          previous_code = re.search(r"(?m)^[ \t]*versionCode[ \t]*=[ \t]*(\d+)\b", previous_gradle)
+          if not previous_name or not previous_code:
+              sys.exit("Could not read versionName and versionCode from the previous commit")
+
+          previous = (previous_name[1], int(previous_code[1]))
+          current = (os.environ["VERSION"], int(os.environ["CODE"]))
+          changed = previous != current
+          print(f"App version before push: {previous}. Built app version: {current}.")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"changed={str(changed).lower()}", file=output)
+          '
+
       - name: Publish versioned prerelease
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' || steps.version_change.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.apk.outputs.version }}
