@@ -105,19 +105,23 @@ internal fun SaveSlotsDialog(
             listingError -> "close"
             canCreate -> "new"
             mode == SaveSlotMode.Load && current?.first()?.available == true -> "slot0"
+            slotsFull -> "slot${manualSlots.last().id}"
             manualSlots.isNotEmpty() -> "slot${manualSlots[manualListState.firstVisibleItemIndex.coerceAtMost(manualSlots.lastIndex)].id}"
             else -> "close"
         }
         val initial = focusedKey?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
         // The create card lives at the end of LazyRow. Materialize it (or a saved
         // manual target) before requesting focus, including after creating a slot.
+        val reachedLimit = slotsFull && focusedKey == "new"
         val manualIndex = when {
-            initial == "new" -> manualSlots.size
+            initial == "new" || reachedLimit -> manualSlots.size
             initial.startsWith("slot") -> manualSlots.indexOfFirst { "slot${it.id}" == initial }
             else -> -1
         }
+        // Keep the disabled end card visible when handing focus to the last
+        // manual slot; focusing the first visible item would scroll it away.
         if (!listingError && current != null && manualIndex >= 0 &&
-            manualListState.layoutInfo.visibleItemsInfo.none { it.index == manualIndex }
+            (reachedLimit || manualListState.layoutInfo.visibleItemsInfo.none { it.index == manualIndex })
         ) {
             manualListState.scrollToItem(manualIndex)
         }
