@@ -3,6 +3,7 @@ package com.xiaojiwei.fbng.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -21,6 +22,8 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.pressKey
 import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -46,17 +49,24 @@ class SaveSlotsDialogTest {
         var overwrittenSlot: Int? = null
         rule.setContent {
             var revision by remember { mutableStateOf(0) }
+            var busy by remember { mutableStateOf(false) }
+            val scope = rememberCoroutineScope()
             FbngTheme {
                 SaveSlotsDialog(
                     store = store,
                     mode = SaveSlotMode.Save,
-                    busy = false,
+                    busy = busy,
                     message = "",
                     revision = revision,
                     onChoose = { overwrittenSlot = it },
                     onCreate = {
-                        store.createManualSlot(byteArrayOf(1), coreCommit = "core")
-                        revision++
+                        busy = true
+                        scope.launch {
+                            delay(100)
+                            store.createManualSlot(byteArrayOf(1), coreCommit = "core")
+                            revision++
+                            busy = false
+                        }
                     },
                     onDismiss = {},
                 )
@@ -65,7 +75,7 @@ class SaveSlotsDialogTest {
 
         repeat(10) { index ->
             rule.waitUntil(5_000) {
-                rule.onAllNodes(hasText("新建槽位") and hasClickAction()).fetchSemanticsNodes().size == 1
+                rule.onAllNodes(hasText("新建槽位") and hasClickAction() and isFocused()).fetchSemanticsNodes().size == 1
             }
             if (index == 8) {
                 rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.HorizontalScrollAxisRange))
@@ -81,11 +91,12 @@ class SaveSlotsDialogTest {
                 .fetchSemanticsNodes().size == 1
         }
         rule.onNodeWithText("新建槽位").assertIsDisplayed().assertIsNotEnabled()
+        rule.onNodeWithText("已达上限").assertIsDisplayed()
         assertEquals((0..10).toList(), store.listSlots().map { it.id })
-        val focusedSlot = isFocused() and hasText("槽位 ", substring = true)
+        val focusedSlot = isFocused() and hasText("槽位 10")
         rule.waitUntil(5_000) { rule.onAllNodes(focusedSlot).fetchSemanticsNodes().size == 1 }
         rule.onNode(focusedSlot).performKeyInput { pressKey(Key.ButtonA) }
         rule.onNodeWithText("覆盖存档").performClick()
-        check(overwrittenSlot in 1..10)
+        assertEquals(10, overwrittenSlot)
     }
 }

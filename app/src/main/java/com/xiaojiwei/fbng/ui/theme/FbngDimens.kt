@@ -26,6 +26,7 @@ internal object FbngDimens {
 
     val buttonHeight = space48
     val shellHeaderHeight = buttonHeight + space8
+    val shortShellHeight = space48 * 8
     val icon = space24
     val detailCoverWidth = space48 * 5
     val libraryHeaderWide = space48 * 12
@@ -39,6 +40,7 @@ internal object FbngDimens {
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
     val saveCardWidth = space48 * 4
+    val saveCardMinWidth = space48 * 2 + space24
     val saveDialogWidth = space48 * 24
 
     /** Compact icon-over-label navigation leaves the width for game pages. */

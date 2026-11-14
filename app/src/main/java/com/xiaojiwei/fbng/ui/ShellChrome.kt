@@ -129,11 +129,12 @@ internal fun ShellPage(
     margin: Dp,
     headerAction: @Composable ((Dp) -> Unit)? = null,
     leadingAction: @Composable (() -> Unit)? = null,
+    contentGap: Dp = FbngDimens.space12,
     content: @Composable () -> Unit,
 ) {
     Column(
         Modifier.fillMaxSize().padding(margin),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+        verticalArrangement = Arrangement.spacedBy(contentGap),
     ) {
         BoxWithConstraints(
             Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight)
@@ -191,6 +192,7 @@ internal fun ShellScaffold(
     section: ShellSection,
     rail: Boolean,
     expanded: Boolean,
+    compactBottomBar: Boolean,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
     onNavFocused: (String) -> Unit,
@@ -218,6 +220,7 @@ internal fun ShellScaffold(
         if (!rail) {
             ShellBottomBar(
                 section = section,
+                compact = compactBottomBar,
                 requesters = requesters,
                 onSection = onSection,
                 onNavFocused = onNavFocused,
@@ -327,6 +330,7 @@ private fun RailItem(
 @Composable
 private fun ShellBottomBar(
     section: ShellSection,
+    compact: Boolean,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
     onNavFocused: (String) -> Unit,
@@ -338,7 +342,7 @@ private fun ShellBottomBar(
             .fillMaxWidth()
             .padding(start = FbngDimens.space16, end = FbngDimens.space16, bottom = FbngDimens.space16)
             .fbngIsland()
-            .padding(FbngDimens.space8),
+            .padding(horizontal = FbngDimens.space8, vertical = if (compact) Dp.Hairline else FbngDimens.space8),
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {
         Destinations.forEach { destination ->
@@ -346,7 +350,7 @@ private fun ShellBottomBar(
             val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
             val showUpdate = destination.section == ShellSection.Settings && updateAvailable
             val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
-            Column(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = FbngDimens.buttonHeight)
@@ -362,29 +366,41 @@ private fun ShellBottomBar(
                         container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
                         shape = androidx.compose.foundation.shape.RoundedCornerShape(FbngDimens.controlRadius),
                         role = Role.Tab,
-                    )
-                    .padding(vertical = FbngDimens.space4),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                    ),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .width(FbngDimens.space24)
-                        .height(FbngDimens.space4)
-                        .background(if (selected) scheme.primary else Color.Transparent),
-                )
-                Spacer(Modifier.height(FbngDimens.space4))
-                NavigationGlyph(destination.section, tint, showUpdate)
-                Text(
-                    stringResource(destination.label),
-                    color = tint,
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                if (compact) {
+                    if (selected) {
+                        Box(Modifier.align(Alignment.BottomCenter).width(FbngDimens.space24)
+                            .height(FbngDimens.space4).background(scheme.primary))
+                    }
+                    if (showUpdate) {
+                        Badge(Modifier.align(Alignment.TopEnd).padding(FbngDimens.space4), containerColor = scheme.primary)
+                    }
+                    BottomNavLabel(destination, tint)
+                } else {
+                    Column(Modifier.padding(vertical = FbngDimens.space4), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.width(FbngDimens.space24).height(FbngDimens.space4)
+                            .background(if (selected) scheme.primary else Color.Transparent))
+                        Spacer(Modifier.height(FbngDimens.space4))
+                        NavigationGlyph(destination.section, tint, showUpdate)
+                        BottomNavLabel(destination, tint)
+                    }
+                }
             }
         }
     }
+}
+
+@Composable
+private fun BottomNavLabel(destination: ShellDestination, tint: Color) {
+    Text(
+        stringResource(destination.label),
+        color = tint,
+        style = MaterialTheme.typography.labelLarge,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable

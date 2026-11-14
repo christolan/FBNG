@@ -233,6 +233,7 @@ private fun LibraryShell(
         val widthDp = maxWidth.value.toInt()
         val widthClass = shellWidth(widthDp)
         val rail = shellUsesNavigationRail(widthDp, readFold())
+        val compactBottomBar = !rail && maxHeight < FbngDimens.shortShellHeight
         val margin = FbngDimens.compactMargin
         val kovshTitle = stringResource(R.string.game_title)
         val gameTitles = remember(localizedTitles, kovshTitle) { localizedTitles + ("kovsh" to kovshTitle) }
@@ -427,6 +428,7 @@ private fun LibraryShell(
                 section = tab,
                 rail = rail,
                 expanded = widthClass == ShellWidth.Expanded,
+                compactBottomBar = compactBottomBar,
                 requesters = requesters,
                 onSection = ::openSection,
                 onNavFocused = { navFocus = it },
@@ -482,6 +484,7 @@ private fun LibraryShell(
                         onPage = ::changePage,
                         cardRequesters = cardRequesters,
                         wide = rail,
+                        compactBottomBar = compactBottomBar,
                         showDetails = showDetails,
                         margin = margin,
                         busy = playBusy,

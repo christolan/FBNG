@@ -59,6 +59,7 @@ internal fun GameLibraryPage(
     onPage: (Int) -> Unit,
     cardRequesters: MutableMap<String, FocusRequester>,
     wide: Boolean,
+    compactBottomBar: Boolean,
     showDetails: Boolean,
     margin: Dp,
     busy: Boolean,
@@ -113,9 +114,11 @@ internal fun GameLibraryPage(
 
     val games = results.entries.drop(pageIndex * LibraryPageSize).take(LibraryPageSize)
     val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / LibraryPageSize + 1
+    val rowGap = if (compactBottomBar) FbngDimens.space4 else FbngDimens.space8
     ShellPage(
         title = libraryTitle,
         margin = margin,
+        contentGap = if (compactBottomBar) FbngDimens.space4 else FbngDimens.space12,
         headerAction = { width ->
             val labelWidth = with(LocalDensity.current) { MaterialTheme.typography.labelLarge.fontSize.toDp() } * 4
             val buttonWidth = if (width < FbngDimens.libraryHeaderNarrow) {
@@ -160,7 +163,7 @@ internal fun GameLibraryPage(
                 repeat(LibraryColumns) { column ->
                     Column(
                         Modifier.weight(1f).fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                        verticalArrangement = Arrangement.spacedBy(rowGap),
                     ) {
                         repeat(LibraryRows) { row ->
                             val entry = games.getOrNull(column * LibraryRows + row)
