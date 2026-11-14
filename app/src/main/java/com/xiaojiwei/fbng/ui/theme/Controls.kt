@@ -38,8 +38,7 @@ fun FbngButton(
     val shape = RoundedCornerShape(FbngDimens.controlRadius)
     val container = when {
         !enabled -> scheme.surfaceContainerHighest
-        kind == FbngButtonKind.Outline -> scheme.surfaceContainerHighest
-        kind == FbngButtonKind.Neutral -> scheme.surfaceContainerHighest
+        kind != FbngButtonKind.Filled -> scheme.surfaceVariant
         else -> scheme.primary
     }
     val resting = when (kind) {

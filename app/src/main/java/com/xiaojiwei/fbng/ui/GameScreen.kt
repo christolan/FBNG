@@ -475,13 +475,25 @@ private fun GamePausePage(
                         Text(stringResource(R.string.resume))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy, onSave,
+                        ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy,
+                            {
+                                focus.tag = ShellTags.Save
+                                onSave()
+                            },
                             Modifier.weight(1f).then(focus.target(ShellTags.Save)))
-                        ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy, onLoad,
+                        ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy,
+                            {
+                                focus.tag = ShellTags.Load
+                                onLoad()
+                            },
                             Modifier.weight(1f).then(focus.target(ShellTags.Load)))
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy, onReset,
+                        ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy,
+                            {
+                                focus.tag = ShellTags.Reset
+                                onReset()
+                            },
                             Modifier.weight(1f).then(focus.target(ShellTags.Reset)))
                         ActionButton(stringResource(R.string.quit), ShellTags.Quit, !busy, onQuit,
                             Modifier.weight(1f).then(focus.target(ShellTags.Quit)))

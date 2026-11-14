@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,6 +60,7 @@ import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 internal enum class SaveSlotMode { Save, Load }
@@ -87,8 +89,13 @@ internal fun SaveSlotsDialog(
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requester(key: String) = requesters.getOrPut(key) { FocusRequester() }
     var focusedKey by remember { mutableStateOf<String?>(null) }
+    var actionKey by remember { mutableStateOf<String?>(null) }
     fun target(key: String) = Modifier.focusRequester(requester(key))
         .onFocusChanged { if (it.isFocused) focusedKey = key }
+    fun select(slot: SaveSlotInfo) {
+        actionKey = "slot${slot.id}"
+        pending = slot
+    }
 
     LaunchedEffect(store, revision) {
         listingError = false
@@ -101,35 +108,43 @@ internal fun SaveSlotsDialog(
     }
     LaunchedEffect(current, pending, busy, listingError, slotControlsEnabled) {
         if (pending != null || busy || (!slotControlsEnabled && !listingError)) return@LaunchedEffect
+        // Disabling a focused card during the save can move Android's focus to Close.
+        val previous = actionKey ?: focusedKey
+        val showLimit = mode == SaveSlotMode.Save && slotsFull && (previous == null || previous == "new")
         val defaultTarget = when {
             listingError -> "close"
             canCreate -> "new"
             mode == SaveSlotMode.Load && current?.first()?.available == true -> "slot0"
-            slotsFull -> "slot${manualSlots.last().id}"
-            manualSlots.isNotEmpty() -> "slot${manualSlots[manualListState.firstVisibleItemIndex.coerceAtMost(manualSlots.lastIndex)].id}"
+            showLimit -> "slot${manualSlots.last().id}"
+            manualSlots.isNotEmpty() -> "slot${manualSlots.first().id}"
             else -> "close"
         }
-        val initial = focusedKey?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
-        // The create card lives at the end of LazyRow. Materialize it (or a saved
-        // manual target) before requesting focus, including after creating a slot.
-        val reachedLimit = slotsFull && focusedKey == "new"
-        val manualIndex = when {
-            initial == "new" || reachedLimit -> manualSlots.size
-            initial.startsWith("slot") -> manualSlots.indexOfFirst { "slot${it.id}" == initial }
-            else -> -1
+        val initial = previous?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
+        val scrollIndex = if (initial == "new" || showLimit) manualSlots.size else {
+            manualSlots.indexOfFirst { "slot${it.id}" == initial }
         }
-        // Keep the disabled end card visible when handing focus to the last
-        // manual slot; focusing the first visible item would scroll it away.
-        if (!listingError && current != null && manualIndex >= 0 &&
-            (reachedLimit || manualListState.layoutInfo.visibleItemsInfo.none { it.index == manualIndex })
-        ) {
-            manualListState.scrollToItem(manualIndex)
+        if (!listingError && scrollIndex >= 0) {
+            val itemCount = manualSlots.size + if (mode == SaveSlotMode.Save) 1 else 0
+            // An inserted slot moves the create card. Wait until LazyRow has measured the new list.
+            snapshotFlow { manualListState.layoutInfo.totalItemsCount }.first { it == itemCount }
+            val layout = manualListState.layoutInfo
+            if (layout.visibleItemsInfo.none {
+                    it.index == scrollIndex && it.offset >= layout.viewportStartOffset &&
+                        it.offset + it.size <= layout.viewportEndOffset
+                }
+            ) {
+                manualListState.scrollToItem(scrollIndex)
+            }
         }
         repeat(4) {
             withFrameNanos { }
             val focused = runCatching { requester(initial).requestFocus() }.getOrDefault(false)
-            if (focused) return@LaunchedEffect
+            if (focused) {
+                actionKey = null
+                return@LaunchedEffect
+            }
         }
+        actionKey = null
         requester("close").requestFocus()
     }
 
@@ -174,28 +189,33 @@ internal fun SaveSlotsDialog(
                     }
                 } else {
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(FbngDimens.space4)) {
-                        // Always leave room for at least one complete manual card,
-                        // while the automatic card stays pinned on the left.
-                        val cardWidth = minOf(FbngDimens.saveCardWidth, (maxWidth - FbngDimens.space16) / 2)
-                        Row(Modifier.fillMaxSize(),
-                            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
+                        val manualWidth = maxWidth - FbngDimens.space16
+                        // Fit two manual cards when readable, and one complete card even in very narrow windows.
+                        val cardWidth = minOf(
+                            FbngDimens.saveCardWidth,
+                            (manualWidth / 2).coerceAtLeast(Dp.Hairline),
+                            ((manualWidth - FbngDimens.space12) / 3).coerceAtLeast(FbngDimens.saveCardMinWidth),
+                        )
+                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
                             val automatic = current.first()
                             SlotCard(store, automatic, enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
-                                modifier = target("slot0"), cardWidth = cardWidth, onClick = { pending = automatic })
+                                modifier = target("slot0").width(cardWidth), onClick = { select(automatic) })
                             LazyRow(Modifier.weight(1f).fillMaxHeight(),
                                 state = manualListState,
                                 horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
                                 items(manualSlots, key = { it.id }) { slot ->
-                                    SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}"), cardWidth = cardWidth,
-                                        onClick = { pending = slot })
+                                    SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}").width(cardWidth),
+                                        onClick = { select(slot) })
                                 }
                                 if (mode == SaveSlotMode.Save) item(key = "new") {
                                     NewSlotCard(
                                         enabled = canCreate,
                                         full = slotsFull,
-                                        modifier = target("new"),
-                                        cardWidth = cardWidth,
-                                        onClick = onCreate,
+                                        modifier = target("new").width(cardWidth),
+                                        onClick = {
+                                            actionKey = "new"
+                                            onCreate()
+                                        },
                                     )
                                 }
                                 if (mode == SaveSlotMode.Load && manualSlots.isEmpty()) item(key = "empty") {
@@ -247,12 +267,11 @@ private fun NewSlotCard(
     enabled: Boolean,
     full: Boolean,
     modifier: Modifier,
-    cardWidth: Dp,
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
-        modifier.width(cardWidth).fillMaxHeight()
+        modifier.fillMaxHeight()
             .fbngFocusTarget(
                 onClick = onClick,
                 enabled = enabled,
@@ -283,7 +302,6 @@ private fun SlotCard(
     slot: SaveSlotInfo,
     enabled: Boolean,
     modifier: Modifier,
-    cardWidth: Dp,
     onClick: () -> Unit,
 ) {
     val cover by produceState<ImageBitmap?>(null, store, slot.id, slot.savedAtEpochMs) {
@@ -297,7 +315,7 @@ private fun SlotCard(
             .format(Date(slot.savedAtEpochMs)) else ""
     }
     Column(
-        modifier.width(cardWidth).fillMaxHeight()
+        modifier.fillMaxHeight()
             .fbngFocusTarget(onClick = onClick, enabled = enabled,
                 container = MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(FbngDimens.space8),

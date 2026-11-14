@@ -168,6 +168,7 @@ class ContrastTest {
     fun marksAndButtonsClearNonTextContrast() {
         assertRatio("primary/background", FbngPalette.primary, FbngPalette.background, 3.0)
         assertRatio("primary/surface", FbngPalette.primary, FbngPalette.surface, 3.0)
+        assertRatio("primary/surfaceVariant (neutral and outline focus)", FbngPalette.primary, FbngPalette.surfaceVariant, 3.0)
         // Linear progress: primary indicator on the secondaryContainer track.
         assertRatio(
             "primary/secondaryContainer",

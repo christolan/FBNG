@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.unit.dp
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryGame
@@ -188,6 +189,29 @@ class ShellFocusTest {
             .performKeyInput { pressKey(Key.ButtonR1) }
         rule.onNodeWithTag(ShellTags.game(games[0].name)).assertDoesNotExist()
         assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
+    fun shortLibraryKeepsFiveRowsTallEnoughForGameTitles() {
+        val games = (1..10).map { LibraryGame("game$it", "Game $it") }
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = LibrarySnapshot(games),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Library,
+                )
+            }
+        }
+        games.forEach { game ->
+            val bounds = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue("${game.name} is shorter than the 28dp title line", bounds.bottom - bounds.top >= 28.dp)
+        }
+        rule.onNodeWithTag(ShellTags.NavSettings).assertIsDisplayed()
     }
 
     @Test
