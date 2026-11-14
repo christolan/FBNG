@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -44,6 +45,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.xiaojiwei.fbng.R
@@ -167,29 +169,35 @@ internal fun SaveSlotsDialog(
                         Text(stringResource(if (listingError) R.string.slots_list_failed else R.string.slots_loading))
                     }
                 } else {
-                    Row(Modifier.weight(1f).fillMaxWidth().padding(FbngDimens.space4),
-                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
-                        val automatic = current.first()
-                        SlotCard(store, automatic, enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
-                            modifier = target("slot0"), onClick = { pending = automatic })
-                        LazyRow(Modifier.weight(1f).fillMaxHeight(),
-                            state = manualListState,
-                            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                            items(manualSlots, key = { it.id }) { slot ->
-                                SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}"),
-                                    onClick = { pending = slot })
-                            }
-                            if (mode == SaveSlotMode.Save) item(key = "new") {
-                                NewSlotCard(
-                                    enabled = canCreate,
-                                    full = slotsFull,
-                                    modifier = target("new"),
-                                    onClick = onCreate,
-                                )
-                            }
-                            if (mode == SaveSlotMode.Load && manualSlots.isEmpty()) item(key = "empty") {
-                                Box(Modifier.width(FbngDimens.saveCardWidth).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                    Text(stringResource(R.string.manual_slots_empty), style = MaterialTheme.typography.bodyMedium)
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(FbngDimens.space4)) {
+                        // Always leave room for at least one complete manual card,
+                        // while the automatic card stays pinned on the left.
+                        val cardWidth = minOf(FbngDimens.saveCardWidth, (maxWidth - FbngDimens.space16) / 2)
+                        Row(Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
+                            val automatic = current.first()
+                            SlotCard(store, automatic, enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
+                                modifier = target("slot0"), cardWidth = cardWidth, onClick = { pending = automatic })
+                            LazyRow(Modifier.weight(1f).fillMaxHeight(),
+                                state = manualListState,
+                                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+                                items(manualSlots, key = { it.id }) { slot ->
+                                    SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}"), cardWidth = cardWidth,
+                                        onClick = { pending = slot })
+                                }
+                                if (mode == SaveSlotMode.Save) item(key = "new") {
+                                    NewSlotCard(
+                                        enabled = canCreate,
+                                        full = slotsFull,
+                                        modifier = target("new"),
+                                        cardWidth = cardWidth,
+                                        onClick = onCreate,
+                                    )
+                                }
+                                if (mode == SaveSlotMode.Load && manualSlots.isEmpty()) item(key = "empty") {
+                                    Box(Modifier.width(cardWidth).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                                        Text(stringResource(R.string.manual_slots_empty), style = MaterialTheme.typography.bodyMedium)
+                                    }
                                 }
                             }
                         }
@@ -235,11 +243,12 @@ private fun NewSlotCard(
     enabled: Boolean,
     full: Boolean,
     modifier: Modifier,
+    cardWidth: Dp,
     onClick: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(
-        modifier.width(FbngDimens.saveCardWidth).fillMaxHeight()
+        modifier.width(cardWidth).fillMaxHeight()
             .fbngFocusTarget(
                 onClick = onClick,
                 enabled = enabled,
@@ -270,6 +279,7 @@ private fun SlotCard(
     slot: SaveSlotInfo,
     enabled: Boolean,
     modifier: Modifier,
+    cardWidth: Dp,
     onClick: () -> Unit,
 ) {
     val cover by produceState<ImageBitmap?>(null, store, slot.id, slot.savedAtEpochMs) {
@@ -283,7 +293,7 @@ private fun SlotCard(
             .format(Date(slot.savedAtEpochMs)) else ""
     }
     Column(
-        modifier.width(FbngDimens.saveCardWidth).fillMaxHeight()
+        modifier.width(cardWidth).fillMaxHeight()
             .fbngFocusTarget(onClick = onClick, enabled = enabled,
                 container = MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(FbngDimens.space8),
@@ -298,7 +308,7 @@ private fun SlotCard(
         }
         Text(slotName(slot), style = MaterialTheme.typography.titleMedium, maxLines = 1)
         if (slot.automatic) Text(stringResource(R.string.slot_read_only), color = MaterialTheme.colorScheme.secondary,
-            style = MaterialTheme.typography.bodyMedium)
+            style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (time.isNotEmpty() && slot.available) Text(time, style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
     }
