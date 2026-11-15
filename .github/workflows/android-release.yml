@@ -44,6 +44,14 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
+          # App version bumps do not invalidate the dependency cache.
+          cache-dependency-path: |
+            build.gradle.kts
+            settings.gradle.kts
+            gradle.properties
+            gradle/libs.versions.toml
+            gradle/gradle-daemon-jvm.properties
+            gradle/wrapper/gradle-wrapper.properties
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -102,7 +110,19 @@ jobs:
           FBNG_RELEASE_STORE_PASSWORD: ${{ secrets.FBNG_RELEASE_STORE_PASSWORD }}
           FBNG_RELEASE_KEY_ALIAS: ${{ secrets.FBNG_RELEASE_KEY_ALIAS }}
           FBNG_RELEASE_KEY_PASSWORD: ${{ secrets.FBNG_RELEASE_KEY_PASSWORD }}
-        run: ./gradlew :app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace
+        run: |
+          set -euo pipefail
+          args=(:app:testDebugUnitTest :app:assembleRelease --no-daemon --stacktrace)
+          build_log="${RUNNER_TEMP}/fbng-gradle.log"
+          if ./gradlew "${args[@]}" 2>&1 | tee "$build_log"; then
+            exit 0
+          fi
+          if ! grep -Eq 'Could not resolve all (artifacts|files) for configuration' "$build_log"; then
+            exit 1
+          fi
+          echo "::warning::Gradle dependency resolution failed. Retrying once with refreshed dependency metadata."
+          sleep 15
+          ./gradlew "${args[@]}" --refresh-dependencies
 
       - name: Name the APK and record its size and SHA-256
         id: apk

@@ -53,6 +53,8 @@ Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`，由仓库里的�
 - `FBNG_RELEASE_KEYSTORE_BASE64` 存放 PKCS#12 二进制文件的 Base64。
 - `FBNG_RELEASE_STORE_PASSWORD`、`FBNG_RELEASE_KEY_ALIAS`、`FBNG_RELEASE_KEY_PASSWORD` 对应本地签名设置。
 
+Gradle 依赖缓存按工具链和依赖配置复用。依赖解析失败时刷新依赖元数据后重试一次。
+
 工作流验证 v1、v2、v3 签名和 APK 的 16 KB 对齐。成功后上传 `FBNG-<versionName>` artifact，保留 14 天。PR 到此结束。向 `main` 推送时，仅在 `versionName` 或 `versionCode` 变化后发布，手动运行也可发布。Release 标题为 `FBNG <versionName>`，tag 为 `v<versionName>`，附件为 `FBNG-<versionName>.apk`。0.x 版本标记为 prerelease。
 
 从 0.6.0 起，Release 应用启动时会匿名检查 GitHub Releases。「设置 → 应用更新」也可手动检查、下载和安装。发布新版时递增 `versionCode` 并沿用同一张 Release 证书。发布说明中的 `版本 <versionName>（versionCode <versionCode>）` 与 tag、附件名和附件摘要共同供应用识别更新。应用核对下载文件的大小和 SHA-256，安装前再核对包名、版本和签名。首次安装更新按系统提示授权 FBNG 安装未知应用，系统要求确认时会打开安装界面。
