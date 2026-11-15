@@ -20,8 +20,8 @@
 1. `FolderLibrary` 持久化 Android 文件选择器授予的目录读取权限，递归枚举 ZIP。应用启动、添加目录或手动重新扫描时更新目录。
 2. `LibraryIndex` 以文件名、大小和修改时间复用归档识别结果。扫描先发布可用缓存，随后更新套件列表和目录统计。
 3. `LibraryScanner` 与 `RomSetMatcher` 按固定 DAT 和 ZIP 成员信息识别套件。规范的套件文件名用于区分 ROM 内容相同的候选。依赖可来自多个目录或旧版导入，单个 ZIP 已含所需文件时也可启动。
-4. 开始游戏时，`FolderLibrary.prepare` 将所需归档放入临时播放目录，完整读取 ZIP 并与扫描时的成员信息核对。失败会清理这次准备的目录。
-5. `GameScreen` 创建会话并加载 FBNeo。`RunningGame` 管理生命周期与自动存档，`GamepadBridge` 在运行时把手柄交给核心。暂停页挂在同一个 `GLRetroView` 上方。成功启动的套件加入最近游玩。
+4. 在游戏页选择「开始游戏」或选中读档槽位时，`FolderLibrary.prepare` 将所需归档放入临时播放目录，完整读取 ZIP 并与扫描时的成员信息核对。失败会清理这次准备的目录。
+5. `GameScreen` 创建会话并加载 FBNeo。`RunningGame` 管理生命周期与自动存档，`GamepadBridge` 在运行时把手柄交给核心。开局前和暂停时复用 `GameMenuPage`，暂停时覆盖在同一个 `GLRetroView` 上方。显式选择的槽位随启动传给 `RunningGame`，直接开始游戏时使用自动存档。成功启动的套件加入最近游玩。
 
 套件名是游戏、收藏、最近、存档和封面的稳定标识。中文名用于显示和检索。DAT 的 `romof` 描述 ROM 依赖，`cloneof` 用于封面索引沿父游戏查找图片。
 

@@ -5,15 +5,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,7 +18,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -40,7 +35,6 @@ import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
-import com.xiaojiwei.fbng.ui.theme.fbngIsland
 
 private const val LibraryColumns = 2
 private const val LibraryRows = 5
@@ -49,7 +43,6 @@ internal const val LibraryPageSize = LibraryColumns * LibraryRows
 @Composable
 internal fun GameLibraryPage(
     results: LibraryResults,
-    selected: LibraryEntry?,
     totalGames: Int,
     playableOnly: Boolean,
     emptyMessage: Int,
@@ -58,60 +51,21 @@ internal fun GameLibraryPage(
     cardRequesters: MutableMap<String, FocusRequester>,
     wide: Boolean,
     compactBottomBar: Boolean,
-    showDetails: Boolean,
     margin: Dp,
     busy: Boolean,
-    launchError: Boolean,
-    favoriteNames: Set<String>,
-    onToggleFavorite: (String) -> Unit,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onSelected: (String) -> Unit,
     onDetails: (String) -> Unit,
-    onBack: () -> Unit,
-    onPlay: (String) -> Unit,
     onOpenImport: () -> Unit,
     onOpenLetters: () -> Unit,
     onOpenFilter: () -> Unit,
     onClearFilters: () -> Unit,
-    backLabel: Int,
     query: String,
-    covers: CoverUiState? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
     fun control(tag: String) = Modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused)
     val libraryTitle = stringResource(R.string.shell_library)
-    if (showDetails && selected != null) {
-        ShellPage(
-            title = stringResource(R.string.shell_page_path, libraryTitle, selected.title),
-            margin = margin,
-            leadingAction = {
-                ShellHeaderBack(
-                    label = stringResource(backLabel),
-                    onClick = onBack,
-                    modifier = Modifier.libraryFocus(
-                        ShellTags.DetailBack, requesters.getValue(ShellTags.DetailBack), onFocused,
-                    ),
-                )
-            },
-        ) {
-            GameDetails(
-                entry = selected,
-                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                actionModifier = control(ShellTags.Play),
-                favoriteModifier = control(ShellTags.ToggleFavorite),
-                isFavorite = selected.game.name in favoriteNames,
-                busy = busy,
-                launchError = launchError,
-                onPlay = { onPlay(selected.game.name) },
-                onToggleFavorite = { onToggleFavorite(selected.game.name) },
-                onOpenImport = onOpenImport,
-                covers = covers,
-            )
-        }
-        return
-    }
-
     val games = results.entries.drop(pageIndex * LibraryPageSize).take(LibraryPageSize)
     val pages = if (results.entries.isEmpty()) 0 else (results.entries.size - 1) / LibraryPageSize + 1
     val rowGap = if (compactBottomBar) FbngDimens.space4 else FbngDimens.space8
@@ -275,85 +229,6 @@ internal fun GameCardText(entry: LibraryEntry, modifier: Modifier, inlineText: B
             fileDetails(Modifier.fillMaxWidth())
         }
     }
-}
-
-@Composable
-private fun GameDetails(
-    entry: LibraryEntry,
-    modifier: Modifier,
-    actionModifier: Modifier,
-    favoriteModifier: Modifier,
-    isFavorite: Boolean,
-    busy: Boolean,
-    launchError: Boolean,
-    onPlay: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onOpenImport: () -> Unit,
-    covers: CoverUiState? = null,
-) {
-    val game = entry.game
-    val scheme = MaterialTheme.colorScheme
-    val information: @Composable (Modifier) -> Unit = { infoModifier ->
-        Column(
-            infoModifier,
-            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-        ) {
-            Text(entry.title, style = MaterialTheme.typography.headlineSmall, color = scheme.onSurface)
-            if (entry.title != game.description) {
-                Text(game.description, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-            }
-            Text(game.fileNames.joinToString(" · "), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-            if (game.canLaunch) {
-                Text(stringResource(R.string.card_ready), style = MaterialTheme.typography.bodyLarge, color = scheme.secondary)
-            }
-            for (dependency in game.missing) {
-                Text(
-                    stringResource(
-                        if (dependency.isBios) R.string.library_missing_bios else R.string.library_missing_parent,
-                        dependency.name,
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = scheme.error,
-                )
-            }
-            if (launchError) {
-                Text(stringResource(R.string.preparing_game_failed), style = MaterialTheme.typography.bodyLarge, color = scheme.error)
-            }
-            FbngButton(
-                onClick = if (game.canLaunch) onPlay else onOpenImport,
-                modifier = actionModifier,
-                enabled = !busy,
-            ) {
-                Text(stringResource(if (game.canLaunch) R.string.play else R.string.folder_configure))
-            }
-            FbngButton(
-                onClick = onToggleFavorite,
-                modifier = favoriteModifier,
-                kind = FbngButtonKind.Neutral,
-            ) {
-                Text(stringResource(if (isFavorite) R.string.favorite_remove else R.string.favorite_add))
-            }
-        }
-    }
-
-    BoxWithConstraints(modifier.fbngIsland().padding(FbngDimens.space16)) {
-        val image = covers?.images?.get(game.name)
-        if (maxWidth >= FbngDimens.libraryToolbarBreakpoint && image != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space24)) {
-                GameCover(entry.title, image, Modifier.weight(1f)
-                    .aspectRatio(FbngDimens.coverAspectRatio).clip(MaterialTheme.shapes.medium))
-                information(Modifier.weight(1.5f))
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
-                if (image != null) GameCover(entry.title, image,
-                    Modifier.widthIn(max = FbngDimens.detailCoverWidth).fillMaxWidth()
-                        .aspectRatio(FbngDimens.coverAspectRatio).clip(MaterialTheme.shapes.medium))
-                information(Modifier.fillMaxWidth())
-            }
-        }
-    }
-
 }
 
 internal fun Modifier.libraryFocus(tag: String, requester: FocusRequester, onFocused: (String) -> Unit) =

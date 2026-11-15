@@ -10,7 +10,6 @@
     <string name="game_title">《三国战纪：风云再起》</string>
     <string name="library_empty">游戏库为空</string>
     <string name="library_empty_hint">添加游戏库文件夹后，识别到的游戏会显示在这里。</string>
-    <string name="library_back">返回游戏库</string>
     <string name="back">返回</string>
     <string name="favorites_title">收藏</string>
     <string name="recent_title">最近</string>
@@ -24,7 +23,6 @@
     <string name="favorites_unavailable_hint">请检查游戏库文件夹并重新扫描。找到游戏后会恢复显示。</string>
     <string name="favorite_add">添加到收藏</string>
     <string name="favorite_remove">取消收藏</string>
-    <string name="favorite_remove_game">取消收藏「%1$s」</string>
     <plurals name="library_game_count">
         <item quantity="other">%1$,d 款游戏</item>
     </plurals>
@@ -60,7 +58,6 @@
     <string name="game_paused">游戏已暂停</string>
     <string name="pause_loading">正在加载，完成后暂停</string>
     <string name="game_stopped">游戏无法继续</string>
-    <string name="pause_back_hint">返回以恢复游戏</string>
     <string name="reset">重新开始</string>
     <string name="reset_title">重新开始游戏？</string>
     <string name="reset_body">从头开始本局，已有存档仍可读取。</string>
@@ -163,6 +160,7 @@
     <string name="save_slots_hint">选择已有槽位可覆盖存档。</string>
     <string name="manual_slots_full">已达 %1$d 个手动槽位上限，可覆盖已有存档。</string>
     <string name="load_slots_hint">选择要读取的存档，左右滑动或用手柄选择。</string>
+    <string name="load_before_play_hint">选择存档以开始游戏。</string>
     <string name="slots_loading">正在读取存档槽位…</string>
     <string name="slots_list_failed">无法读取存档目录，请关闭弹窗后重试，并检查剩余空间。</string>
     <string name="slot_automatic">自动存档</string>

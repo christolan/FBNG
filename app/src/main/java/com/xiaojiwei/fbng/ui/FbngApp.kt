@@ -31,6 +31,7 @@ import com.xiaojiwei.fbng.dat.FbneoDat
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.FolderLibrary
+import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.LibraryRefresh
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.library.RecentGames
@@ -61,6 +62,8 @@ sealed interface CatalogLoad {
     ) : CatalogLoad
     data class Failed(val message: String) : CatalogLoad
 }
+
+private data class GameLaunch(val game: PreparedGame, val entry: LibraryEntry, val initialSlot: Int?)
 
 @Composable
 fun FbngApp(bridge: GamepadBridge) {
@@ -99,18 +102,24 @@ fun FbngApp(bridge: GamepadBridge) {
     var favoriteNames by remember(favorites) {
         mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
     }
+    fun toggleFavorite(name: String) {
+        val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
+        favorites.edit().putStringSet("sets", updated).apply()
+        favoriteNames = updated
+        if (name in updated) CoverWorker.enqueue(context)
+    }
     val scope = rememberCoroutineScope()
     val saveableState = rememberSaveableStateHolder()
     val load by produceState<CatalogLoad>(CatalogLoad.Loading, context) {
         value = withContext(Dispatchers.IO) { loadBundledCatalog(context) }
     }
     var library by remember { mutableStateOf<LibraryRefresh?>(null) }
-    var playing by remember { mutableStateOf<PreparedGame?>(null) }
+    var playing by remember { mutableStateOf<GameLaunch?>(null) }
     var workMessage by remember { mutableStateOf<Int?>(null) }
     var initialScan by remember { mutableStateOf(true) }
     var preparing by remember { mutableStateOf(false) }
     var folderError by remember { mutableStateOf<Int?>(null) }
-    var launchError by remember { mutableStateOf(false) }
+    var launchError by remember { mutableStateOf<String?>(null) }
 
     suspend fun refreshLibrary(catalog: DatCatalog) {
         library = withContext(Dispatchers.IO) {
@@ -135,7 +144,7 @@ fun FbngApp(bridge: GamepadBridge) {
         if (workMessage != null || preparing || playing != null || updater?.installing == true) return
         workMessage = message
         folderError = null
-        launchError = false
+        launchError = null
         scope.launch {
             try {
                 val ready = snapshotFlow { load }.first { it != CatalogLoad.Loading } as? CatalogLoad.Ready
@@ -163,18 +172,20 @@ fun FbngApp(bridge: GamepadBridge) {
         }
     }
 
-    fun play(setName: String) {
+    fun play(entry: LibraryEntry, initialSlot: Int?) {
         if (preparing || playing != null || updater?.installing == true) return
+        val setName = entry.game.name
         val game = library?.snapshot?.games?.firstOrNull { it.name == setName && it.canLaunch } ?: return
         preparing = true
-        launchError = false
+        launchError = null
         scope.launch {
             try {
-                playing = prepareLock.withLock { withContext(Dispatchers.IO) { folders.prepare(game) } }
+                val prepared = prepareLock.withLock { withContext(Dispatchers.IO) { folders.prepare(game) } }
+                playing = GameLaunch(prepared, entry.copy(game = game), initialSlot)
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 Log.w(TAG, "Could not prepare ${game.name}", error)
-                launchError = true
+                launchError = setName
             } finally {
                 preparing = false
             }
@@ -224,24 +235,25 @@ fun FbngApp(bridge: GamepadBridge) {
                     appUpdate = if (updater != null && updateState != null) {
                         UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing)
                     } else null,
-                    onToggleFavorite = { name ->
-                        val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
-                        favorites.edit().putStringSet("sets", updated).apply()
-                        favoriteNames = updated
-                        if (name in updated) CoverWorker.enqueue(context)
-                    },
+                    onToggleFavorite = ::toggleFavorite,
                 )
             }
         } else {
+            val setName = game.entry.game.name
             GameScreen(
-                game = game,
+                game = game.game,
+                entry = game.entry,
+                initialSlot = game.initialSlot,
+                cover = coverImages[setName],
+                favorite = setName in favoriteNames,
                 bridge = bridge,
+                onToggleFavorite = { toggleFavorite(setName) },
                 onStarted = {
-                    recentNames = recentGames.record(game.rom.nameWithoutExtension)
+                    recentNames = recentGames.record(setName)
                     CoverWorker.enqueue(context)
                 },
                 onQuit = {
-                    returnFromGame = game.rom.nameWithoutExtension
+                    returnFromGame = setName
                     playing = null
                 },
             )

@@ -1,5 +1,6 @@
 package com.xiaojiwei.fbng.ui
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,16 +13,23 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.requestFocus
+import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.game.SaveStateStore
+import com.xiaojiwei.fbng.library.AppStorage
+import com.xiaojiwei.fbng.library.LibraryEntry
+import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,6 +53,54 @@ class SaveSlotsDialogTest {
 
     @get:Rule
     val folder = TemporaryFolder()
+
+    @Test
+    fun launchPageReturnsFromSlotPickerAndStartsWithTheSelectedManualSlot() {
+        val game = LibraryGame("slot_test", "Slot test")
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val stateDir = AppStorage(context.filesDir).stateDir(game.name)
+        val store = SaveStateStore(stateDir)
+        store.write(byteArrayOf(1), coreCommit = "core")
+        val manual = store.createManualSlot(byteArrayOf(2), coreCommit = "core")
+        val launches = mutableListOf<Int?>()
+        try {
+            rule.setContent {
+                FbngTheme {
+                    GameLaunchPage(
+                        entry = LibraryEntry(game, game.description, 'S'),
+                        cover = null,
+                        fold = null,
+                        favorite = false,
+                        busy = false,
+                        launchError = false,
+                        onPlay = { launches.add(it) },
+                        onToggleFavorite = {},
+                        onConfigureFolders = {},
+                        onBack = {},
+                    )
+                }
+            }
+            val load = rule.onNodeWithTag(ShellTags.Load)
+            val focusedAutoSlot = hasText("自动存档") and hasClickAction() and isFocused()
+            val focusedLoad = hasTestTag(ShellTags.Load) and isFocused()
+            val manualSlot = rule.onNode(hasText("槽位 $manual") and hasClickAction())
+            load.requestFocus().performKeyInput { pressKey(Key.ButtonA) }
+            rule.waitUntil(5_000) { rule.onAllNodes(focusedAutoSlot).fetchSemanticsNodes().size == 1 }
+            rule.onNode(focusedAutoSlot).performKeyInput { pressKey(Key.ButtonB) }
+            rule.waitUntil(5_000) { rule.onAllNodes(focusedLoad).fetchSemanticsNodes().size == 1 }
+            rule.runOnIdle { assertTrue(launches.isEmpty()) }
+
+            load.performKeyInput { pressKey(Key.ButtonA) }
+            rule.waitUntil(5_000) { rule.onAllNodes(focusedAutoSlot).fetchSemanticsNodes().size == 1 }
+            manualSlot.performClick()
+            rule.onNodeWithText("读取这个存档？").assertDoesNotExist()
+            rule.runOnIdle { assertEquals(listOf<Int?>(manual), launches) }
+            rule.onNodeWithTag(ShellTags.Play).performClick()
+            rule.runOnIdle { assertEquals(listOf(manual, null), launches) }
+        } finally {
+            stateDir.deleteRecursively()
+        }
+    }
 
     @Test
     fun clearAllReturnsToItsButtonOnCancelAndRemovesAllSlotsOnConfirmation() {

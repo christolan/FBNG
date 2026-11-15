@@ -43,11 +43,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -70,16 +65,17 @@ import com.swordfish.libretrodroid.ShaderConfig
 import com.swordfish.libretrodroid.Variable
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.artwork.CoverImage
 import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.RunningGame
 import com.xiaojiwei.fbng.game.SaveStateStore
 import com.xiaojiwei.fbng.game.SavedSlot
+import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
-import com.xiaojiwei.fbng.ui.theme.FbngPanel
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -93,7 +89,12 @@ internal val MinHudBar = 56.dp
 @Composable
 internal fun GameScreen(
     game: PreparedGame,
+    entry: LibraryEntry,
+    initialSlot: Int?,
+    cover: CoverImage?,
+    favorite: Boolean,
     bridge: GamepadBridge,
+    onToggleFavorite: () -> Unit,
     onQuit: () -> Unit,
     onStarted: () -> Unit = {},
 ) {
@@ -153,6 +154,7 @@ internal fun GameScreen(
         mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
     }
     val started by rememberUpdatedState(onStarted)
+    val fold = rememberFoldSnapshot()
 
     fun reportFailure(error: Exception, resource: Int) {
         if (error is CancellationException) throw error
@@ -294,13 +296,13 @@ internal fun GameScreen(
                 if (!session.initializationStarted && !coreFailed) {
                     message = resources.getString(R.string.load_working)
                     try {
-                        val slot = session.initialize()
+                        val slot = session.initialize(initialSlot)
                         message = if (slot == null) "" else loadMessage(slot)
                     } catch (error: Exception) {
                         reportFailure(error, R.string.auto_load_fail)
                     }
                     if (pausePageOpen && !session.paused) session.togglePause()
-                    started()
+                    if (!coreFailed) started()
                 }
             }
         }
@@ -329,18 +331,25 @@ internal fun GameScreen(
             AndroidView(factory = { session.view }, modifier = Modifier.fillMaxSize())
             // Keep the same GL surface mounted underneath an opaque pause page.
             // Running games have no HUD, regardless of the available black bars.
-            if (pausePageOpen || coreFailed) GamePausePage(
+            if (pausePageOpen || coreFailed) GameMenuPage(
+                entry = entry,
+                cover = cover,
+                fold = fold,
+                favorite = favorite,
                 ready = session.ready && !coreFailed,
                 busy = session.busy,
-                hasSlot = session.hasSlot,
                 dialogOpen = showReset || slotMode != null,
                 message = message,
+                messageIsError = coreFailed,
                 failed = coreFailed,
+                hasAutoSave = session.hasSlot,
                 onSave = { openSlots(SaveSlotMode.Save) },
                 onLoad = { openSlots(SaveSlotMode.Load) },
-                onResume = ::resume,
+                onPrimary = ::resume,
                 onReset = { showReset = true },
                 onQuit = ::quit,
+                onToggleFavorite = onToggleFavorite,
+                onBack = ::back,
             )
         }
     }
@@ -421,101 +430,6 @@ internal fun GameScreen(
                 }
             },
         )
-    }
-}
-
-@Composable
-internal fun GamePausePage(
-    ready: Boolean,
-    busy: Boolean,
-    hasSlot: Boolean,
-    dialogOpen: Boolean,
-    message: String,
-    failed: Boolean,
-    onResume: () -> Unit,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
-    onReset: () -> Unit,
-    onQuit: () -> Unit,
-) {
-    val focus = remember { HudFocus() }
-    val focusManager = LocalFocusManager.current
-    LaunchedEffect(ready, busy, dialogOpen) {
-        if (dialogOpen) focusManager.clearFocus(force = true)
-        if (busy || dialogOpen) return@LaunchedEffect
-        val target = if (ready) focus.tag else ShellTags.Quit
-        repeat(4) {
-            withFrameNanos { }
-            if (runCatching { focus.requesters.getValue(target).requestFocus() }.getOrDefault(false)) return@LaunchedEffect
-        }
-    }
-    Surface(
-        modifier = Modifier.fillMaxSize().onKeyEvent { event ->
-            if (!dialogOpen && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
-                if (ready && !busy) onResume()
-                true
-            } else false
-        },
-        color = MaterialTheme.colorScheme.background,
-        contentColor = MaterialTheme.colorScheme.onBackground,
-    ) {
-        Box(Modifier.fillMaxSize().padding(FbngDimens.space16), contentAlignment = Alignment.Center) {
-            Column(
-                Modifier.widthIn(max = FbngDimens.hudActionsWidth).fillMaxWidth()
-                    .verticalScroll(rememberScrollState()).padding(FbngDimens.space4),
-                verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
-            ) {
-                FbngPanel {
-                    Text(
-                        stringResource(when {
-                            failed -> R.string.game_stopped
-                            !ready -> R.string.pause_loading
-                            else -> R.string.game_paused
-                        }),
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Text(stringResource(R.string.pause_back_hint), style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                    val button = Modifier.fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
-                    FbngButton(onClick = onResume, enabled = ready && !busy,
-                        modifier = button.then(focus.target(ShellTags.Pause)).testTag(ShellTags.Pause)) {
-                        Text(stringResource(R.string.resume))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy,
-                            {
-                                focus.tag = ShellTags.Save
-                                onSave()
-                            },
-                            Modifier.weight(1f).then(focus.target(ShellTags.Save)))
-                        ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy,
-                            {
-                                focus.tag = ShellTags.Load
-                                onLoad()
-                            },
-                            Modifier.weight(1f).then(focus.target(ShellTags.Load)))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy,
-                            {
-                                focus.tag = ShellTags.Reset
-                                onReset()
-                            },
-                            Modifier.weight(1f).then(focus.target(ShellTags.Reset)))
-                        ActionButton(stringResource(R.string.quit), ShellTags.Quit, !busy, onQuit,
-                            Modifier.weight(1f).then(focus.target(ShellTags.Quit)))
-                    }
-                }
-                FbngPanel {
-                    Text(stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
-                        style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (message.isNotEmpty()) Text(message, style = MaterialTheme.typography.bodyLarge,
-                        color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface)
-                }
-            }
-        }
     }
 }
 

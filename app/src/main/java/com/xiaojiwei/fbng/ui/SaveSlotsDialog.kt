@@ -81,10 +81,11 @@ internal fun SaveSlotsDialog(
     message: String,
     revision: Int,
     onChoose: (Int) -> Unit,
-    onCreate: () -> Unit,
+    onCreate: () -> Unit = {},
     onDelete: (Int) -> Unit,
     onDismiss: () -> Unit,
     onClear: (() -> Unit)? = null,
+    beforePlay: Boolean = false,
 ) {
     var slots by remember(store) { mutableStateOf<List<SaveSlotInfo>?>(null) }
     var listedRevision by remember(store) { mutableStateOf<Int?>(null) }
@@ -110,7 +111,7 @@ internal fun SaveSlotsDialog(
         .onFocusChanged { if (it.isFocused) focusedKey = key }
     fun select(slot: SaveSlotInfo, delete: Boolean = false) {
         actionKey = if (delete) "delete${slot.id}" else "slot${slot.id}"
-        pending = SlotAction(slot, delete)
+        if (beforePlay && !delete) onChoose(slot.id) else pending = SlotAction(slot, delete)
     }
 
     LaunchedEffect(store, revision) {
@@ -197,7 +198,11 @@ internal fun SaveSlotsDialog(
             Column(Modifier.padding(FbngDimens.space16), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                 Row(Modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.space8), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                    Text(stringResource(if (mode == SaveSlotMode.Save) R.string.save_slots_title else R.string.load_slots_title),
+                    Text(stringResource(when {
+                        mode == SaveSlotMode.Save -> R.string.save_slots_title
+                        beforePlay -> R.string.load
+                        else -> R.string.load_slots_title
+                    }),
                         modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (mode == SaveSlotMode.Save && onClear != null) {
@@ -225,7 +230,8 @@ internal fun SaveSlotsDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    Text(stringResource(R.string.load_slots_hint), style = MaterialTheme.typography.bodyMedium,
+                    Text(stringResource(if (beforePlay) R.string.load_before_play_hint else R.string.load_slots_hint),
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (automatic == null || listingError) {

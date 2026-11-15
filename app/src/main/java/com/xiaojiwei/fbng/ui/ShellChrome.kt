@@ -228,10 +228,11 @@ internal fun ShellPagination(
 }
 
 @Composable
-internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier) {
+internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier, enabled: Boolean = true) {
     ShellHeaderButton(
         onClick = onClick,
         modifier = modifier.width(FbngDimens.buttonHeight).semantics { contentDescription = label },
+        enabled = enabled,
     ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
 }
 

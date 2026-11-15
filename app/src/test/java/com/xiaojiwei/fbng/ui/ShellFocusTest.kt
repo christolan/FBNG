@@ -44,6 +44,7 @@ import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.library.MissingDependency
+import com.xiaojiwei.fbng.library.indexLibrary
 import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import org.junit.Assert.assertEquals
@@ -74,7 +75,7 @@ class ShellFocusTest {
                     snapshot = readySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = { played = it },
+                    onPlay = { entry, _ -> played = entry.game.name },
                 )
             }
         }
@@ -104,20 +105,27 @@ class ShellFocusTest {
                     snapshot = readySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favorites,
                     onToggleFavorite = { favorites = favorites - it },
                 )
             }
         }
+        rule.onNodeWithText("取消收藏").assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithContentDescription("取消收藏「Galaga」").assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.Load).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithText("添加到收藏").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertDoesNotExist()
-        rule.onNodeWithTag(ShellTags.favorite("mslug")).assertIsFocused()
-        rule.onNodeWithContentDescription("取消收藏「Metal Slug」").performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.favorite("mslug")).assertIsFocused().performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.DetailBack).performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.OpenLibrary).assertIsFocused()
     }
 
@@ -134,7 +142,7 @@ class ShellFocusTest {
                     busy = true,
                     playBusy = false,
                     readFold = { null },
-                    onPlay = { played = it },
+                    onPlay = { entry, _ -> played = entry.game.name },
                 )
             }
         }
@@ -158,7 +166,7 @@ class ShellFocusTest {
                     snapshot = readySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                 )
             }
         }
@@ -175,6 +183,7 @@ class ShellFocusTest {
     fun recentPagesFillTwoRowsAndRestoreTheGameAfterReordering() {
         var height by mutableStateOf(800.dp)
         var inGame by mutableStateOf(false)
+        var returnFromGame by mutableStateOf<String?>(null)
         var recentNames by mutableStateOf((1..6).map { "game$it" })
         val games = LibrarySnapshot(recentNames.map { LibraryGame(it, it) })
         rule.setContent {
@@ -187,9 +196,11 @@ class ShellFocusTest {
                             snapshot = games,
                             busy = false,
                             readFold = { null },
-                            onPlay = { inGame = true },
+                            onPlay = { _, _ -> inGame = true },
                             initialSection = ShellSection.Recent,
                             recentNames = recentNames,
+                            returnFromGame = returnFromGame,
+                            onReturnRestored = { returnFromGame = null },
                         )
                     }
                 }
@@ -221,9 +232,12 @@ class ShellFocusTest {
         card(2).assertIsFocused()
         rule.onNodeWithTag(ShellTags.NextPage).performTouchInput { click() }
         card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.runOnIdle { assertTrue(!inGame) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle {
             assertTrue(inGame)
             recentNames = listOf("game6") + recentNames.dropLast(1)
+            returnFromGame = "game6"
             inGame = false
         }
         rule.onNodeWithContentDescription("第 1 / 2 页").assertIsDisplayed()
@@ -242,7 +256,7 @@ class ShellFocusTest {
                     snapshot = games,
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favorites,
                     onToggleFavorite = { favorites = favorites - it },
@@ -261,7 +275,9 @@ class ShellFocusTest {
         card(4).requestFocus().performKeyInput { pressKey(Key.ButtonR1) }
         card(5).assertIsFocused()
         rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
-        rule.onNodeWithContentDescription("取消收藏「game5」").performTouchInput { click() }
+        card(5).performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.DetailBack).performTouchInput { click() }
         rule.onNodeWithContentDescription("第 1 / 1 页").assertIsDisplayed()
         card(4).assertIsFocused()
     }
@@ -279,7 +295,7 @@ class ShellFocusTest {
                     snapshot = LibrarySnapshot(games),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                 )
             }
         }
@@ -322,7 +338,7 @@ class ShellFocusTest {
                     snapshot = LibrarySnapshot(games),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Library,
                 )
             }
@@ -361,7 +377,7 @@ class ShellFocusTest {
                     snapshot = readySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Favorites,
                 )
             }
@@ -381,6 +397,8 @@ class ShellFocusTest {
         rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.game("galaga")).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag(ShellTags.NavSettings).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.DetailBack).performClick()
         rule.onNodeWithTag(ShellTags.NavSettings).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.OpenImport).performClick()
@@ -400,7 +418,7 @@ class ShellFocusTest {
                     snapshot = readySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                 )
             }
         }
@@ -457,7 +475,7 @@ class ShellFocusTest {
                     snapshot = LibrarySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Settings,
                     cornerRadius = option,
                     onCornerRadiusChange = {
@@ -504,7 +522,7 @@ class ShellFocusTest {
                     snapshot = LibrarySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Import,
                 )
             }
@@ -529,7 +547,7 @@ class ShellFocusTest {
                     snapshot = LibrarySnapshot(),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Import,
                     folders = folders,
                     folderActions = FolderActions(remove = { removed ->
@@ -564,14 +582,18 @@ class ShellFocusTest {
         rule.setContent {
             var panelOpen by remember { mutableStateOf(false) }
             FbngTheme {
-                GamePausePage(
+                GameMenuPage(
+                    entry = indexLibrary(readySnapshot().games, emptyMap()).first(),
+                    cover = null,
+                    fold = null,
+                    favorite = false,
                     ready = true,
                     busy = false,
-                    hasSlot = true,
                     dialogOpen = panelOpen,
                     message = "",
-                    failed = false,
-                    onResume = { resumed++ },
+                    onPrimary = { resumed++ },
+                    onBack = { resumed++ },
+                    onToggleFavorite = {},
                     onLoad = {},
                     onReset = {},
                     onQuit = { exited++ },
@@ -583,6 +605,8 @@ class ShellFocusTest {
             }
         }
         rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.Load).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
         rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
@@ -602,7 +626,7 @@ class ShellFocusTest {
                 FbngTheme {
                     LibraryContent(
                         load = readyCatalog(), snapshot = readySnapshot(), busy = false,
-                        readFold = { null }, onPlay = {},
+                        readFold = { null }, onPlay = { _, _ -> },
                     )
                 }
             }
@@ -643,7 +667,7 @@ class ShellFocusTest {
                     )),
                     busy = false,
                     readFold = { null },
-                    onPlay = {},
+                    onPlay = { _, _ -> },
                     initialSection = ShellSection.Recent,
                     recentNames = listOf("galaga"),
                     returnFromGame = returnFromGame,

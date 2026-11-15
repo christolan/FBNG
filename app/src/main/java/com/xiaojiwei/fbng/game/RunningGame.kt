@@ -73,11 +73,11 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         updatePlayback()
     }
 
-    suspend fun initialize(): SavedSlot? {
+    suspend fun initialize(slotId: Int?): SavedSlot? {
         check(!initializationStarted)
         initializationStarted = true
         return try {
-            load()
+            load(slotId ?: SaveStateStore.AUTO_SLOT, requireExisting = slotId != null)
         } finally {
             if (!closed && !failed) ready = true
         }
@@ -114,12 +114,12 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         autoSaveAfterResume = false
     }
 
-    suspend fun load(id: Int = SaveStateStore.AUTO_SLOT): SavedSlot? = withPausedCore {
+    suspend fun load(id: Int, requireExisting: Boolean = true): SavedSlot? = withPausedCore {
         // A failed read must not let a later automatic save overwrite the old slot.
         canAutoSave = false
         autoSaveAfterResume = false
         val slot = withContext(Dispatchers.IO) { store.read(id) }
-        check(id == SaveStateStore.AUTO_SLOT || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
+        check(!requireExisting || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
         check(!closed && !failed) { "游戏已关闭或核心出错" }
         if (slot != null) {
             clearPauseCover()

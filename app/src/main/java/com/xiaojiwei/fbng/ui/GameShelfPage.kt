@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -21,15 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.artwork.CoverImage
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.FbngButton
-import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
@@ -41,7 +36,6 @@ internal fun GameShelfPage(
     entries: List<LibraryEntry>,
     hasSavedGames: Boolean,
     scanning: Boolean,
-    launchError: Boolean,
     margin: Dp,
     pageIndex: Int,
     pages: Int,
@@ -51,7 +45,6 @@ internal fun GameShelfPage(
     onPageControlFocused: (String) -> Unit,
     onFocused: (String) -> Unit,
     onOpenLibrary: () -> Unit,
-    onRemoveFavorite: ((LibraryEntry) -> Unit)?,
     onChoose: (LibraryEntry) -> Unit,
     recent: Boolean = false,
     covers: CoverUiState? = null,
@@ -98,20 +91,10 @@ internal fun GameShelfPage(
                 }
                 return@Column
             }
-            if (launchError) {
-                Text(
-                    stringResource(R.string.preparing_game_failed),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = scheme.error,
-                )
-            }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val textHeight = gameCardTextHeight()
                 val gap = FbngDimens.space12
-                val removeHeight = if (onRemoveFavorite == null) Dp.Hairline else {
-                    FbngDimens.buttonHeight + FbngDimens.space4
-                }
-                val twoRowsHeight = (textHeight + removeHeight + FbngDimens.space48) * 2 + gap
+                val twoRowsHeight = (textHeight + FbngDimens.space48) * 2 + gap
                 val fourColumnsWidth = FbngDimens.shelfCardMinWidth * ShelfPageSize + gap * (ShelfPageSize - 1)
                 val wideEnoughForFour = maxWidth >= fourColumnsWidth
                 val columns = if (maxHeight < twoRowsHeight || (wideEnoughForFour && maxWidth >= maxHeight * 2)) {
@@ -139,7 +122,6 @@ internal fun GameShelfPage(
                                             cover = covers?.images?.get(entry.game.name),
                                             cardRequesters = cardRequesters,
                                             onFocused = onFocused,
-                                            onRemoveFavorite = onRemoveFavorite,
                                             onChoose = onChoose,
                                             modifier = cell,
                                         )
@@ -162,7 +144,6 @@ private fun ShelfGameCard(
     cover: CoverImage?,
     cardRequesters: MutableMap<String, FocusRequester>,
     onFocused: (String) -> Unit,
-    onRemoveFavorite: ((LibraryEntry) -> Unit)?,
     onChoose: (LibraryEntry) -> Unit,
     modifier: Modifier,
 ) {
@@ -172,23 +153,11 @@ private fun ShelfGameCard(
         cardRequesters[tag] = requester
         onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
     }
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
-        Column(
-            Modifier.fillMaxWidth().weight(1f)
-                .libraryFocus(tag, requester, onFocused)
-                .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surfaceContainerHigh),
-        ) {
-            GameCover(entry.title, cover, Modifier.fillMaxWidth().weight(1f), contentScale = ContentScale.Crop)
-            GameCardText(entry, Modifier.fillMaxWidth().height(textHeight).background(scheme.surface))
-        }
-        if (onRemoveFavorite != null) {
-            val label = stringResource(R.string.favorite_remove_game, entry.title)
-            FbngButton(
-                onClick = { onRemoveFavorite(entry) },
-                kind = FbngButtonKind.Neutral,
-                contentPadding = PaddingValues(horizontal = FbngDimens.space4),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
-            ) { Text(stringResource(R.string.favorite_remove), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        }
+    Column(
+        modifier.libraryFocus(tag, requester, onFocused)
+            .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surfaceContainerHigh),
+    ) {
+        GameCover(entry.title, cover, Modifier.fillMaxWidth().weight(1f), contentScale = ContentScale.Crop)
+        GameCardText(entry, Modifier.fillMaxWidth().height(textHeight).background(scheme.surface))
     }
 }

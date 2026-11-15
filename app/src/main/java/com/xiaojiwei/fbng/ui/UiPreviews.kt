@@ -147,7 +147,7 @@ private fun LibraryPreview(
                 busy = busy,
                 workMessage = R.string.folder_scanning,
                 readFold = { null },
-                onPlay = {},
+                onPlay = { _, _ -> },
                 initialSection = initialSection,
                 folders = folders,
             )
