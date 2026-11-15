@@ -105,6 +105,7 @@ class SaveStateStore(private val directory: File) {
         return id
     }
 
+    @Synchronized
     fun write(
         bytes: ByteArray,
         coreCommit: String,
@@ -146,6 +147,18 @@ class SaveStateStore(private val directory: File) {
         }
     }
 
+    @Synchronized
+    fun delete(id: Int) {
+        val file = bundle(id)
+        if (id == AUTO_SLOT) {
+            // Remove the legacy fallback before removing the current bundle.
+            Files.deleteIfExists(legacyState.toPath())
+            Files.deleteIfExists(legacyMeta.toPath())
+        }
+        Files.deleteIfExists(file.toPath())
+    }
+
+    @Synchronized
     fun clear() {
         directory.listFiles().orEmpty().filter {
             SLOT_NAME.matches(it.name.removeSuffix(".tmp")) ||

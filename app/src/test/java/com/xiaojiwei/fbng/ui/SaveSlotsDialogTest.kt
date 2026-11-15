@@ -15,6 +15,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
@@ -25,6 +26,8 @@ import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -59,6 +62,7 @@ class SaveSlotsDialogTest {
                     message = "",
                     revision = revision,
                     onChoose = { overwrittenSlot = it },
+                    onDelete = {},
                     onCreate = {
                         busy = true
                         scope.launch {
@@ -98,5 +102,53 @@ class SaveSlotsDialogTest {
         rule.onNode(focusedSlot).performKeyInput { pressKey(Key.ButtonA) }
         rule.onNodeWithText("覆盖存档").performClick()
         assertEquals(10, overwrittenSlot)
+    }
+
+    @Test
+    fun deletingSlotsRequiresConfirmationAndRestoresFocus() {
+        val store = SaveStateStore(folder.newFolder("delete"))
+        store.write(byteArrayOf(0), coreCommit = "core")
+        store.write(byteArrayOf(1), coreCommit = "core", id = 1)
+        rule.setContent {
+            var revision by remember { mutableStateOf(0) }
+            FbngTheme {
+                SaveSlotsDialog(
+                    store = store,
+                    mode = SaveSlotMode.Load,
+                    busy = false,
+                    message = "",
+                    revision = revision,
+                    onChoose = {},
+                    onCreate = {},
+                    onDelete = { store.delete(it); revision++ },
+                    onDismiss = {},
+                )
+            }
+        }
+        val auto = hasText("自动存档") and hasClickAction()
+        rule.waitUntil(5_000) { rule.onAllNodes(auto and isFocused()).fetchSemanticsNodes().size == 1 }
+        rule.onNode(auto).performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNodeWithText("槽位 1").assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        val deleteManual = rule.onNodeWithContentDescription("删除「槽位 1」存档")
+        val cancel = hasText("取消") and isFocused()
+        deleteManual.assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.waitUntil(5_000) { rule.onAllNodes(cancel).fetchSemanticsNodes().size == 1 }
+        rule.onNode(cancel).performKeyInput { pressKey(Key.ButtonB) }
+        assertTrue(store.hasSlot(1))
+        deleteManual.assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.waitUntil(5_000) { rule.onAllNodes(cancel).fetchSemanticsNodes().size == 1 }
+        rule.onNode(cancel).performKeyInput { pressKey(Key.DirectionRight) }
+        val confirmation = hasText("删除存档") and hasClickAction() and SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription)
+        rule.onNode(confirmation).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.waitUntil(5_000) { rule.onAllNodes(auto and isFocused()).fetchSemanticsNodes().size == 1 }
+        assertFalse(store.hasSlot(1))
+        rule.onNode(auto).performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithContentDescription("删除「自动存档」存档").assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNode(confirmation).performClick()
+        rule.waitUntil(5_000) {
+            rule.onAllNodes(hasText("关闭") and isFocused()).fetchSemanticsNodes().size == 1
+        }
+        assertFalse(store.hasSlot())
     }
 }

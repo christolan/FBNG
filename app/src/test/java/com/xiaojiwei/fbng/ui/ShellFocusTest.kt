@@ -27,6 +27,7 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
@@ -75,12 +76,47 @@ class ShellFocusTest {
                 )
             }
         }
+        val rail = listOf(ShellTags.NavFavorites, ShellTags.NavRecent, ShellTags.NavLibrary, ShellTags.NavSettings)
+            .map { rule.onNodeWithTag(it).getUnclippedBoundsInRoot() }
+        val heights = rail.map { (it.bottom - it.top).value }
+        assertTrue(heights.max() - heights.min() <= 1f)
+        val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
+        assertEquals(8.dp, rail.first().top - header.top)
+        assertTrue(rail.last().bottom > rail.first().top + 64.dp * 4)
         rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         assertEquals("mslug", played)
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w400dp-h360dp-mdpi")
+    fun favoritesCanBeRemovedWithTheGamepadAndByTouch() {
+        var favorites by mutableStateOf(setOf("galaga", "mslug"))
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = readySnapshot(),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Favorites,
+                    favoriteNames = favorites,
+                    onToggleFavorite = { favorites = favorites - it },
+                )
+            }
+        }
+        rule.onNodeWithTag(ShellTags.favorite("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithContentDescription("取消收藏「Galaga」").assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.favorite("galaga")).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.favorite("mslug")).assertIsFocused()
+        rule.onNodeWithContentDescription("取消收藏「Metal Slug」").performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.OpenLibrary).assertIsFocused()
     }
 
     @Test
@@ -172,7 +208,7 @@ class ShellFocusTest {
     @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
     fun pagingKeepsTheHeaderFixedAndGameCardsTheSameSize() {
-        val games = (1..20).map { index ->
+        val games = (1..22).map { index ->
             LibraryGame("game$index", if (index == 1) "Arcade 1" else "Arcade $index with a very long title")
         }
         rule.setContent {
@@ -198,15 +234,25 @@ class ShellFocusTest {
         assertTrue(nextPage.bottom < firstBounds.top)
         rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.LibraryFilter).assertIsDisplayed()
-        rule.onNodeWithTag(ShellTags.game(games[0].name)).assertIsFocused()
+        games.take(3).forEach { game ->
+            rule.onNodeWithTag(ShellTags.game(game.name)).assertIsFocused()
+                .performKeyInput { pressKey(Key.DirectionDown) }
+        }
+        rule.onNodeWithTag(ShellTags.game(games[3].name)).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonR1) }
         rule.onNodeWithTag(ShellTags.game(games[0].name)).assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.game(games[13].name)).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.NextPage).requestFocus().performKeyInput { pressKey(Key.ButtonA) }
+        val lastPageFirst = rule.onNodeWithTag(ShellTags.game(games[20].name)).assertIsFocused()
+        assertEquals(firstBounds, lastPageFirst.getUnclippedBoundsInRoot())
+        lastPageFirst.performKeyInput { pressKey(Key.ButtonL1) }
+        rule.onNodeWithTag(ShellTags.game(games[10].name)).assertIsFocused()
         assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
     }
 
     @Test
     @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
-    fun shortLibraryStacksBothLinesAndScrollsToTheFifthRowWithTheDpad() {
+    fun shortLibraryFitsTenCardsWithoutScrollingAndKeepsDetailsFocus() {
         val games = (1..10).map { LibraryGame("game$it", "Game $it") }
         rule.setContent {
             FbngTheme {
@@ -222,15 +268,20 @@ class ShellFocusTest {
         }
         val header = rule.onNodeWithTag(ShellTags.Header)
         val headerBounds = header.getUnclippedBoundsInRoot()
+        val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
+        val cardBounds = games.map { game ->
+            rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
+        }
+        assertTrue(cardBounds.all { it.top >= headerBounds.bottom && it.bottom <= nav.top })
+        rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)).assertDoesNotExist()
         games.take(5).forEachIndexed { index, game ->
             val card = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsFocused().assertIsDisplayed()
             val title = rule.onNodeWithText(game.description, useUnmergedTree = true)
                 .assertIsDisplayed().getUnclippedBoundsInRoot()
             val file = rule.onNodeWithText("${game.name}.zip", useUnmergedTree = true)
                 .assertIsDisplayed().getUnclippedBoundsInRoot()
-            assertTrue(title.bottom <= file.top)
-            val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
-            assertTrue(file.bottom <= nav.top)
+            assertTrue(title.right <= file.left)
+            assertEquals(cardBounds[index], card.getUnclippedBoundsInRoot())
             if (index < 4) card.performKeyInput { pressKey(Key.DirectionDown) }
         }
         assertEquals(headerBounds, header.getUnclippedBoundsInRoot())

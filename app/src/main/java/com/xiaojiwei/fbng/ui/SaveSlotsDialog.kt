@@ -7,11 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -46,6 +46,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
@@ -66,6 +68,8 @@ import kotlinx.coroutines.withContext
 
 internal enum class SaveSlotMode { Save, Load }
 
+private data class SlotAction(val slot: SaveSlotInfo, val delete: Boolean)
+
 @Composable
 internal fun SaveSlotsDialog(
     store: SaveStateStore,
@@ -75,13 +79,15 @@ internal fun SaveSlotsDialog(
     revision: Int,
     onChoose: (Int) -> Unit,
     onCreate: () -> Unit,
+    onDelete: (Int) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var slots by remember(store) { mutableStateOf<List<SaveSlotInfo>?>(null) }
     var listedRevision by remember(store) { mutableStateOf<Int?>(null) }
     var listingError by remember(store) { mutableStateOf(false) }
-    var pending by remember { mutableStateOf<SaveSlotInfo?>(null) }
+    var pending by remember { mutableStateOf<SlotAction?>(null) }
     val current = slots
+    val automatic = current?.firstOrNull()
     val manualSlots = current?.drop(1).orEmpty()
     val slotsFull = manualSlots.size >= SaveStateStore.MAX_MANUAL_SLOTS
     val slotControlsEnabled = !busy && !listingError && listedRevision == revision
@@ -93,9 +99,9 @@ internal fun SaveSlotsDialog(
     var actionKey by remember { mutableStateOf<String?>(null) }
     fun target(key: String) = Modifier.focusRequester(requester(key))
         .onFocusChanged { if (it.isFocused) focusedKey = key }
-    fun select(slot: SaveSlotInfo) {
-        actionKey = "slot${slot.id}"
-        pending = slot
+    fun select(slot: SaveSlotInfo, delete: Boolean = false) {
+        actionKey = if (delete) "delete${slot.id}" else "slot${slot.id}"
+        pending = SlotAction(slot, delete)
     }
 
     LaunchedEffect(store, revision) {
@@ -115,14 +121,21 @@ internal fun SaveSlotsDialog(
         val defaultTarget = when {
             listingError -> "close"
             canCreate -> "new"
-            mode == SaveSlotMode.Load && current?.first()?.available == true -> "slot0"
+            mode == SaveSlotMode.Load && automatic?.available == true -> "slot0"
             showLimit -> "slot${manualSlots.last().id}"
             manualSlots.isNotEmpty() -> "slot${manualSlots.first().id}"
             else -> "close"
         }
-        val initial = previous?.takeUnless { listingError || (it == "new" && !canCreate) } ?: defaultTarget
+        val initial = when {
+            listingError -> defaultTarget
+            previous == "close" || (previous == "new" && canCreate) -> previous
+            previous == "delete0" && automatic?.available == true -> previous
+            previous == "slot0" && mode == SaveSlotMode.Load && automatic?.available == true -> previous
+            manualSlots.any { previous == "slot${it.id}" || previous == "delete${it.id}" } -> requireNotNull(previous)
+            else -> defaultTarget
+        }
         val scrollIndex = if (initial == "new" || showLimit) manualSlots.size else {
-            manualSlots.indexOfFirst { "slot${it.id}" == initial }
+            manualSlots.indexOfFirst { initial == "slot${it.id}" || initial == "delete${it.id}" }
         }
         if (!listingError && scrollIndex >= 0) {
             val itemCount = manualSlots.size + if (mode == SaveSlotMode.Save) 1 else 0
@@ -184,7 +197,7 @@ internal fun SaveSlotsDialog(
                     Text(stringResource(R.string.load_slots_hint), style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                if (current == null || listingError) {
+                if (automatic == null || listingError) {
                     Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         Text(stringResource(if (listingError) R.string.slots_list_failed else R.string.slots_loading))
                     }
@@ -198,15 +211,32 @@ internal fun SaveSlotsDialog(
                             ((manualWidth - FbngDimens.space12) / 3).coerceAtLeast(FbngDimens.saveCardMinWidth),
                         )
                         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
-                            val automatic = current.first()
-                            SlotCard(store, automatic, enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
-                                modifier = target("slot0").width(cardWidth), onClick = { select(automatic) })
+                            SlotCard(
+                                store = store,
+                                slot = automatic,
+                                enabled = slotControlsEnabled && mode == SaveSlotMode.Load && automatic.available,
+                                modifier = Modifier.width(cardWidth),
+                                actionModifier = target("slot0"),
+                                deleteModifier = target("delete0"),
+                                deleteEnabled = slotControlsEnabled,
+                                onClick = { select(automatic) },
+                                onDelete = if (automatic.available) ({ select(automatic, delete = true) }) else null,
+                            )
                             LazyRow(Modifier.weight(1f).fillMaxHeight(),
                                 state = manualListState,
                                 horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
                                 items(manualSlots, key = { it.id }) { slot ->
-                                    SlotCard(store, slot, enabled = slotControlsEnabled, modifier = target("slot${slot.id}").width(cardWidth),
-                                        onClick = { select(slot) })
+                                    SlotCard(
+                                        store = store,
+                                        slot = slot,
+                                        enabled = slotControlsEnabled,
+                                        modifier = Modifier.width(cardWidth),
+                                        actionModifier = target("slot${slot.id}"),
+                                        deleteModifier = target("delete${slot.id}"),
+                                        deleteEnabled = slotControlsEnabled,
+                                        onClick = { select(slot) },
+                                        onDelete = { select(slot, delete = true) },
+                                    )
                                 }
                                 if (mode == SaveSlotMode.Save) item(key = "new") {
                                     NewSlotCard(
@@ -234,9 +264,22 @@ internal fun SaveSlotsDialog(
         }
     }
 
-    pending?.let { slot ->
-        val cancel = remember { FocusRequester() }
-        LaunchedEffect(slot.id) { cancel.requestFocus() }
+    pending?.let { (slot, delete) ->
+        val title = when {
+            delete -> R.string.delete_save_title
+            mode == SaveSlotMode.Save -> R.string.overwrite_title
+            else -> R.string.load_confirm_title
+        }
+        val body = when {
+            delete -> R.string.delete_save_body
+            mode == SaveSlotMode.Save -> R.string.overwrite_body
+            else -> R.string.load_confirm_body
+        }
+        val confirm = when {
+            delete -> R.string.delete_save
+            mode == SaveSlotMode.Save -> R.string.overwrite
+            else -> R.string.load
+        }
         AlertDialog(
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier.onKeyEvent { event ->
@@ -246,16 +289,17 @@ internal fun SaveSlotsDialog(
                 } else false
             },
             onDismissRequest = { pending = null },
-            title = { Text(stringResource(if (mode == SaveSlotMode.Save) R.string.overwrite_title else R.string.load_confirm_title)) },
-            text = { Text(stringResource(if (mode == SaveSlotMode.Save) R.string.overwrite_body else R.string.load_confirm_body,
-                slotName(slot))) },
+            title = { Text(stringResource(title)) },
+            text = { Text(stringResource(body, slotName(slot))) },
             confirmButton = {
                 FbngButton(onClick = {
                     pending = null
-                    onChoose(slot.id)
-                }) { Text(stringResource(if (mode == SaveSlotMode.Save) R.string.overwrite else R.string.load)) }
+                    if (delete) onDelete(slot.id) else onChoose(slot.id)
+                }) { Text(stringResource(confirm)) }
             },
             dismissButton = {
+                val cancel = remember { FocusRequester() }
+                LaunchedEffect(slot.id, delete) { cancel.requestFocus() }
                 FbngButton(onClick = { pending = null }, kind = FbngButtonKind.Neutral,
                     modifier = Modifier.focusRequester(cancel)) { Text(stringResource(R.string.cancel)) }
             },
@@ -304,7 +348,11 @@ private fun SlotCard(
     slot: SaveSlotInfo,
     enabled: Boolean,
     modifier: Modifier,
+    actionModifier: Modifier,
+    deleteModifier: Modifier,
+    deleteEnabled: Boolean,
     onClick: () -> Unit,
+    onDelete: (() -> Unit)?,
 ) {
     val cover by produceState<ImageBitmap?>(null, store, slot.id, slot.savedAtEpochMs) {
         value = withContext(Dispatchers.IO) {
@@ -316,25 +364,37 @@ private fun SlotCard(
         if (slot.savedAtEpochMs > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
             .format(Date(slot.savedAtEpochMs)) else ""
     }
-    Column(
-        modifier.fillMaxHeight()
-            .fbngFocusTarget(onClick = onClick, enabled = enabled,
-                container = MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(FbngDimens.space8),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-    ) {
-        Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
-            val bitmap = cover
-            if (bitmap != null) Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            else Text(stringResource(if (slot.available) R.string.slot_no_cover else R.string.slot_no_save),
-                style = MaterialTheme.typography.bodyMedium)
+    Column(modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
+        Column(
+            actionModifier.fillMaxWidth().weight(1f)
+                .fbngFocusTarget(onClick = onClick, enabled = enabled,
+                    container = MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(FbngDimens.space8),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+        ) {
+            Box(Modifier.weight(1f).fillMaxWidth()
+                .clip(MaterialTheme.shapes.medium)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
+                val bitmap = cover
+                if (bitmap != null) Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                else Text(stringResource(if (slot.available) R.string.slot_no_cover else R.string.slot_no_save),
+                    style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(slotName(slot), style = MaterialTheme.typography.titleMedium, maxLines = 1)
+            if (slot.automatic) Text(stringResource(R.string.slot_system_managed), color = MaterialTheme.colorScheme.secondary,
+                style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (time.isNotEmpty() && slot.available) Text(time, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text(slotName(slot), style = MaterialTheme.typography.titleMedium, maxLines = 1)
-        if (slot.automatic) Text(stringResource(R.string.slot_read_only), color = MaterialTheme.colorScheme.secondary,
-            style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (time.isNotEmpty() && slot.available) Text(time, style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        if (onDelete != null) {
+            val label = stringResource(R.string.delete_save_slot, slotName(slot))
+            FbngButton(
+                onClick = onDelete,
+                enabled = deleteEnabled,
+                kind = FbngButtonKind.Neutral,
+                contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+                modifier = deleteModifier.fillMaxWidth().semantics { contentDescription = label },
+            ) { Text(stringResource(R.string.delete_save), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        }
     }
 }

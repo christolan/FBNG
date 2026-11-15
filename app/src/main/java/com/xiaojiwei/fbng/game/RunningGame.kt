@@ -74,6 +74,14 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
 
     suspend fun createManualSave() = saveToSlot(null)
 
+    suspend fun deleteSave(id: Int) = withPausedCore {
+        try {
+            withContext(NonCancellable + Dispatchers.IO) { store.delete(id) }
+        } finally {
+            hasSlot = store.hasSlot()
+        }
+    }
+
     private suspend fun saveToSlot(id: Int?) = withPausedCore {
         val bytes = snapshot()
         val cachedCover = pauseCover

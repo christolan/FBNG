@@ -38,11 +38,12 @@ internal fun FbngPanel(
 @Composable
 internal fun FbngEmptyState(
     modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().fbngIsland()) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            Modifier.fillMaxWidth().then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .heightIn(min = maxHeight).padding(FbngDimens.space24),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(FbngDimens.space12, Alignment.CenterVertically),

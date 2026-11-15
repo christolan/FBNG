@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -141,7 +140,7 @@ internal fun GameLibraryPage(
         },
     ) {
         if (totalGames == 0) {
-            FbngEmptyState {
+            FbngEmptyState(scrollable = false) {
                 Text(stringResource(R.string.library_empty), style = MaterialTheme.typography.titleMedium)
                 Text(
                     stringResource(R.string.library_empty_hint),
@@ -153,15 +152,15 @@ internal fun GameLibraryPage(
             return@ShellPage
         }
         if (games.isEmpty()) {
-            FbngEmptyState {
+            FbngEmptyState(scrollable = false) {
                 Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
             }
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {
-                val gridHeight = maxOf(maxHeight, gameCardTextHeight() * LibraryRows + rowGap * (LibraryRows - 1))
-                val scroll = key(pageIndex) { rememberScrollState() }
+                val rowHeight = (maxHeight - rowGap * (LibraryRows - 1)) / LibraryRows
+                val inlineText = rowHeight < gameCardTextHeight()
                 Row(
-                    Modifier.fillMaxSize().verticalScroll(scroll).height(gridHeight),
+                    Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                 ) {
                     // Fill down each column so up/down follows the list order.
@@ -193,7 +192,7 @@ internal fun GameLibraryPage(
                                             onClick = { onDetails(name) },
                                             container = scheme.surfaceContainerHigh,
                                         )
-                                        GameCardText(entry, cardModifier)
+                                        GameCardText(entry, cardModifier, inlineText = inlineText)
                                     }
                                 }
                             }
@@ -258,20 +257,19 @@ internal fun gameCardTextHeight(): Dp {
 }
 
 @Composable
-internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
+internal fun GameCardText(entry: LibraryEntry, modifier: Modifier, inlineText: Boolean = false) {
     val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space8),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
-    ) {
+    val title: @Composable (Modifier) -> Unit = { textModifier ->
         Text(
             entry.title,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = textModifier,
             style = MaterialTheme.typography.titleMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
+    }
+    val fileDetails: @Composable (Modifier) -> Unit = { rowModifier ->
+        Row(rowModifier, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
             Text(
                 entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
                 modifier = Modifier.weight(1f),
@@ -290,6 +288,24 @@ internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+    }
+    if (inlineText) {
+        Row(
+            modifier.padding(horizontal = FbngDimens.space8),
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            title(Modifier.weight(3f))
+            fileDetails(Modifier.weight(2f))
+        }
+    } else {
+        Column(
+            modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space8),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
+        ) {
+            title(Modifier.fillMaxWidth())
+            fileDetails(Modifier.fillMaxWidth())
         }
     }
 }

@@ -30,7 +30,6 @@ internal object FbngDimens {
     val libraryLetterFilterWidth = space48 * 3
     val libraryStatusFilterWidth = space48 * 2 + space16
     val libraryToolbarBreakpoint = space48 * 13
-    val railItemHeight = space48 + space16
     val hudActionWidth = space48 + space24
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f

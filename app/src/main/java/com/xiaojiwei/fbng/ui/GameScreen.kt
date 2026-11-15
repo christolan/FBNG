@@ -372,6 +372,20 @@ internal fun GameScreen(
                 }
             }
         }
+        fun deleteSlot(id: Int) {
+            scope.launch {
+                if (session.busy || coreFailed || slotMode != mode) return@launch
+                message = resources.getString(R.string.delete_save_working)
+                try {
+                    session.deleteSave(id)
+                    message = resources.getString(R.string.delete_save_ok)
+                } catch (error: Exception) {
+                    reportFailure(error, R.string.delete_save_fail)
+                } finally {
+                    slotRevision++
+                }
+            }
+        }
         SaveSlotsDialog(
             store = store,
             mode = mode,
@@ -381,6 +395,7 @@ internal fun GameScreen(
             onDismiss = ::dismissSlots,
             onChoose = ::chooseSlot,
             onCreate = { chooseSlot(null) },
+            onDelete = ::deleteSlot,
         )
     }
     if (showReset) {

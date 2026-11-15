@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -250,11 +248,9 @@ private fun ShellRail(
             .fillMaxHeight()
             .padding(start = FbngDimens.space16, top = FbngDimens.space16, bottom = FbngDimens.space16)
             .fbngIsland()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = FbngDimens.space16, horizontal = FbngDimens.space8),
+            .padding(FbngDimens.space8),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {
-        Wordmark(Modifier.align(Alignment.CenterHorizontally))
         Destinations.forEach { destination ->
             RailItem(
                 destination = destination,
@@ -263,20 +259,8 @@ private fun ShellRail(
                 onClick = { onSection(destination.section) },
                 onFocused = { onNavFocused(destination.tag) },
                 showUpdate = destination.section == ShellSection.Settings && updateAvailable,
+                modifier = Modifier.weight(1f),
             )
-        }
-    }
-}
-
-@Composable
-private fun Wordmark(modifier: Modifier = Modifier) {
-    val name = stringResource(R.string.app_name)
-    val head = name.take(2)
-    val tail = name.drop(2)
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(head, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
-        if (tail.isNotEmpty()) {
-            Text(tail, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -289,14 +273,14 @@ private fun RailItem(
     onClick: () -> Unit,
     onFocused: () -> Unit,
     showUpdate: Boolean,
+    modifier: Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
     val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
     val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = FbngDimens.railItemHeight)
             .onFocusChanged { if (it.isFocused) onFocused() }
             .testTag(destination.tag)
             .semantics {

@@ -23,6 +23,7 @@
     <string name="favorites_unavailable_hint">请检查游戏库文件夹并重新扫描。找到游戏后会恢复显示。</string>
     <string name="favorite_add">添加到收藏</string>
     <string name="favorite_remove">取消收藏</string>
+    <string name="favorite_remove_game">取消收藏「%1$s」</string>
     <plurals name="library_game_count">
         <item quantity="other">%1$,d 款游戏</item>
     </plurals>
@@ -156,7 +157,7 @@
     <string name="slots_loading">正在读取存档槽位…</string>
     <string name="slots_list_failed">无法读取存档目录，请关闭弹窗后重试，并检查剩余空间。</string>
     <string name="slot_automatic">自动存档</string>
-    <string name="slot_read_only">系统维护 · 仅可读档</string>
+    <string name="slot_system_managed">系统自动维护</string>
     <string name="slot_number">槽位 %1$d</string>
     <string name="slot_new">新建槽位</string>
     <string name="slot_limit">已达上限</string>
@@ -168,4 +169,11 @@
     <string name="overwrite_body">将用当前进度覆盖「%1$s」，原存档无法恢复。</string>
     <string name="load_confirm_title">读取这个存档？</string>
     <string name="load_confirm_body">将读取「%1$s」，当前未存档的进度会丢失。</string>
+    <string name="delete_save">删除存档</string>
+    <string name="delete_save_slot">删除「%1$s」存档</string>
+    <string name="delete_save_title">删除这个存档？</string>
+    <string name="delete_save_body">将永久删除「%1$s」中的存档。</string>
+    <string name="delete_save_working">正在删除存档…</string>
+    <string name="delete_save_ok">存档已删除。</string>
+    <string name="delete_save_fail">删除存档失败：%1$s</string>
 </resources>

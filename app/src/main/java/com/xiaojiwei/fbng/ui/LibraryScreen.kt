@@ -284,10 +284,15 @@ private fun LibraryShell(
             val lastPage = ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0)
             val next = page.coerceIn(0, lastPage)
             if (next == currentPage) return
+            val selectedIndex = pageEntries.indexOfFirst { it.game.name == selectedName }
+            val nextPageStart = next * libraryPageSize
+            val targetIndex = selectedIndex.takeIf {
+                it >= 0 && nextPageStart + it < results.entries.size
+            } ?: 0
+            val name = results.entries[nextPageStart + targetIndex].game.name
             libraryPage = next
-            val first = results.entries.getOrNull(next * libraryPageSize) ?: return
-            selectedName = first.game.name
-            libraryFocus = ShellTags.game(first.game.name)
+            selectedName = name
+            libraryFocus = ShellTags.game(name)
             navFocus = null
             focusRequest++
         }
@@ -371,6 +376,9 @@ private fun LibraryShell(
         ) {
             if (libraryFocusBusy || pickerOpen) return@LaunchedEffect
             if (navFocus?.let(::request) == true) return@LaunchedEffect
+            if (section == ShellSection.Library && showDetails && libraryFocus == ShellTags.Play) {
+                withFrameNanos { }
+            }
             val preferred = when (section) {
                 ShellSection.Favorites, ShellSection.Recent -> {
                     val cards = if (section == ShellSection.Recent) recentCards else favoriteCards
@@ -464,6 +472,14 @@ private fun LibraryShell(
                         libraryRequester = requesters.getValue(ShellTags.OpenLibrary),
                         onFocused = ::focusSaved,
                         onOpenLibrary = { openSection(ShellSection.Library) },
+                        onRemoveFavorite = if (section == ShellSection.Favorites) { entry ->
+                            val name = entry.game.name
+                            val index = favoriteCards.indexOf(ShellTags.favorite(name))
+                            favoritesFocus = (favoriteCards.getOrNull(index + 1) ?: favoriteCards.getOrNull(index - 1))
+                                ?: ShellTags.OpenLibrary
+                            navFocus = null
+                            onToggleFavorite(name)
+                        } else null,
                         onChoose = { entry ->
                             val name = entry.game.name
                             if (section == ShellSection.Recent) recentFocus = ShellTags.recent(name)

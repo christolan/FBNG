@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,10 +23,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.FbngButton
+import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
@@ -42,6 +47,7 @@ internal fun GameShelfPage(
     libraryRequester: FocusRequester,
     onFocused: (String) -> Unit,
     onOpenLibrary: () -> Unit,
+    onRemoveFavorite: ((LibraryEntry) -> Unit)?,
     onChoose: (LibraryEntry) -> Unit,
     recent: Boolean = false,
     covers: CoverUiState? = null,
@@ -113,17 +119,31 @@ internal fun GameShelfPage(
                             onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
                         }
                         Column(
-                            Modifier.width(cardWidth).fillMaxHeight()
-                                .libraryFocus(tag, requester, onFocused)
-                                .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surfaceContainerHigh),
+                            Modifier.width(cardWidth).fillMaxHeight(),
+                            verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
                         ) {
-                            GameCover(
-                                entry.title,
-                                covers?.images?.get(entry.game.name),
-                                Modifier.fillMaxWidth().weight(1f),
-                                contentScale = ContentScale.Crop,
-                            )
-                            GameCardText(entry, Modifier.fillMaxWidth().height(textHeight).background(scheme.surface))
+                            Column(
+                                Modifier.fillMaxWidth().weight(1f)
+                                    .libraryFocus(tag, requester, onFocused)
+                                    .fbngFocusTarget(onClick = { onChoose(entry) }, container = scheme.surfaceContainerHigh),
+                            ) {
+                                GameCover(
+                                    entry.title,
+                                    covers?.images?.get(entry.game.name),
+                                    Modifier.fillMaxWidth().weight(1f),
+                                    contentScale = ContentScale.Crop,
+                                )
+                                GameCardText(entry, Modifier.fillMaxWidth().height(textHeight).background(scheme.surface))
+                            }
+                            if (onRemoveFavorite != null) {
+                                val label = stringResource(R.string.favorite_remove_game, entry.title)
+                                FbngButton(
+                                    onClick = { onRemoveFavorite(entry) },
+                                    kind = FbngButtonKind.Neutral,
+                                    contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+                                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+                                ) { Text(stringResource(R.string.favorite_remove), maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            }
                         }
                     }
                 }

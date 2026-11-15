@@ -75,4 +75,35 @@ class SaveStateStoreTest {
         assertEquals(listOf(0, 1, 2, 11), store.listSlots().map { it.id })
         assertArrayEquals(byteArrayOf(11), store.read(11)?.bytes)
     }
+
+    @Test
+    fun deletingOneSlotFreesItsIdAndPreservesOtherSlots() {
+        val store = SaveStateStore(folder.newFolder("delete-manual"))
+        for (id in 0..10) store.write(byteArrayOf(id.toByte()), "core", id = id, cover = byteArrayOf(1))
+
+        store.delete(5)
+        store.delete(5)
+        assertNull(store.read(5))
+        assertNull(store.readCover(5))
+        assertTrue(store.hasSlot())
+        assertArrayEquals(byteArrayOf(6), store.read(6)?.bytes)
+        assertEquals(5, store.createManualSlot(byteArrayOf(42), "core"))
+    }
+
+    @Test
+    fun deletingAutomaticSaveAlsoRemovesTheLegacyFallback() {
+        val directory = folder.newFolder("delete-auto")
+        val legacyState = directory.resolve("slot0.state").apply { writeBytes(byteArrayOf(1)) }
+        val legacyMeta = directory.resolve("slot0.properties").apply { writeText("coreCommit=legacy") }
+        val store = SaveStateStore(directory)
+        assertEquals("legacy", store.read()?.coreCommit)
+        store.write(byteArrayOf(2), "core")
+        store.write(byteArrayOf(3), "core", id = 1)
+
+        store.delete(0)
+        assertFalse(legacyState.exists())
+        assertFalse(legacyMeta.exists())
+        assertFalse(store.hasSlot())
+        assertArrayEquals(byteArrayOf(3), store.read(1)?.bytes)
+    }
 }
