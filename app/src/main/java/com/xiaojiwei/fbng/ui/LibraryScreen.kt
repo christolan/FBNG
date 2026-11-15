@@ -862,9 +862,8 @@ private fun CornerRadiusButtonGroup(
                     modifier = Modifier.weight(1f)
                         .libraryFocus(tag, requesters.getValue(tag), onFocused)
                         .semantics { this.selected = checked },
-                    kind = FbngButtonKind.Neutral,
+                    kind = if (checked) FbngButtonKind.Filled else FbngButtonKind.Neutral,
                     contentPadding = PaddingValues(FbngDimens.space8),
-                    selected = checked,
                     role = Role.RadioButton,
                 ) {
                     Text(stringResource(label), style = MaterialTheme.typography.labelLarge)

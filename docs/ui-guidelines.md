@@ -17,7 +17,8 @@ FBNG 使用 Jetpack Compose 和 Material 3 深色方案。主设备是 OPPO Find
 - 背景 `background` = `#101318`。表面 `surface` = `#171C24`。更高一层是 `surfaceContainerHigh` = `#1E2530`，再往上是 `surfaceContainerHighest` = `#293140`。最亮的表面 `surfaceBright` = `#313A4A`。不要在这些深色上用深色字。
 - 正文 `onBackground` / `onSurface` = `#F4F7FB`。次要正文 `onSurfaceVariant` = `#D5DCE6`。这两级在 `surfaceBright` 上仍超过 4.5:1。
 - 电光蓝按钮 `primary` = `#206AFB`，按钮文字 `onPrimary` = `#FFFFFF`（约 4.65:1）。
-- 电光蓝文字（选中的导航、已通过校验的状态）用 `secondary` = `#A9C4FF`。`primary` 贴在炭灰上大约只有 4:1，不够当正文，所以蓝色正文用 `secondary`，蓝色色块和描边用 `primary`。
+- 电光蓝文字（选中的底部导航、已通过校验的状态）用 `secondary` = `#A9C4FF`。`primary` 贴在炭灰上大约只有 4:1，不够当正文，所以蓝色正文用 `secondary`，蓝色色块和描边用 `primary`。
+- 左侧导航的当前页面和圆角大小的当前选项用 `primary` 实底与 `onPrimary` 文字，焦点可在各项间独立移动。
 - 焦点描边是 2dp 的 `primary`。实心 `primary` 按钮上改用 `onPrimary` 亮边，否则蓝边贴着蓝底看不见。获得焦点或按下时，按钮和卡片保持原尺寸。
 - 字体是无衬线（`FontFamily.SansSerif`）。正文和按钮 16sp，作为焦点标题的字不小于 20sp。
 - 圆角由「设置 → 圆角大小」统一控制。更小为 8dp，默认为 12dp，更大为 16dp。壳层不显示底部 A 确认 / B 返回提示条。

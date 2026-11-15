@@ -278,7 +278,7 @@ private fun RailItem(
     modifier: Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
+    val tint = if (selected) scheme.onPrimary else scheme.onSurfaceVariant
     val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
     Column(
         modifier = modifier
@@ -292,19 +292,14 @@ private fun RailItem(
             .focusRequester(requester)
             .fbngFocusTarget(
                 onClick = onClick,
-                container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
+                container = if (selected) scheme.primary else scheme.surfaceContainerHigh,
+                focusedStroke = if (selected) scheme.onPrimary else scheme.primary,
                 role = Role.Tab,
             )
             .padding(horizontal = FbngDimens.space8),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
     ) {
-        Box(
-            Modifier
-                .width(FbngDimens.space24)
-                .height(FbngDimens.space4)
-                .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.medium),
-        )
         NavigationGlyph(destination.section, tint, showUpdate)
         Text(
             stringResource(destination.label),
