@@ -19,19 +19,16 @@ import androidx.compose.ui.draw.clip
 
 /** Flat tonal islands; the surrounding layout supplies the dark gutter. */
 @Composable
-internal fun Modifier.fbngIsland(panel: Boolean = true): Modifier {
-    val shape = if (panel) MaterialTheme.shapes.large else MaterialTheme.shapes.medium
-    return clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHigh)
-}
+internal fun Modifier.fbngIsland(): Modifier =
+    clip(MaterialTheme.shapes.medium).background(MaterialTheme.colorScheme.surfaceContainerHigh)
 
 @Composable
 internal fun FbngPanel(
     modifier: Modifier = Modifier,
-    panel: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().fbngIsland(panel = panel).padding(FbngDimens.space16),
+        modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
         content = content,
     )

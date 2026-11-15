@@ -162,7 +162,7 @@ internal fun SaveSlotsDialog(
                         true
                     } else false
                 },
-            shape = MaterialTheme.shapes.extraLarge,
+            shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(Modifier.padding(FbngDimens.space16), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
@@ -238,7 +238,7 @@ internal fun SaveSlotsDialog(
         val cancel = remember { FocusRequester() }
         LaunchedEffect(slot.id) { cancel.requestFocus() }
         AlertDialog(
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.onKeyEvent { event ->
                 if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
                     pending = null
@@ -324,7 +324,7 @@ private fun SlotCard(
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
     ) {
         Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = FbngDimens.buttonHeight)
-            .clip(MaterialTheme.shapes.small)
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest), contentAlignment = Alignment.Center) {
             val bitmap = cover
             if (bitmap != null) Image(bitmap, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Fit)

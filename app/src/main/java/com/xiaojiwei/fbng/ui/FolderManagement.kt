@@ -99,7 +99,7 @@ private fun FolderCard(scan: FolderScan, busy: Boolean, removeModifier: Modifier
     val scheme = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth()
-            .fbngIsland(panel = false)
+            .fbngIsland()
             .padding(FbngDimens.space16),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
     ) {

@@ -387,7 +387,7 @@ internal fun GameScreen(
         val cancelFocus = remember { FocusRequester() }
         LaunchedEffect(Unit) { cancelFocus.requestFocus() }
         AlertDialog(
-            shape = MaterialTheme.shapes.large,
+            shape = MaterialTheme.shapes.medium,
             modifier = Modifier.onKeyEvent { event ->
                 if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
                     dismissReset()
@@ -457,7 +457,7 @@ private fun GamePausePage(
                     .verticalScroll(rememberScrollState()).padding(FbngDimens.space4),
                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
             ) {
-                FbngPanel(panel = true) {
+                FbngPanel {
                     Text(
                         stringResource(when {
                             failed -> R.string.game_stopped

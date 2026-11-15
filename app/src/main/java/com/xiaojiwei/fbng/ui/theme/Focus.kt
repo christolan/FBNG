@@ -16,7 +16,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -40,7 +39,6 @@ import androidx.compose.ui.semantics.semantics
 internal fun Modifier.fbngFocusTarget(
     onClick: () -> Unit,
     container: Color,
-    shape: Shape = MaterialTheme.shapes.medium,
     enabled: Boolean = true,
     role: Role = Role.Button,
     restingStroke: Color = Color.Transparent,
@@ -49,6 +47,7 @@ internal fun Modifier.fbngFocusTarget(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
     val stroke = when {
         !enabled -> Color.Transparent
         focused -> focusedStroke ?: scheme.primary

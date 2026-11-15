@@ -1,7 +1,6 @@
 package com.xiaojiwei.fbng.ui.theme
 
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Shapes
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** Spacing, radii, and focus metrics. New layout code reads these instead of raw dp. */
@@ -17,10 +16,6 @@ internal object FbngDimens {
     val compactMargin = space16
     val mediumMargin = space24
     val expandedMargin = space32
-
-    val controlRadius = 8.dp
-    val cardRadius = 12.dp
-    val panelRadius = 24.dp
 
     val focusStroke = 2.dp
 
@@ -54,10 +49,8 @@ internal object FbngDimens {
     val libraryKeyboardWidth = space48 * 18
 }
 
-internal val FbngShapes = Shapes(
-    extraSmall = RoundedCornerShape(FbngDimens.controlRadius),
-    small = RoundedCornerShape(FbngDimens.controlRadius),
-    medium = RoundedCornerShape(FbngDimens.cardRadius),
-    large = RoundedCornerShape(FbngDimens.panelRadius),
-    extraLarge = RoundedCornerShape(FbngDimens.panelRadius),
-)
+internal enum class CornerRadiusOption(val radius: Dp) {
+    Smaller(8.dp),
+    Default(12.dp),
+    Larger(16.dp),
+}

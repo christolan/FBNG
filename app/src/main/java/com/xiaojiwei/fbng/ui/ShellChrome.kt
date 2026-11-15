@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
@@ -94,6 +95,7 @@ internal object ShellTags {
     const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
+    fun cornerRadius(option: CornerRadiusOption) = "shell-corner-radius-${option.name}"
     const val AppUpdate = "shell-app-update"
     const val FetchCovers = "shell-fetch-covers"
     const val RefreshCovers = "shell-refresh-covers"
@@ -305,7 +307,6 @@ private fun RailItem(
             .fbngFocusTarget(
                 onClick = onClick,
                 container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
-                shape = MaterialTheme.shapes.small,
                 role = Role.Tab,
             )
             .padding(horizontal = FbngDimens.space8),
@@ -316,7 +317,7 @@ private fun RailItem(
             Modifier
                 .width(FbngDimens.space24)
                 .height(FbngDimens.space4)
-                .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.small),
+                .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.medium),
         )
         NavigationGlyph(destination.section, tint, showUpdate)
         Text(
@@ -366,7 +367,6 @@ private fun ShellBottomBar(
                     .fbngFocusTarget(
                         onClick = { onSection(destination.section) },
                         container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
-                        shape = MaterialTheme.shapes.small,
                         role = Role.Tab,
                     ),
                 contentAlignment = Alignment.Center,
@@ -375,7 +375,7 @@ private fun ShellBottomBar(
                     if (selected) {
                         Box(Modifier.align(Alignment.BottomCenter).padding(bottom = FbngDimens.space4)
                             .width(FbngDimens.space24).height(FbngDimens.space4)
-                            .background(scheme.primary, MaterialTheme.shapes.small))
+                            .background(scheme.primary, MaterialTheme.shapes.medium))
                     }
                     if (showUpdate) {
                         Badge(Modifier.align(Alignment.TopEnd).padding(FbngDimens.space4), containerColor = scheme.primary)
@@ -384,7 +384,7 @@ private fun ShellBottomBar(
                 } else {
                     Column(Modifier.padding(vertical = FbngDimens.space4), horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(Modifier.width(FbngDimens.space24).height(FbngDimens.space4)
-                            .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.small))
+                            .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.medium))
                         Spacer(Modifier.height(FbngDimens.space4))
                         NavigationGlyph(destination.section, tint, showUpdate)
                         BottomNavLabel(destination, tint)

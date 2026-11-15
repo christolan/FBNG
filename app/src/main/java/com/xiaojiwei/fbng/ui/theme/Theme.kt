@@ -1,10 +1,13 @@
 package com.xiaojiwei.fbng.ui.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 
 private val Scheme = darkColorScheme(
@@ -59,11 +62,18 @@ private val Scheme = darkColorScheme(
 )
 
 @Composable
-fun FbngTheme(content: @Composable () -> Unit) {
+internal fun FbngTheme(
+    cornerRadius: CornerRadiusOption = CornerRadiusOption.Default,
+    content: @Composable () -> Unit,
+) {
+    val shapes = remember(cornerRadius) {
+        val shape = RoundedCornerShape(cornerRadius.radius)
+        Shapes(extraSmall = shape, small = shape, medium = shape, large = shape, extraLarge = shape)
+    }
     MaterialTheme(
         colorScheme = Scheme,
         typography = FbngTypography,
-        shapes = FbngShapes,
+        shapes = shapes,
     ) {
         // Text with no explicit color uses LocalContentColor, whose default is black.
         // These screens draw their own backgrounds instead of a root Surface, so without

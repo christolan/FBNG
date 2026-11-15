@@ -1,21 +1,28 @@
 package com.xiaojiwei.fbng.ui
 
+import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
@@ -27,12 +34,15 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
+import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -317,6 +327,59 @@ class ShellFocusTest {
             rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
         }
         listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w320dp-h640dp-mdpi")
+    fun cornerRadiusButtonsUpdateAllThemeShapesAndPersistTheSingleChoice() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val appearance = AppearancePreferences(context)
+        lateinit var shapes: Shapes
+        rule.setContent {
+            var option by remember { mutableStateOf(appearance.readCornerRadius()) }
+            FbngTheme(option) {
+                val currentShapes = MaterialTheme.shapes
+                SideEffect { shapes = currentShapes }
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = LibrarySnapshot(),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Settings,
+                    cornerRadius = option,
+                    onCornerRadiusChange = {
+                        appearance.writeCornerRadius(it)
+                        option = it
+                    },
+                )
+            }
+        }
+        fun assertRadius(pixels: Float) = rule.runOnIdle {
+            val radii = with(shapes) { listOf(extraSmall, small, medium, large, extraLarge) }
+            assertEquals(List(5) { pixels }, radii.map { it.topStart.toPx(Size(96f, 48f), Density(1f)) })
+        }
+
+        val smaller = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Smaller))
+        val default = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Default))
+        val larger = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Larger))
+        smaller.assertIsNotSelected()
+        default.assertIsSelected().requestFocus()
+        larger.assertIsNotSelected()
+        assertRadius(12f)
+
+        default.assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+        larger.assertIsFocused().assertIsNotSelected().performKeyInput { pressKey(Key.ButtonA) }
+        larger.assertIsFocused().assertIsSelected()
+        default.assertIsNotSelected()
+        assertRadius(16f)
+        assertEquals(CornerRadiusOption.Larger, AppearancePreferences(context).readCornerRadius())
+
+        smaller.performTouchInput { click() }
+        smaller.assertIsSelected()
+        larger.assertIsNotSelected()
+        assertRadius(8f)
+        assertEquals(CornerRadiusOption.Smaller, AppearancePreferences(context).readCornerRadius())
     }
 
     @Test

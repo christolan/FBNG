@@ -13,6 +13,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 
 enum class FbngButtonKind {
     /** Electric-blue fill. The focus ring is onPrimary, because primary-on-primary disappears. */
@@ -34,6 +35,7 @@ fun FbngButton(
     kind: FbngButtonKind = FbngButtonKind.Filled,
     contentPadding: PaddingValues = PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8),
     selected: Boolean = false,
+    role: Role = Role.Button,
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -62,8 +64,8 @@ fun FbngButton(
                 .fbngFocusTarget(
                     onClick = onClick,
                     container = container,
-                    shape = MaterialTheme.shapes.small,
                     enabled = enabled,
+                    role = role,
                     restingStroke = resting,
                     focusedStroke = focused,
                 )

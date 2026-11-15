@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -46,7 +48,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,9 +63,11 @@ import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryResults
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.library.indexLibrary
+import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngPanel
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import com.xiaojiwei.fbng.update.UpdateState
@@ -87,6 +93,8 @@ internal fun LibraryContent(
     onToggleFavorite: (String) -> Unit = {},
     covers: CoverUiState? = null,
     appUpdate: UpdateUiState? = null,
+    cornerRadius: CornerRadiusOption = CornerRadiusOption.Default,
+    onCornerRadiusChange: (CornerRadiusOption) -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -133,6 +141,8 @@ internal fun LibraryContent(
                 onToggleFavorite = onToggleFavorite,
                 covers = covers,
                 appUpdate = appUpdate,
+                cornerRadius = cornerRadius,
+                onCornerRadiusChange = onCornerRadiusChange,
             )
         }
     }
@@ -157,6 +167,8 @@ private fun LibraryShell(
     onToggleFavorite: (String) -> Unit,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
+    cornerRadius: CornerRadiusOption,
+    onCornerRadiusChange: (CornerRadiusOption) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
     var sectionName by rememberSaveable { mutableStateOf(initialSection.name) }
@@ -203,7 +215,8 @@ private fun LibraryShell(
             ShellTags.NavRecent,
             ShellTags.NavLibrary,
             ShellTags.NavSettings,
-        ).associateWith { FocusRequester() }
+        ).plus(CornerRadiusOption.entries.map(ShellTags::cornerRadius))
+            .associateWith { FocusRequester() }
     }
     val folderTags = folders.map { ShellTags.removeFolder(it.folder.uri) }
     val requesters = shellRequesters + folderTags.associateWith { tag ->
@@ -532,6 +545,8 @@ private fun LibraryShell(
                     ShellSection.Settings -> SettingsPage(
                         covers = covers,
                         appUpdate = appUpdate,
+                        cornerRadius = cornerRadius,
+                        onCornerRadiusChange = onCornerRadiusChange,
                         margin = margin,
                         requesters = requesters,
                         onFocused = ::focusSaved,
@@ -641,6 +656,8 @@ private fun SettingsPage(
     onOpenSync: () -> Unit,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
+    cornerRadius: CornerRadiusOption,
+    onCornerRadiusChange: (CornerRadiusOption) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     ShellPage(title = stringResource(R.string.shell_settings), margin = margin) {
@@ -665,6 +682,7 @@ private fun SettingsPage(
                     }
                 }
             }
+            CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
             if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
             if (covers != null) CoverSettings(covers, requesters, onFocused)
             FocusableMessage(
@@ -700,6 +718,44 @@ private fun SettingsPage(
                     style = MaterialTheme.typography.bodyLarge,
                     color = scheme.onSurface,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CornerRadiusButtonGroup(
+    selected: CornerRadiusOption,
+    requesters: Map<String, FocusRequester>,
+    onFocused: (String) -> Unit,
+    onSelect: (CornerRadiusOption) -> Unit,
+) {
+    FbngPanel {
+        Text(stringResource(R.string.corner_radius_title), style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+        ) {
+            CornerRadiusOption.entries.forEach { option ->
+                val label = when (option) {
+                    CornerRadiusOption.Smaller -> R.string.corner_radius_smaller
+                    CornerRadiusOption.Default -> R.string.corner_radius_default
+                    CornerRadiusOption.Larger -> R.string.corner_radius_larger
+                }
+                val tag = ShellTags.cornerRadius(option)
+                val checked = option == selected
+                FbngButton(
+                    onClick = { if (!checked) onSelect(option) },
+                    modifier = Modifier.weight(1f)
+                        .libraryFocus(tag, requesters.getValue(tag), onFocused)
+                        .semantics { this.selected = checked },
+                    kind = FbngButtonKind.Neutral,
+                    contentPadding = PaddingValues(FbngDimens.space8),
+                    selected = checked,
+                    role = Role.RadioButton,
+                ) {
+                    Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }

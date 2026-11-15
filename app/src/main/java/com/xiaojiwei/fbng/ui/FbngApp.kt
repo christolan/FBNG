@@ -65,6 +65,8 @@ sealed interface CatalogLoad {
 @Composable
 fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
+    val appearance = remember(context) { AppearancePreferences(context) }
+    var cornerRadius by remember(appearance) { mutableStateOf(appearance.readCornerRadius()) }
     val updater = if (BuildConfig.DEBUG) null else (context as FbngApplication).appUpdate
     val updateState = updater?.state?.collectAsStateWithLifecycle()?.value
     val installingUpdate = updateState == UpdateState.Installed || updateState is UpdateState.Installing
@@ -179,7 +181,7 @@ fun FbngApp(bridge: GamepadBridge) {
         }
     }
 
-    FbngTheme {
+    FbngTheme(cornerRadius) {
         val game = playing
         if (game == null) {
             saveableState.SaveableStateProvider("Library") {
@@ -210,6 +212,11 @@ fun FbngApp(bridge: GamepadBridge) {
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favoriteNames,
                     recentNames = recentNames,
+                    cornerRadius = cornerRadius,
+                    onCornerRadiusChange = { option ->
+                        appearance.writeCornerRadius(option)
+                        cornerRadius = option
+                    },
                     covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
                     appUpdate = if (updater != null && updateState != null) {
                         UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing)
