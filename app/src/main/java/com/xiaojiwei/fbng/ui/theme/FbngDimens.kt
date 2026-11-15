@@ -34,7 +34,6 @@ internal object FbngDimens {
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
     val shelfCardMinWidth = space48 + space32 + space8
-    val shelfCardMaxWidth = space48 * 4
     val saveCardWidth = space48 * 4
     val saveCardMinWidth = space48 * 2 + space24
     val saveDialogWidth = space48 * 24

@@ -2,6 +2,8 @@ package com.xiaojiwei.fbng.ui
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.CompositionLocalProvider
@@ -11,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -168,40 +171,99 @@ class ShellFocusTest {
     }
 
     @Test
-    @Config(sdk = [33], qualifiers = "w400dp-h360dp-mdpi")
-    fun controllerScrollsTheRecentCoversAndRestoresFocusAfterPlay() {
+    @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
+    fun recentPagesFillTwoRowsAndRestoreTheGameAfterReordering() {
+        var height by mutableStateOf(800.dp)
         var inGame by mutableStateOf(false)
-        val names = listOf("galaga", "mslug", "sf2", "kof98")
+        var recentNames by mutableStateOf((1..6).map { "game$it" })
+        val games = LibrarySnapshot(recentNames.map { LibraryGame(it, it) })
         rule.setContent {
             FbngTheme {
                 val state = rememberSaveableStateHolder()
-                if (!inGame) state.SaveableStateProvider("shell") {
-                    LibraryContent(
-                        load = readyCatalog(),
-                        snapshot = LibrarySnapshot(names.map { LibraryGame(it, it) }),
-                        busy = false,
-                        readFold = { null },
-                        onPlay = { inGame = true },
-                        initialSection = ShellSection.Recent,
-                        recentNames = names,
-                    )
+                Box(Modifier.height(height)) {
+                    if (!inGame) state.SaveableStateProvider("shell") {
+                        LibraryContent(
+                            load = readyCatalog(),
+                            snapshot = games,
+                            busy = false,
+                            readFold = { null },
+                            onPlay = { inGame = true },
+                            initialSection = ShellSection.Recent,
+                            recentNames = recentNames,
+                        )
+                    }
                 }
             }
         }
-        val thirdCard = rule.onNodeWithTag(ShellTags.recent(names[2])).getUnclippedBoundsInRoot()
+        fun card(index: Int) = rule.onNodeWithTag(ShellTags.recent("game$index"))
+
+        rule.onNodeWithContentDescription("第 1 / 2 页").assertIsDisplayed()
+        val first = card(1).getUnclippedBoundsInRoot()
+        val fourth = card(4).getUnclippedBoundsInRoot()
         val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
-        assertTrue(thirdCard.right <= header.right)
-        names.zipWithNext().forEach { (current, next) ->
-            rule.onNodeWithTag(ShellTags.recent(current)).assertIsFocused()
-                .performKeyInput { pressKey(Key.DirectionRight) }
-            rule.onNodeWithTag(ShellTags.recent(next)).assertIsFocused()
-        }
-        rule.onNodeWithTag(ShellTags.recent(names.last())).performKeyInput { pressKey(Key.ButtonA) }
+        assertEquals(header.left, first.left)
+        assertEquals(header.right, fourth.right)
+        assertTrue(fourth.top > first.top)
+        card(5).assertDoesNotExist()
+
+        card(4).requestFocus()
+        rule.runOnIdle { height = 280.dp }
+        card(4).assertIsFocused()
+        assertEquals(card(1).getUnclippedBoundsInRoot().top, card(4).getUnclippedBoundsInRoot().top)
+        rule.runOnIdle { height = 800.dp }
+        card(4).assertIsFocused()
+
+        card(1).requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
+        card(2).assertIsFocused().performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
+        assertEquals(first, card(5).getUnclippedBoundsInRoot())
+        card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonL1) }
+        card(2).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.NextPage).performTouchInput { click() }
+        card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle {
             assertTrue(inGame)
+            recentNames = listOf("game6") + recentNames.dropLast(1)
             inGame = false
         }
-        rule.onNodeWithTag(ShellTags.recent(names.last())).assertIsFocused()
+        rule.onNodeWithContentDescription("第 1 / 2 页").assertIsDisplayed()
+        card(6).assertIsFocused()
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w900dp-h400dp-mdpi")
+    fun favoritePagesFillOneRowAndRemovingTheLastPageRestoresFocus() {
+        var favorites by mutableStateOf((1..5).map { "game$it" }.toSet())
+        val games = LibrarySnapshot(favorites.map { LibraryGame(it, it) })
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = games,
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Favorites,
+                    favoriteNames = favorites,
+                    onToggleFavorite = { favorites = favorites - it },
+                )
+            }
+        }
+        fun card(index: Int) = rule.onNodeWithTag(ShellTags.favorite("game$index"))
+
+        val first = card(1).getUnclippedBoundsInRoot()
+        val fourth = card(4).getUnclippedBoundsInRoot()
+        val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
+        assertEquals(header.left, first.left)
+        assertEquals(header.right, fourth.right)
+        assertEquals(first.top, fourth.top)
+        card(5).assertDoesNotExist()
+        card(4).requestFocus().performKeyInput { pressKey(Key.ButtonR1) }
+        card(5).assertIsFocused()
+        rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
+        rule.onNodeWithContentDescription("取消收藏「game5」").performTouchInput { click() }
+        rule.onNodeWithContentDescription("第 1 / 1 页").assertIsDisplayed()
+        card(4).assertIsFocused()
     }
 
     @Test

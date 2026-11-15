@@ -30,9 +30,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
@@ -138,7 +135,7 @@ internal fun GameLibraryPage(
                 onOpenLetters = onOpenLetters,
                 onOpenFilter = onOpenFilter,
             )
-            LibraryPagination(pageIndex, pages, buttonWidth, busy, requesters, onFocused, onPage)
+            ShellPagination(pageIndex, pages, buttonWidth, busy, requesters, onFocused, onPage)
         },
     ) {
         if (totalGames == 0) {
@@ -214,49 +211,6 @@ internal fun GameLibraryPage(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LibraryPagination(
-    pageIndex: Int,
-    pages: Int,
-    buttonWidth: Dp,
-    busy: Boolean,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onPage: (Int) -> Unit,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val previous = stringResource(R.string.library_previous_page)
-        val next = stringResource(R.string.library_next_page)
-        ShellHeaderButton(
-            onClick = { onPage(pageIndex - 1) },
-            enabled = !busy && pageIndex > 0,
-            modifier = Modifier
-                .width(buttonWidth)
-                .libraryFocus(ShellTags.PreviousPage, requesters.getValue(ShellTags.PreviousPage), onFocused)
-                .semantics { contentDescription = previous },
-        ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
-        val number = if (pages == 0) 0 else pageIndex + 1
-        val pageDescription = stringResource(R.string.library_page_number, number, pages)
-        Text(
-            stringResource(R.string.library_page_short, number, pages),
-            modifier = Modifier.clearAndSetSemantics { contentDescription = pageDescription },
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-        )
-        ShellHeaderButton(
-            onClick = { onPage(pageIndex + 1) },
-            enabled = !busy && pageIndex + 1 < pages,
-            modifier = Modifier
-                .width(buttonWidth)
-                .libraryFocus(ShellTags.NextPage, requesters.getValue(ShellTags.NextPage), onFocused)
-                .semantics { contentDescription = next },
-        ) { Text("›", style = MaterialTheme.typography.titleMedium) }
     }
 }
 

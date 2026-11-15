@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
@@ -200,8 +199,6 @@ private fun LibraryShell(
     var restoreTarget by remember { mutableStateOf<String?>(null) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
     val libraryPageSize = LibraryPageSize
-    val favoritesListState = rememberLazyListState()
-    val recentListState = rememberLazyListState()
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val section = ShellSection.valueOf(sectionName)
@@ -283,6 +280,16 @@ private fun LibraryShell(
             recentNames.mapNotNull(byName::get)
         }
         val recentCards = remember(recentEntries) { recentEntries.map { ShellTags.recent(it.game.name) } }
+        val showShelf = section == ShellSection.Favorites || section == ShellSection.Recent
+        val recent = section == ShellSection.Recent
+        val shelfEntries = if (recent) recentEntries else favoriteEntries
+        val shelfCards = if (recent) recentCards else favoriteCards
+        val savedShelfFocus = if (recent) recentFocus else favoritesFocus
+        val savedShelfIndex = if (recent) recentIndex else favoritesIndex
+        val shelfIndex = shelfCards.indexOf(savedShelfFocus).takeIf { it >= 0 }
+            ?: savedShelfIndex.coerceAtMost(shelfCards.lastIndex)
+        val shelfPage = shelfIndex.coerceAtLeast(0) / ShelfPageSize
+        val shelfPages = (shelfCards.size + ShelfPageSize - 1) / ShelfPageSize
         val needle = searchQuery.trim()
         val matchingEntries = remember(entries, needle) {
             if (needle.isEmpty()) entries else entries.filter { it.matches(needle) }
@@ -347,6 +354,14 @@ private fun LibraryShell(
             selectedName = name
             libraryFocus = ShellTags.game(name)
             restoreFocus(libraryFocus)
+        }
+
+        fun changeShelfPage(page: Int) {
+            if (page !in 0 until shelfPages || page == shelfPage) return
+            val first = page * ShelfPageSize
+            val target = shelfCards.getOrNull(first + shelfIndex % ShelfPageSize) ?: shelfCards[first]
+            focusSaved(target)
+            restoreFocus(target)
         }
 
         fun closePicker(showResults: Boolean = false) {
@@ -438,8 +453,8 @@ private fun LibraryShell(
             section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
             widthClass, showDetails, pickerOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
             windowFocused,
-            favoriteCards.takeIf { section == ShellSection.Favorites },
-            recentCards.takeIf { section == ShellSection.Recent },
+            shelfCards.takeIf { showShelf }, shelfPage.takeIf { showShelf },
+            maxWidth.takeIf { showShelf }, maxHeight.takeIf { showShelf },
         ) {
             if (libraryFocusBusy || pickerOpen || returnFromGame != null) return@LaunchedEffect
             val target = restoreTarget
@@ -458,22 +473,9 @@ private fun LibraryShell(
                 withFrameNanos { }
             }
             val preferred = when (section) {
-                ShellSection.Favorites, ShellSection.Recent -> {
-                    val cards = if (section == ShellSection.Recent) recentCards else favoriteCards
-                    val saved = if (section == ShellSection.Recent) recentFocus else favoritesFocus
-                    val index = if (section == ShellSection.Recent) recentIndex else favoritesIndex
-                    val listState = if (section == ShellSection.Recent) recentListState else favoritesListState
-                    val card = saved.takeIf { it in cards } ?: cards.getOrNull(index.coerceAtMost(cards.lastIndex))
-                    if (card != null &&
-                        listState.layoutInfo.visibleItemsInfo.none { it.key == card }
-                    ) {
-                        listState.scrollToItem(cards.indexOf(card))
-                    }
-                    listOfNotNull(
-                        card,
-                        ShellTags.OpenLibrary.takeIf { cards.isEmpty() },
-                    )
-                }
+                ShellSection.Favorites, ShellSection.Recent -> listOf(
+                    shelfCards.getOrNull(shelfIndex) ?: ShellTags.OpenLibrary,
+                )
                 ShellSection.Library -> {
                     val name = focusedGameName.takeIf { savedRowExists } ?: pageEntries.firstOrNull()?.game?.name
                     val card = name?.let(ShellTags::game)
@@ -510,13 +512,21 @@ private fun LibraryShell(
             request(tabTag)
         }
         Box(Modifier.fillMaxSize().onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp && section == ShellSection.Library &&
-                !showDetails && !pickerOpen
-            ) {
-                when (event.key) {
-                    Key.ButtonL1 -> { changePage(currentPage - 1); return@onKeyEvent true }
-                    Key.ButtonR1 -> { changePage(currentPage + 1); return@onKeyEvent true }
-                    Key.ButtonY -> { showPicker(LibraryPicker.Letters); return@onKeyEvent true }
+            if (event.type == KeyEventType.KeyUp) {
+                val onLibraryList = section == ShellSection.Library && !showDetails && !pickerOpen
+                val pageStep = when (event.key) {
+                    Key.ButtonL1 -> -1
+                    Key.ButtonR1 -> 1
+                    else -> 0
+                }
+                if (pageStep != 0 && (showShelf || onLibraryList)) {
+                    if (showShelf) changeShelfPage(shelfPage + pageStep)
+                    else changePage(currentPage + pageStep)
+                    return@onKeyEvent true
+                }
+                if (onLibraryList && event.key == Key.ButtonY) {
+                    showPicker(LibraryPicker.Letters)
+                    return@onKeyEvent true
                 }
             }
             if (event.type != KeyEventType.KeyUp ||
@@ -540,22 +550,23 @@ private fun LibraryShell(
             ) {
                 when (section) {
                     ShellSection.Favorites, ShellSection.Recent -> GameShelfPage(
-                        entries = if (section == ShellSection.Recent) recentEntries else favoriteEntries,
-                        hasSavedGames = if (section == ShellSection.Recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
-                        recent = section == ShellSection.Recent,
+                        entries = shelfEntries.drop(shelfPage * ShelfPageSize).take(ShelfPageSize),
+                        hasSavedGames = if (recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
+                        recent = recent,
                         covers = covers,
                         scanning = workMessage == R.string.folder_scanning && busy,
                         launchError = launchError,
                         margin = margin,
-                        listState = if (section == ShellSection.Recent) recentListState else favoritesListState,
+                        pageIndex = shelfPage,
+                        pages = shelfPages,
+                        onPage = ::changeShelfPage,
                         cardRequesters = cardRequesters,
-                        libraryRequester = requesters.getValue(ShellTags.OpenLibrary),
+                        requesters = requesters,
+                        onPageControlFocused = { navFocus = null },
                         onFocused = { id ->
                             focusSaved(id)
-                            if (section == ShellSection.Recent) {
-                                recentCards.indexOf(id).takeIf { it >= 0 }?.let { recentIndex = it }
-                            } else {
-                                favoriteCards.indexOf(id).takeIf { it >= 0 }?.let { favoritesIndex = it }
+                            shelfCards.indexOf(id).takeIf { it >= 0 }?.let { index ->
+                                if (recent) recentIndex = index else favoritesIndex = index
                             }
                         },
                         onOpenLibrary = { openSection(ShellSection.Library) },
