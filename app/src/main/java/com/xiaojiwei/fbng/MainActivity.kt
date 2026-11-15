@@ -3,24 +3,25 @@ package com.xiaojiwei.fbng
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
-import android.os.SystemClock
-import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.ui.FbngApp
-import com.xiaojiwei.fbng.ui.ShellPad
+import com.xiaojiwei.fbng.ui.GamepadInput
+import com.xiaojiwei.fbng.ui.LocalGamepadInput
 
 class MainActivity : ComponentActivity() {
     val gamepadBridge = GamepadBridge()
-    private val shellPad = ShellPad()
+    private val gamepadInput by lazy { GamepadInput(this, gamepadBridge) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        gamepadInput.start()
         // The UI is always dark. auto() follows the system night mode and draws
         // dark status icons on the ink background when the phone is in light mode.
         enableEdgeToEdge(
@@ -28,7 +29,9 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            FbngApp(gamepadBridge)
+            CompositionLocalProvider(LocalGamepadInput provides gamepadInput) {
+                FbngApp(gamepadBridge)
+            }
         }
     }
 
@@ -36,39 +39,22 @@ class MainActivity : ComponentActivity() {
     // Lint inherits the restriction on androidx.core.app.ComponentActivity, an internal
     // ancestor of the public androidx.activity.ComponentActivity we extend.
     @SuppressLint("RestrictedApi")
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (gamepadBridge.dispatchKey(event)) return true
-        return super.dispatchKeyEvent(event)
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        gamepadInput.dispatchKey(event, window, allowPauseShortcut = true, ::deliverKey)
+
+    @SuppressLint("RestrictedApi")
+    private fun deliverKey(event: KeyEvent) = super.dispatchKeyEvent(event)
+
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+        gamepadInput.dispatchMotion(event, window, ::deliverKey) || super.dispatchGenericMotionEvent(event)
+
+    override fun onPause() {
+        gamepadInput.shellSurfaceChanged()
+        super.onPause()
     }
 
-    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if (gamepadBridge.target != null) {
-            // The core owns the stick. Drop any latched shell step so leaving
-            // the game does not immediately move focus.
-            shellPad.reset()
-        }
-        if (gamepadBridge.dispatchMotion(event)) return true
-        val fromPad = event.isFromSource(InputDevice.SOURCE_JOYSTICK) ||
-            event.isFromSource(InputDevice.SOURCE_GAMEPAD) ||
-            event.isFromSource(InputDevice.SOURCE_DPAD)
-        if (!fromPad) return super.dispatchGenericMotionEvent(event)
-        val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
-        val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
-        val x: Float
-        val y: Float
-        if (hatX != 0f || hatY != 0f) {
-            x = hatX
-            y = hatY
-        } else {
-            x = event.getAxisValue(MotionEvent.AXIS_X)
-            y = event.getAxisValue(MotionEvent.AXIS_Y)
-        }
-        val key = shellPad.step(x, y)
-        if (key != null) {
-            val now = SystemClock.uptimeMillis()
-            dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, key, 0))
-            dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, key, 0))
-        }
-        return true
+    override fun onDestroy() {
+        gamepadInput.stop()
+        super.onDestroy()
     }
 }

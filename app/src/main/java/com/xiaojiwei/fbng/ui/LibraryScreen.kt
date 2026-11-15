@@ -47,6 +47,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -95,6 +96,8 @@ internal fun LibraryContent(
     appUpdate: UpdateUiState? = null,
     cornerRadius: CornerRadiusOption = CornerRadiusOption.Default,
     onCornerRadiusChange: (CornerRadiusOption) -> Unit = {},
+    returnFromGame: String? = null,
+    onReturnRestored: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -143,6 +146,8 @@ internal fun LibraryContent(
                 appUpdate = appUpdate,
                 cornerRadius = cornerRadius,
                 onCornerRadiusChange = onCornerRadiusChange,
+                returnFromGame = returnFromGame,
+                onReturnRestored = onReturnRestored,
             )
         }
     }
@@ -169,19 +174,31 @@ private fun LibraryShell(
     appUpdate: UpdateUiState?,
     cornerRadius: CornerRadiusOption,
     onCornerRadiusChange: (CornerRadiusOption) -> Unit,
+    returnFromGame: String?,
+    onReturnRestored: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    val gamepad = LocalGamepadInput.current
     var sectionName by rememberSaveable { mutableStateOf(initialSection.name) }
     var savedFocus by rememberSaveable { mutableStateOf("") }
     var libraryFocus by rememberSaveable { mutableStateOf("") }
     var favoritesFocus by rememberSaveable { mutableStateOf("") }
     var recentFocus by rememberSaveable { mutableStateOf("") }
+    var favoritesIndex by rememberSaveable { mutableStateOf(0) }
+    var recentIndex by rememberSaveable { mutableStateOf(0) }
     var navFocus by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var detailsOpen by rememberSaveable { mutableStateOf(false) }
+    var detailFocus by rememberSaveable { mutableStateOf(ShellTags.Play) }
+    var detailsOrigin by rememberSaveable { mutableStateOf<ShellSection?>(null) }
+    var shelfDetailName by rememberSaveable { mutableStateOf<String?>(null) }
+    var importFromLibrary by rememberSaveable { mutableStateOf(false) }
+    var controllerSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var playableOnly by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<LibraryPicker?>(null) }
     var focusRequest by remember { mutableStateOf(0) }
+    var restoreTarget by remember { mutableStateOf<String?>(null) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
     val libraryPageSize = LibraryPageSize
     val favoritesListState = rememberLazyListState()
@@ -197,6 +214,8 @@ private fun LibraryShell(
             ShellTags.EmptyImport,
             ShellTags.DetailBack,
             ShellTags.JumpToLetter,
+            ShellTags.EditSearch,
+            ShellTags.ClearFilters,
             ShellTags.LibraryFilter,
             ShellTags.PreviousPage,
             ShellTags.NextPage,
@@ -208,6 +227,7 @@ private fun LibraryShell(
             ShellTags.SettingsBack,
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
+            ShellTags.OpenControllerSettings,
             ShellTags.AppUpdate,
             ShellTags.FetchCovers,
             ShellTags.RefreshCovers,
@@ -225,7 +245,7 @@ private fun LibraryShell(
     fun focusSaved(id: String) {
         navFocus = null
         when (section) {
-            ShellSection.Library -> libraryFocus = id
+            ShellSection.Library -> if (detailsOpen) detailFocus = id else libraryFocus = id
             ShellSection.Favorites -> favoritesFocus = id
             ShellSection.Recent -> recentFocus = id
             else -> savedFocus = id
@@ -242,10 +262,17 @@ private fun LibraryShell(
         }
     }
 
+    fun restoreFocus(id: String) {
+        restoreTarget = id
+        navFocus = null
+        focusRequest++
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val widthDp = maxWidth.value.toInt()
         val widthClass = shellWidth(widthDp)
-        val rail = shellUsesNavigationRail(widthDp, readFold())
+        val fold = readFold()
+        val rail = shellUsesNavigationRail(widthDp, fold)
         val compactBottomBar = !rail && maxHeight < FbngDimens.shortShellHeight
         val margin = FbngDimens.compactMargin
         val kovshTitle = stringResource(R.string.game_title)
@@ -265,23 +292,52 @@ private fun LibraryShell(
         val results = remember(matchingEntries, playableOnly) {
             LibraryResults(if (playableOnly) matchingEntries.filter { it.game.canLaunch } else matchingEntries)
         }
-        val selected = results.byName[selectedName] ?: results.entries.firstOrNull()
+        val byName = remember(entries) { entries.associateBy { it.game.name } }
+        val selected = if (detailsOpen) byName[shelfDetailName ?: selectedName] else results.byName[selectedName]
         val showDetails = detailsOpen && selected != null
-        val currentPage = libraryPage.coerceIn(0, ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0))
-        val pageEntries = results.entries.drop(currentPage * libraryPageSize).take(libraryPageSize)
         val pickerOpen = section == ShellSection.Library && picker != null
+        val controlsOpen = section == ShellSection.Settings && controllerSettingsOpen
+        val focusedGameName = ShellTags.gameName(libraryFocus)
+        val savedGameIndex = remember(results, focusedGameName) {
+            if (focusedGameName == null) -1 else results.entries.indexOfFirst { it.game.name == focusedGameName }
+        }
+        val useGamePage = section == ShellSection.Library && !pickerOpen && !showDetails && savedGameIndex >= 0
+        val lastPage = ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0)
+        val currentPage = if (useGamePage) savedGameIndex / libraryPageSize else libraryPage.coerceIn(0, lastPage)
+        val pageEntries = results.entries.drop(currentPage * libraryPageSize).take(libraryPageSize)
+        LaunchedEffect(useGamePage, currentPage) {
+            if (useGamePage) libraryPage = currentPage
+        }
+        LaunchedEffect(gamepad, section, showDetails, pickerOpen, controlsOpen) {
+            gamepad?.shellSurfaceChanged()
+        }
 
         fun returnToList(name: String? = selected?.game?.name) {
-            navFocus = null
             val index = results.entries.indexOfFirst { it.game.name == name }
             if (index >= 0) libraryPage = index / libraryPageSize
             libraryFocus = name?.let(ShellTags::game)
                 ?: ShellTags.JumpToLetter
-            focusRequest++
+            restoreFocus(libraryFocus)
+        }
+
+        LaunchedEffect(returnFromGame) {
+            if (returnFromGame == null) return@LaunchedEffect
+            navFocus = null
+            when (section) {
+                ShellSection.Library -> {
+                    detailsOpen = false
+                    detailsOrigin = null
+                    shelfDetailName = null
+                    returnToList(returnFromGame)
+                }
+                ShellSection.Favorites -> favoritesFocus = ShellTags.favorite(returnFromGame)
+                ShellSection.Recent -> recentFocus = ShellTags.recent(returnFromGame)
+                else -> Unit
+            }
+            onReturnRestored()
         }
 
         fun changePage(page: Int) {
-            val lastPage = ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0)
             val next = page.coerceIn(0, lastPage)
             if (next == currentPage) return
             val selectedIndex = pageEntries.indexOfFirst { it.game.name == selectedName }
@@ -293,17 +349,19 @@ private fun LibraryShell(
             libraryPage = next
             selectedName = name
             libraryFocus = ShellTags.game(name)
-            navFocus = null
-            focusRequest++
+            restoreFocus(libraryFocus)
         }
 
-        fun closePicker() {
+        fun closePicker(showResults: Boolean = false) {
             libraryFocus = when (picker) {
-                LibraryPicker.Letters -> ShellTags.JumpToLetter
+                LibraryPicker.Letters -> if (showResults) {
+                    pageEntries.firstOrNull()?.game?.name?.let(ShellTags::game)
+                        ?: if (entries.isEmpty()) ShellTags.EmptyImport else ShellTags.EditSearch
+                } else ShellTags.JumpToLetter
                 LibraryPicker.Status, null -> ShellTags.LibraryFilter
             }
             picker = null
-            focusRequest++
+            restoreFocus(libraryFocus)
         }
 
         fun showPicker(target: LibraryPicker) {
@@ -321,7 +379,8 @@ private fun LibraryShell(
                     query = searchQuery,
                     resultCount = results.entries.size,
                     onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
-                    onDismiss = ::closePicker,
+                    onDismiss = { closePicker() },
+                    onDone = { closePicker(showResults = true) },
                 )
             }
         } else null
@@ -338,12 +397,27 @@ private fun LibraryShell(
             sectionName = destination.name
         }
 
+        fun closeControllerSettings() {
+            controllerSettingsOpen = false
+            savedFocus = ShellTags.OpenControllerSettings
+            restoreFocus(savedFocus)
+        }
+
         fun back() {
             when {
+                controlsOpen -> closeControllerSettings()
                 pickerOpen -> closePicker()
-                section == ShellSection.Library && showDetails -> {
+                section == ShellSection.Library && detailsOpen -> {
                     detailsOpen = false
-                    returnToList(selected.game.name)
+                    val origin = detailsOrigin
+                    detailsOrigin = null
+                    shelfDetailName = null
+                    if (origin == null) returnToList(selected?.game?.name)
+                    else openSection(origin)
+                }
+                section == ShellSection.Import && importFromLibrary -> {
+                    importFromLibrary = false
+                    openSection(ShellSection.Library)
                 }
                 section == ShellSection.Import || section == ShellSection.Sync -> openSection(ShellSection.Settings)
                 section != ShellSection.Favorites -> openSection(ShellSection.Favorites)
@@ -354,6 +428,9 @@ private fun LibraryShell(
             enabled = section != ShellSection.Favorites,
             onBack = ::back,
         )
+        LaunchedEffect(section, showDetails, detailsOpen) {
+            if (section == ShellSection.Library && detailsOpen && !showDetails) back()
+        }
         val tab = when (section) {
             ShellSection.Import, ShellSection.Sync -> ShellSection.Settings
             else -> section
@@ -366,25 +443,37 @@ private fun LibraryShell(
         }
         val libraryFocusBusy = section == ShellSection.Library && playBusy
         val importBusy = section == ShellSection.Import && busy
-        val focusedGameName = ShellTags.gameName(libraryFocus)
         val savedRowExists = pageEntries.any { it.game.name == focusedGameName }
         LaunchedEffect(
-            section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail,
-            widthClass, showDetails, pickerOpen, focusRequest, currentPage, libraryPageSize,
+            section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
+            widthClass, showDetails, pickerOpen, controlsOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
+            windowFocused,
             favoriteCards.takeIf { section == ShellSection.Favorites },
             recentCards.takeIf { section == ShellSection.Recent },
         ) {
-            if (libraryFocusBusy || pickerOpen) return@LaunchedEffect
-            if (navFocus?.let(::request) == true) return@LaunchedEffect
-            if (section == ShellSection.Library && showDetails && libraryFocus == ShellTags.Play) {
+            if (libraryFocusBusy || pickerOpen || controlsOpen || returnFromGame != null) return@LaunchedEffect
+            val target = restoreTarget
+            if (target != null) {
+                if (!windowFocused) return@LaunchedEffect
+                repeat(4) {
+                    withFrameNanos { }
+                    if (request(target)) {
+                        restoreTarget = null
+                        return@LaunchedEffect
+                    }
+                }
+                restoreTarget = null
+            } else if (navFocus?.let(::request) == true) return@LaunchedEffect
+            if (section == ShellSection.Library && showDetails && detailFocus == ShellTags.Play) {
                 withFrameNanos { }
             }
             val preferred = when (section) {
                 ShellSection.Favorites, ShellSection.Recent -> {
                     val cards = if (section == ShellSection.Recent) recentCards else favoriteCards
                     val saved = if (section == ShellSection.Recent) recentFocus else favoritesFocus
+                    val index = if (section == ShellSection.Recent) recentIndex else favoritesIndex
                     val listState = if (section == ShellSection.Recent) recentListState else favoritesListState
-                    val card = saved.takeIf { it in cards } ?: cards.firstOrNull()
+                    val card = saved.takeIf { it in cards } ?: cards.getOrNull(index.coerceAtMost(cards.lastIndex))
                     if (card != null &&
                         listState.layoutInfo.visibleItemsInfo.none { it.key == card }
                     ) {
@@ -399,7 +488,7 @@ private fun LibraryShell(
                     val name = focusedGameName.takeIf { savedRowExists } ?: pageEntries.firstOrNull()?.game?.name
                     val card = name?.let(ShellTags::game)
                     listOfNotNull(
-                        libraryFocus,
+                        if (showDetails) detailFocus else libraryFocus,
                         ShellTags.Play.takeIf { showDetails },
                         card,
                         ShellTags.EmptyImport,
@@ -437,6 +526,7 @@ private fun LibraryShell(
                 when (event.key) {
                     Key.ButtonL1 -> { changePage(currentPage - 1); return@onKeyEvent true }
                     Key.ButtonR1 -> { changePage(currentPage + 1); return@onKeyEvent true }
+                    Key.ButtonY -> { showPicker(LibraryPicker.Letters); return@onKeyEvent true }
                 }
             }
             if (event.type != KeyEventType.KeyUp ||
@@ -470,7 +560,14 @@ private fun LibraryShell(
                         listState = if (section == ShellSection.Recent) recentListState else favoritesListState,
                         cardRequesters = cardRequesters,
                         libraryRequester = requesters.getValue(ShellTags.OpenLibrary),
-                        onFocused = ::focusSaved,
+                        onFocused = { id ->
+                            focusSaved(id)
+                            if (section == ShellSection.Recent) {
+                                recentCards.indexOf(id).takeIf { it >= 0 }?.let { recentIndex = it }
+                            } else {
+                                favoriteCards.indexOf(id).takeIf { it >= 0 }?.let { favoritesIndex = it }
+                            }
+                        },
                         onOpenLibrary = { openSection(ShellSection.Library) },
                         onRemoveFavorite = if (section == ShellSection.Favorites) { entry ->
                             val name = entry.game.name
@@ -487,13 +584,10 @@ private fun LibraryShell(
                             if (entry.game.canLaunch) {
                                 onPlay(name)
                             } else {
-                                if (name !in results.byName) {
-                                    searchQuery = ""
-                                    playableOnly = false
-                                }
-                                selectedName = name
+                                detailsOrigin = section
+                                shelfDetailName = name
                                 detailsOpen = true
-                                libraryFocus = ShellTags.Play
+                                detailFocus = ShellTags.Play
                                 openSection(ShellSection.Library)
                             }
                         },
@@ -527,8 +621,10 @@ private fun LibraryShell(
                             if (pickerOpen) closePicker()
                             navFocus = null
                             selectedName = it
+                            detailsOrigin = null
+                            shelfDetailName = null
                             detailsOpen = true
-                            libraryFocus = ShellTags.Play
+                            detailFocus = ShellTags.Play
                             focusRequest++
                         },
                         onBack = ::back,
@@ -536,9 +632,22 @@ private fun LibraryShell(
                             if (pickerOpen) closePicker()
                             onPlay(it)
                         },
-                        onOpenImport = { openSection(ShellSection.Import) },
+                        onOpenImport = {
+                            importFromLibrary = true
+                            openSection(ShellSection.Import)
+                        },
                         onOpenLetters = { showPicker(LibraryPicker.Letters) },
                         onOpenFilter = { showPicker(LibraryPicker.Status) },
+                        onClearFilters = {
+                            searchQuery = ""
+                            playableOnly = false
+                            libraryPage = 0
+                            selectedName = null
+                            libraryFocus = ""
+                            navFocus = null
+                            focusRequest++
+                        },
+                        backLabel = if (detailsOrigin == null) R.string.library_back else R.string.back,
                         query = searchQuery,
                     )
                     ShellSection.Import -> ImportPage(
@@ -566,14 +675,23 @@ private fun LibraryShell(
                         margin = margin,
                         requesters = requesters,
                         onFocused = ::focusSaved,
-                        onOpenImport = { openSection(ShellSection.Import) },
+                        onOpenImport = {
+                            importFromLibrary = false
+                            openSection(ShellSection.Import)
+                        },
                         onOpenSync = { openSection(ShellSection.Sync) },
+                        onOpenControllerSettings = gamepad?.let {
+                            {
+                                focusManager.clearFocus(force = true)
+                                controllerSettingsOpen = true
+                            }
+                        },
                     )
                 }
             }
             if (pickerOpen) {
                 if (picker == LibraryPicker.Status) {
-                    LibraryStatusPicker(playableOnly, ::closePicker) {
+                    LibraryStatusPicker(playableOnly, { closePicker() }) {
                         playableOnly = it
                         libraryPage = 0
                         selectedName = null
@@ -582,6 +700,9 @@ private fun LibraryShell(
                 } else {
                     letterPicker?.invoke()
                 }
+            }
+            if (controlsOpen && gamepad != null) {
+                ControllerSettingsDialog(gamepad, ::closeControllerSettings)
             }
         }
     }
@@ -670,6 +791,7 @@ private fun SettingsPage(
     onFocused: (String) -> Unit,
     onOpenImport: () -> Unit,
     onOpenSync: () -> Unit,
+    onOpenControllerSettings: (() -> Unit)?,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
     cornerRadius: CornerRadiusOption,
@@ -699,6 +821,19 @@ private fun SettingsPage(
                 }
             }
             CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
+            if (onOpenControllerSettings != null) {
+                FbngPanel {
+                    FbngButton(
+                        onClick = onOpenControllerSettings,
+                        modifier = Modifier.libraryFocus(
+                            ShellTags.OpenControllerSettings,
+                            requesters.getValue(ShellTags.OpenControllerSettings),
+                            onFocused,
+                        ),
+                        kind = FbngButtonKind.Neutral,
+                    ) { Text(stringResource(R.string.gamepad_settings)) }
+                }
+            }
             if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
             if (covers != null) CoverSettings(covers, requesters, onFocused)
             FocusableMessage(
@@ -707,11 +842,6 @@ private fun SettingsPage(
                 onFocused = onFocused,
                 container = scheme.surfaceContainerHigh,
             ) {
-                Text(
-                    stringResource(R.string.gamepad_hint),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = scheme.onSurfaceVariant,
-                )
                 Text(
                     stringResource(R.string.legal_notice),
                     style = MaterialTheme.typography.bodyLarge,

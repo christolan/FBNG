@@ -27,7 +27,7 @@ class ShellPadTest {
     @Test
     fun aFreshDiagonalStepsOnTheStrongerAxisOnly() {
         assertEquals(KeyEvent.KEYCODE_DPAD_DOWN, pad.step(0.2f, 0.9f))
-        pad.reset()
+        assertNull(pad.step(0f, 0f))
         assertEquals(KeyEvent.KEYCODE_DPAD_RIGHT, pad.step(0.9f, 0.9f))
     }
 
@@ -35,5 +35,15 @@ class ShellPadTest {
     fun valuesInsideTheDeadzoneDoNothing() {
         assertNull(pad.step(0.49f, -0.49f))
         assertEquals(KeyEvent.KEYCODE_DPAD_LEFT, pad.step(-0.5f, 0f))
+    }
+
+    @Test
+    fun aRotationOrSmallWobbleWhileHeldDoesNotMoveAgain() {
+        assertEquals(KeyEvent.KEYCODE_DPAD_RIGHT, pad.step(1f, 0f))
+        assertNull(pad.step(0.4f, 0.8f))
+        assertNull(pad.step(0f, 0.3f))
+        assertNull(pad.step(0f, 0.8f))
+        assertNull(pad.step(0f, 0.2f))
+        assertEquals(KeyEvent.KEYCODE_DPAD_DOWN, pad.step(0f, 0.8f))
     }
 }

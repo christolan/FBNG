@@ -181,6 +181,7 @@ fun FbngApp(bridge: GamepadBridge) {
         }
     }
 
+    var returnFromGame by remember { mutableStateOf<String?>(null) }
     FbngTheme(cornerRadius) {
         val game = playing
         if (game == null) {
@@ -217,6 +218,8 @@ fun FbngApp(bridge: GamepadBridge) {
                         appearance.writeCornerRadius(option)
                         cornerRadius = option
                     },
+                    returnFromGame = returnFromGame,
+                    onReturnRestored = { returnFromGame = null },
                     covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
                     appUpdate = if (updater != null && updateState != null) {
                         UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing)
@@ -237,7 +240,10 @@ fun FbngApp(bridge: GamepadBridge) {
                     recentNames = recentGames.record(game.rom.nameWithoutExtension)
                     CoverWorker.enqueue(context)
                 },
-                onQuit = { playing = null },
+                onQuit = {
+                    returnFromGame = game.rom.nameWithoutExtension
+                    playing = null
+                },
             )
         }
     }

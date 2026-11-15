@@ -2,20 +2,16 @@ package com.xiaojiwei.fbng.ui
 
 import android.content.Context
 import android.net.Uri
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
@@ -39,10 +35,12 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.dat.DatCatalog
+import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.library.LibraryFolder
 import com.xiaojiwei.fbng.library.LibrarySnapshot
+import com.xiaojiwei.fbng.library.MissingDependency
 import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import org.junit.Assert.assertEquals
@@ -53,6 +51,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
+import org.robolectric.shadows.ShadowDialog
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -497,39 +496,113 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w800dp-h480dp-mdpi")
-    fun dpadDownMovesBetweenHudActions() {
+    fun pauseMenuRestoresTheSlotActionAndBackResumes() {
+        var resumed = 0
+        var exited = 0
         rule.setContent {
+            var panelOpen by remember { mutableStateOf(false) }
             FbngTheme {
-                Box(Modifier.fillMaxSize().background(Color.Black)) {
-                    GameHud(
-                        layout = GameHudLayout(
-                            band = HudBand.Sides,
-                            axis = BarAxis.Sides,
-                            barPx = 220,
-                            gameLeftPx = 220,
-                            gameTopPx = 0,
-                            gameWidthPx = 360,
-                            gameHeightPx = 480,
-                            aspectUsed = 4f / 3f,
-                            usedFallback = false,
-                        ),
-                        ready = true,
-                        busy = false,
-                        hasSlot = true,
-                        message = "",
-                        onSave = {},
-                        onLoad = {},
-                        onQuit = {},
+                GamePausePage(
+                    ready = true,
+                    busy = false,
+                    hasSlot = true,
+                    dialogOpen = panelOpen,
+                    message = "",
+                    failed = false,
+                    onResume = { resumed++ },
+                    onLoad = {},
+                    onReset = {},
+                    onQuit = { exited++ },
+                    onSave = { panelOpen = true },
+                )
+                if (panelOpen) {
+                    SideEffect { panelOpen = false }
+                }
+            }
+        }
+        rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonB) }
+        assertEquals(1, resumed)
+        assertEquals(0, exited)
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w800dp-h480dp-mdpi")
+    fun searchShortcutAcceptsJoystickInTheDialogAndDoneFocusesTheResult() {
+        rule.setContent {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val input = remember { GamepadInput(context, GamepadBridge()) }
+            CompositionLocalProvider(LocalGamepadInput provides input) {
+                FbngTheme {
+                    LibraryContent(
+                        load = readyCatalog(), snapshot = readySnapshot(), busy = false,
+                        readFold = { null }, onPlay = {},
                     )
                 }
             }
         }
-        rule.onNodeWithTag(ShellTags.Save).requestFocus()
-        rule.waitForIdle()
-        rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.Save).performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.Load).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.NavLibrary).requestFocus()
+            .assertIsFocused().performKeyInput { pressKey(Key.ButtonY) }
+        rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonY) }
+        rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
+        rule.runOnIdle {
+            val dialog = checkNotNull(ShadowDialog.getLatestDialog())
+            val motion = controllerMotion(120, hatX = 1f)
+            try {
+                assertTrue(checkNotNull(dialog.window).callback.dispatchGenericMotionEvent(motion))
+            } finally {
+                motion.recycle()
+            }
+        }
+        rule.onNodeWithTag(ShellTags.letter('B')).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.letter('M')).performClick()
+        rule.onNodeWithText("完成").performClick()
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
     }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w800dp-h480dp-mdpi")
+    fun unavailableDetailsReturnToTheirShelfAndPlayingReturnsToTheLibraryCard() {
+        var returnFromGame by mutableStateOf<String?>(null)
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = LibrarySnapshot(listOf(
+                        LibraryGame("galaga", "Galaga", listOf(MissingDependency("parent", false))),
+                        LibraryGame("mslug", "Metal Slug"),
+                    )),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = {},
+                    initialSection = ShellSection.Recent,
+                    recentNames = listOf("galaga"),
+                    returnFromGame = returnFromGame,
+                    onReturnRestored = { returnFromGame = null },
+                )
+            }
+        }
+        rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
+
+        rule.onNodeWithTag(ShellTags.NavLibrary).performClick()
+        rule.onNodeWithTag(ShellTags.game("mslug")).requestFocus()
+            .performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+        rule.runOnIdle { returnFromGame = "mslug" }
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
+    }
+
 }
 
 private fun readyCatalog() = CatalogLoad.Ready(DatCatalog("test", emptyList()))

@@ -26,9 +26,11 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     private var closed = false
     private var failed = false
     private var canAutoSave = false
+    private var autoSaveAfterResume = false
     private var quitSaved = false
     private var dialogOpen = false
     private var pauseCover: ByteArray? = null
+    private var coverGeneration = 0
 
     init {
         life.lifecycle.addObserver(view)
@@ -43,16 +45,27 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     fun togglePause() {
         if (!ready || busy || dialogOpen) return
         paused = !paused
-        if (!paused) pauseCover = null
+        if (!paused) {
+            clearPauseCover()
+            if (autoSaveAfterResume) {
+                canAutoSave = true
+                autoSaveAfterResume = false
+            }
+        }
         updatePlayback()
     }
 
-    suspend fun pauseForMenu() {
-        if (!ready || busy || paused) return
-        val cover = if (foreground) GameCover.source(view)?.let { GameCover.captureBeforePause(it) } else null
-        if (!ready || busy || paused) return
-        pauseCover = cover
-        togglePause()
+    suspend fun capturePauseCover() {
+        if (!foreground || !paused) return
+        val generation = coverGeneration
+        val source = GameCover.source(view) ?: return
+        val cover = GameCover.capturePreview(source)
+        if (generation == coverGeneration) pauseCover = cover
+    }
+
+    private fun clearPauseCover() {
+        coverGeneration++
+        pauseCover = null
     }
 
     fun setDialogOpen(open: Boolean) {
@@ -98,30 +111,40 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         }
         hasSlot = store.hasSlot()
         canAutoSave = true
+        autoSaveAfterResume = false
     }
 
     suspend fun load(id: Int = SaveStateStore.AUTO_SLOT): SavedSlot? = withPausedCore {
         // A failed read must not let a later automatic save overwrite the old slot.
         canAutoSave = false
+        autoSaveAfterResume = false
         val slot = withContext(Dispatchers.IO) { store.read(id) }
         check(id == SaveStateStore.AUTO_SLOT || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
         check(!closed && !failed) { "游戏已关闭或核心出错" }
         if (slot != null) {
-            pauseCover = null
-            check(view.unserializeState(slot.bytes, useEmulationThread = false)) { "无法读取存档，请检查核心版本或重置游戏。" }
+            clearPauseCover()
+            check(view.unserializeState(slot.bytes, useEmulationThread = false)) { "无法读取存档，请检查核心版本或重新开始。" }
         }
         canAutoSave = true
         hasSlot = store.hasSlot()
         slot
     }
 
-    suspend fun reset() = withPausedCore {
-        canAutoSave = false
-        withContext(Dispatchers.IO) { store.clear() }
-        hasSlot = store.hasSlot()
-        pauseCover = null
+    suspend fun restart() = withPausedCore {
+        clearPauseCover()
         view.reset(useEmulationThread = false)
-        canAutoSave = true
+        canAutoSave = false
+        autoSaveAfterResume = true
+    }
+
+    suspend fun clearSaves() = withPausedCore {
+        canAutoSave = false
+        autoSaveAfterResume = true
+        try {
+            withContext(NonCancellable + Dispatchers.IO) { store.clear() }
+        } finally {
+            hasSlot = store.hasSlot()
+        }
     }
 
     suspend fun saveBeforeQuit() {
@@ -133,7 +156,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         failed = true
         ready = false
         canAutoSave = false
-        pauseCover = null
+        clearPauseCover()
         life.pause()
     }
 
@@ -151,7 +174,7 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         } finally {
             closed = true
             ready = false
-            pauseCover = null
+            clearPauseCover()
             life.destroy()
         }
     }

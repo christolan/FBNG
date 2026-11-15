@@ -1,89 +1,70 @@
 package com.xiaojiwei.fbng.game
 
-import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
 import com.swordfish.libretrodroid.GLRetroView
-import kotlin.math.abs
 
-/**
- * Forwards controller events to LibretroDroid. The view already swaps Android A/B and X/Y
- * onto the RetroPad layout and assigns ports from InputDevice.controllerNumber.
- * This phase does not remap buttons.
- */
+/** Keeps the LibretroDroid mapping and releases inputs when the core loses control. */
 class GamepadBridge {
     var onPauseToggle: (() -> Unit)? = null
-    private val heldKeys = mutableMapOf<Pair<Int, Int>, KeyEvent>()
-    private val pendingReleases = mutableSetOf<Pair<Int, Int>>()
-    private val activePorts = mutableSetOf<Int>()
-    private val deflectedDevices = mutableSetOf<Int>()
-    private val pendingMotionCenters = mutableSetOf<Int>()
+    var onPrimaryDisconnected: (() -> Unit)? = null
+    var generation = 0
+        private set
+
+    private val heldKeys = mutableMapOf<Pair<Int, Int>, Int>()
+    private val motionPorts = mutableMapOf<Int, Int>()
     var target: GLRetroView? = null
         set(value) {
             if (field === value) return
-            field?.let { previous ->
-                pendingReleases += heldKeys.keys
-                pendingMotionCenters += deflectedDevices
-                heldKeys.values.forEach { previous.onKeyUp(it.keyCode, it) }
-                activePorts.forEach { port ->
-                    previous.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f, port)
-                    previous.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f, port)
-                    previous.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_RIGHT, 0f, 0f, port)
-                }
-            }
-            heldKeys.clear()
-            activePorts.clear()
-            deflectedDevices.clear()
+            releaseInputs()
             field = value
+            generation++
         }
 
+    fun releaseInputs(deviceId: Int? = null) {
+        val view = target ?: return
+        val released = heldKeys.keys.filter { deviceId == null || it.first == deviceId }
+        for (key in released) {
+            val port = heldKeys.remove(key) ?: continue
+            val mapped = retroPadKeyCode(key.second)
+            // A removed device can no longer be resolved from its original KeyEvent.
+            view.sendKeyEvent(KeyEvent.ACTION_UP, mapped, port)
+        }
+        val devices = motionPorts.keys.filter { deviceId == null || it == deviceId }
+        for (device in devices) {
+            val port = motionPorts.remove(device) ?: continue
+            view.sendMotionEvent(GLRetroView.MOTION_SOURCE_DPAD, 0f, 0f, port)
+            view.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_LEFT, 0f, 0f, port)
+            view.sendMotionEvent(GLRetroView.MOTION_SOURCE_ANALOG_RIGHT, 0f, 0f, port)
+        }
+    }
+
     fun dispatchKey(event: KeyEvent): Boolean {
-        if (onPauseToggle != null && event.keyCode in setOf(KeyEvent.KEYCODE_BUTTON_MODE, KeyEvent.KEYCODE_MENU)) {
-            if (event.action == KeyEvent.ACTION_UP) onPauseToggle?.invoke()
-            return true
-        }
-        val key = event.deviceId to event.keyCode
-        if (key in pendingReleases) {
-            if (event.action == KeyEvent.ACTION_UP) pendingReleases.remove(key)
-            return true
-        }
-        if (target == null || event.keyCode !in GAMEPAD_KEYS) return false
-        if (event.repeatCount > 0) return true
         val view = target ?: return false
+        if (event.keyCode !in GAMEPAD_KEYS) return false
+        val port = (event.device?.controllerNumber ?: 0) - 1
+        if (port < 0) return false
+        if (event.repeatCount > 0) return true
+        val key = event.deviceId to event.keyCode
         return when (event.action) {
             KeyEvent.ACTION_DOWN -> view.onKeyDown(event.keyCode, event).also { handled ->
-                if (handled) heldKeys[event.deviceId to event.keyCode] = KeyEvent(event)
+                if (handled) heldKeys[key] = port
             }
-            KeyEvent.ACTION_UP -> view.onKeyUp(event.keyCode, event).also {
-                heldKeys.remove(event.deviceId to event.keyCode)
-            }
+            KeyEvent.ACTION_UP -> view.onKeyUp(event.keyCode, event).also { heldKeys.remove(key) }
             else -> false
         }
     }
 
     fun dispatchMotion(event: MotionEvent): Boolean {
-        val fromController = event.isFromSource(InputDevice.SOURCE_JOYSTICK) ||
-            event.isFromSource(InputDevice.SOURCE_GAMEPAD)
-        if (!fromController) return false
-        val centered = MOTION_AXES.all { abs(event.getAxisValue(it)) < 0.25f }
-        if (event.deviceId in pendingMotionCenters) {
-            if (centered) pendingMotionCenters.remove(event.deviceId)
-            return true
-        }
         val view = target ?: return false
-        if (centered) deflectedDevices.remove(event.deviceId) else deflectedDevices.add(event.deviceId)
         val port = (event.device?.controllerNumber ?: 0) - 1
-        if (port >= 0) activePorts += port
+        if (port >= 0) motionPorts[event.deviceId] = port
         view.onGenericMotionEvent(event)
         return true
     }
 
     companion object {
-        private val MOTION_AXES = intArrayOf(
-            MotionEvent.AXIS_HAT_X, MotionEvent.AXIS_HAT_Y,
-            MotionEvent.AXIS_X, MotionEvent.AXIS_Y, MotionEvent.AXIS_Z, MotionEvent.AXIS_RZ,
-        )
-        val GAMEPAD_KEYS = setOf(
+        private val GAMEPAD_KEYS = setOf(
             KeyEvent.KEYCODE_DPAD_UP,
             KeyEvent.KEYCODE_DPAD_DOWN,
             KeyEvent.KEYCODE_DPAD_LEFT,
@@ -106,4 +87,13 @@ class GamepadBridge {
             KeyEvent.KEYCODE_BUTTON_THUMBR,
         )
     }
+}
+
+// GLRetroView performs these four swaps before calling sendKeyEvent in LibretroDroid 0.13.2.
+internal fun retroPadKeyCode(code: Int): Int = when (code) {
+    KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
+    KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
+    KeyEvent.KEYCODE_BUTTON_X -> KeyEvent.KEYCODE_BUTTON_Y
+    KeyEvent.KEYCODE_BUTTON_Y -> KeyEvent.KEYCODE_BUTTON_X
+    else -> code
 }

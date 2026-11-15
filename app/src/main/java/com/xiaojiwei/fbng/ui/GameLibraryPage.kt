@@ -76,6 +76,8 @@ internal fun GameLibraryPage(
     onOpenImport: () -> Unit,
     onOpenLetters: () -> Unit,
     onOpenFilter: () -> Unit,
+    onClearFilters: () -> Unit,
+    backLabel: Int,
     query: String,
     covers: CoverUiState? = null,
 ) {
@@ -88,7 +90,7 @@ internal fun GameLibraryPage(
             margin = margin,
             leadingAction = {
                 ShellHeaderBack(
-                    label = stringResource(R.string.library_back),
+                    label = stringResource(backLabel),
                     onClick = onBack,
                     modifier = Modifier.libraryFocus(
                         ShellTags.DetailBack, requesters.getValue(ShellTags.DetailBack), onFocused,
@@ -154,6 +156,17 @@ internal fun GameLibraryPage(
         if (games.isEmpty()) {
             FbngEmptyState(scrollable = false) {
                 Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                    FbngButton(
+                        onOpenLetters,
+                        Modifier.libraryFocus(ShellTags.EditSearch, requesters.getValue(ShellTags.EditSearch), onFocused),
+                    ) { Text(stringResource(R.string.library_edit_search)) }
+                    FbngButton(
+                        onClearFilters,
+                        Modifier.libraryFocus(ShellTags.ClearFilters, requesters.getValue(ShellTags.ClearFilters), onFocused),
+                        kind = FbngButtonKind.Neutral,
+                    ) { Text(stringResource(R.string.library_clear_filters)) }
+                }
             }
         } else {
             BoxWithConstraints(Modifier.fillMaxSize()) {

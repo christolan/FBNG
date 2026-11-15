@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -45,8 +45,11 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -81,21 +84,27 @@ internal fun SaveSlotsDialog(
     onCreate: () -> Unit,
     onDelete: (Int) -> Unit,
     onDismiss: () -> Unit,
+    onClear: (() -> Unit)? = null,
 ) {
     var slots by remember(store) { mutableStateOf<List<SaveSlotInfo>?>(null) }
     var listedRevision by remember(store) { mutableStateOf<Int?>(null) }
     var listingError by remember(store) { mutableStateOf(false) }
     var pending by remember { mutableStateOf<SlotAction?>(null) }
+    var confirmClear by remember { mutableStateOf(false) }
+    val confirmationOpen = pending != null || confirmClear
+    val windowSize = LocalWindowInfo.current.containerSize
     val current = slots
     val automatic = current?.firstOrNull()
     val manualSlots = current?.drop(1).orEmpty()
     val slotsFull = manualSlots.size >= SaveStateStore.MAX_MANUAL_SLOTS
     val slotControlsEnabled = !busy && !listingError && listedRevision == revision
     val canCreate = mode == SaveSlotMode.Save && slotControlsEnabled && !slotsFull
+    val canClear = mode == SaveSlotMode.Save && onClear != null && slotControlsEnabled &&
+        (automatic?.available == true || manualSlots.isNotEmpty())
     val manualListState = rememberLazyListState()
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requester(key: String) = requesters.getOrPut(key) { FocusRequester() }
-    var focusedKey by remember { mutableStateOf<String?>(null) }
+    var focusedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var actionKey by remember { mutableStateOf<String?>(null) }
     fun target(key: String) = Modifier.focusRequester(requester(key))
         .onFocusChanged { if (it.isFocused) focusedKey = key }
@@ -113,8 +122,8 @@ internal fun SaveSlotsDialog(
             listingError = true
         }
     }
-    LaunchedEffect(current, pending, busy, listingError, slotControlsEnabled) {
-        if (pending != null || busy || (!slotControlsEnabled && !listingError)) return@LaunchedEffect
+    LaunchedEffect(current, confirmationOpen, busy, listingError, slotControlsEnabled, windowSize) {
+        if (confirmationOpen || busy || (!slotControlsEnabled && !listingError)) return@LaunchedEffect
         // Disabling a focused card during the save can move Android's focus to Close.
         val previous = actionKey ?: focusedKey
         val showLimit = mode == SaveSlotMode.Save && slotsFull && (previous == null || previous == "new")
@@ -129,6 +138,7 @@ internal fun SaveSlotsDialog(
         val initial = when {
             listingError -> defaultTarget
             previous == "close" || (previous == "new" && canCreate) -> previous
+            previous == "clear" && canClear -> previous
             previous == "delete0" && automatic?.available == true -> previous
             previous == "slot0" && mode == SaveSlotMode.Load && automatic?.available == true -> previous
             manualSlots.any { previous == "slot${it.id}" || previous == "delete${it.id}" } -> requireNotNull(previous)
@@ -167,8 +177,14 @@ internal fun SaveSlotsDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = !busy,
             dismissOnClickOutside = !busy),
     ) {
+        DialogGamepadInput()
+        val focusManager = LocalFocusManager.current
+        LaunchedEffect(confirmationOpen) {
+            if (confirmationOpen) focusManager.clearFocus(force = true)
+        }
         Surface(
             modifier = Modifier.widthIn(max = FbngDimens.saveDialogWidth).fillMaxWidth(.94f).fillMaxHeight(.94f)
+                .semantics { if (confirmationOpen) hideFromAccessibility() }
                 .onKeyEvent { event ->
                     if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
                         if (!busy) onDismiss()
@@ -180,11 +196,26 @@ internal fun SaveSlotsDialog(
         ) {
             Column(Modifier.padding(FbngDimens.space16), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                 Row(Modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.space8), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
+                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                     Text(stringResource(if (mode == SaveSlotMode.Save) R.string.save_slots_title else R.string.load_slots_title),
-                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                        modifier = Modifier.weight(1f), style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (mode == SaveSlotMode.Save && onClear != null) {
+                        FbngButton(
+                            onClick = {
+                                actionKey = "clear"
+                                confirmClear = true
+                            },
+                            enabled = canClear,
+                            kind = FbngButtonKind.Neutral,
+                            modifier = target("clear"),
+                            contentPadding = PaddingValues(horizontal = FbngDimens.space8),
+                        ) { Text(stringResource(R.string.clear_saves)) }
+                    }
                     FbngButton(onClick = onDismiss, enabled = !busy, kind = FbngButtonKind.Neutral,
-                        modifier = target("close")) { Text(stringResource(R.string.close)) }
+                        modifier = target("close"), contentPadding = PaddingValues(horizontal = FbngDimens.space8)) {
+                        Text(stringResource(R.string.close))
+                    }
                 }
                 if (mode == SaveSlotMode.Save) {
                     Text(
@@ -280,28 +311,26 @@ internal fun SaveSlotsDialog(
             mode == SaveSlotMode.Save -> R.string.overwrite
             else -> R.string.load
         }
-        AlertDialog(
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.onKeyEvent { event ->
-                if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
-                    pending = null
-                    true
-                } else false
+        GameConfirmationDialog(
+            title = stringResource(title),
+            body = stringResource(body, slotName(slot)),
+            actionLabel = stringResource(confirm),
+            onDismiss = { pending = null },
+            onConfirm = {
+                pending = null
+                if (delete) onDelete(slot.id) else onChoose(slot.id)
             },
-            onDismissRequest = { pending = null },
-            title = { Text(stringResource(title)) },
-            text = { Text(stringResource(body, slotName(slot))) },
-            confirmButton = {
-                FbngButton(onClick = {
-                    pending = null
-                    if (delete) onDelete(slot.id) else onChoose(slot.id)
-                }) { Text(stringResource(confirm)) }
-            },
-            dismissButton = {
-                val cancel = remember { FocusRequester() }
-                LaunchedEffect(slot.id, delete) { cancel.requestFocus() }
-                FbngButton(onClick = { pending = null }, kind = FbngButtonKind.Neutral,
-                    modifier = Modifier.focusRequester(cancel)) { Text(stringResource(R.string.cancel)) }
+        )
+    }
+    if (confirmClear) {
+        GameConfirmationDialog(
+            title = stringResource(R.string.clear_saves_title),
+            body = stringResource(R.string.clear_saves_body),
+            actionLabel = stringResource(R.string.clear_saves),
+            onDismiss = { confirmClear = false },
+            onConfirm = {
+                confirmClear = false
+                onClear?.invoke()
             },
         )
     }

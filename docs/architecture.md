@@ -6,7 +6,7 @@
 
 | 入口 | 职责 |
 | --- | --- |
-| [MainActivity.kt](../app/src/main/java/com/xiaojiwei/fbng/MainActivity.kt) 与 [FbngApp.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/FbngApp.kt) | 系统栏、手柄事件入口、加载 DAT 与标题、壳层、目录扫描和游戏会话的切换 |
+| [MainActivity.kt](../app/src/main/java/com/xiaojiwei/fbng/MainActivity.kt)、[GamepadInput.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/GamepadInput.kt) 与 [FbngApp.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/FbngApp.kt) | 系统栏、主窗口和弹窗的手柄输入、加载 DAT 与标题、壳层、目录扫描和游戏会话的切换 |
 | [LibraryScreen.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/LibraryScreen.kt) 与 [LayoutPolicy.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/LayoutPolicy.kt) | 导航、焦点、窗口宽度分级和铰链姿态 |
 | [library/](../app/src/main/java/com/xiaojiwei/fbng/library/) | 目录授权与扫描、归档索引、依赖解析、启动准备、检索和最近游玩 |
 | [dat/](../app/src/main/java/com/xiaojiwei/fbng/dat/) 与 [importing/](../app/src/main/java/com/xiaojiwei/fbng/importing/) | 街机 DAT 解析、ZIP 成员摘要、套件识别和完整校验 |
@@ -41,6 +41,7 @@
 | `files/artwork/downloaded/` | 已下载的游戏封面 |
 | `library-folders`、`library-favorites`、`library-recent`、`cover-attempts` | 目录、收藏、最近游玩和重复缺图探测的本地偏好 |
 | `appearance` | 全局圆角大小的本地偏好 |
+| `gamepad` | 菜单确认／返回布局及暂停键的本地偏好 |
 | `cache/fbng-update.apk` | 应用更新下载缓存 |
 
 ## 联网流程

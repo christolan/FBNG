@@ -21,13 +21,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -148,8 +148,6 @@ internal fun GameScreen(
     var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
     var slotRevision by remember(session) { mutableStateOf(0) }
     var pausePageOpen by remember(session) { mutableStateOf(false) }
-    var openingPausePage by remember(session) { mutableStateOf(false) }
-    var pauseBeforeReset by remember(session) { mutableStateOf(false) }
     var coreFailed by remember(session) { mutableStateOf(false) }
     var foreground by remember(session) {
         mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
@@ -187,7 +185,6 @@ internal fun GameScreen(
 
     fun dismissReset() {
         showReset = false
-        if (!pauseBeforeReset) session.togglePause()
     }
 
     fun dismissSlots() {
@@ -205,23 +202,18 @@ internal fun GameScreen(
     }
 
     fun openPausePage() {
-        if (openingPausePage) return
-        openingPausePage = true
+        if (pausePageOpen) return
         bridge.target = null
-        scope.launch {
-            try {
-                session.pauseForMenu()
-                pausePageOpen = true
-            } finally {
-                openingPausePage = false
-            }
-        }
+        if (!session.paused) session.togglePause()
+        pausePageOpen = true
+        scope.launch { session.capturePauseCover() }
     }
 
     fun resume() {
         if (!session.ready || session.busy || coreFailed || showReset || slotMode != null) return
         if (session.paused) session.togglePause()
         pausePageOpen = false
+        if (foreground) bridge.target = session.view
     }
 
     // A back gesture during loading still opens the page. Once initialization
@@ -232,14 +224,16 @@ internal fun GameScreen(
         }
     }
 
-    BackHandler {
+    fun back() {
         when {
             slotMode != null -> dismissSlots()
             showReset -> dismissReset()
-            pausePageOpen || coreFailed -> quit()
+            coreFailed -> Unit
+            pausePageOpen -> resume()
             else -> openPausePage()
         }
     }
+    BackHandler(onBack = ::back)
 
     DisposableEffect(session) {
         val window = activity.window
@@ -266,6 +260,7 @@ internal fun GameScreen(
         activity.lifecycle.addObserver(observer)
         onDispose {
             bridge.onPauseToggle = null
+            bridge.onPrimaryDisconnected = null
             bridge.target = null
             activity.lifecycle.removeObserver(observer)
             try {
@@ -276,14 +271,19 @@ internal fun GameScreen(
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    DisposableEffect(session, pausePageOpen, openingPausePage, session.paused, session.busy, showReset, slotMode, coreFailed, foreground) {
-        bridge.target = if (!foreground || openingPausePage || pausePageOpen || session.paused || session.busy || showReset || slotMode != null || coreFailed) null else session.view
+    val coreReceivesInput = foreground && session.ready && !pausePageOpen && !session.paused &&
+        !session.busy && !showReset && slotMode == null && !coreFailed
+    SideEffect {
+        bridge.target = session.view.takeIf { coreReceivesInput }
         bridge.onPauseToggle = {
-            if (!showReset && slotMode == null && !coreFailed && !session.busy) {
-                if (pausePageOpen) resume() else openPausePage()
+            if (foreground && !showReset && slotMode == null && !session.busy) back()
+        }
+        bridge.onPrimaryDisconnected = {
+            if (!coreFailed) {
+                openPausePage()
+                message = resources.getString(R.string.gamepad_disconnected)
             }
         }
-        onDispose { bridge.target = null }
     }
 
     LaunchedEffect(session.view) {
@@ -318,12 +318,7 @@ internal fun GameScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.Black).onKeyEvent { event ->
-        if (pausePageOpen && !showReset && slotMode == null && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
-            resume()
-            true
-        } else false
-    }) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -344,11 +339,7 @@ internal fun GameScreen(
                 onSave = { openSlots(SaveSlotMode.Save) },
                 onLoad = { openSlots(SaveSlotMode.Load) },
                 onResume = ::resume,
-                onReset = {
-                    pauseBeforeReset = session.paused
-                    if (!session.paused) session.togglePause()
-                    showReset = true
-                },
+                onReset = { showReset = true },
                 onQuit = ::quit,
             )
         }
@@ -386,6 +377,19 @@ internal fun GameScreen(
                 }
             }
         }
+        fun clearSlots() {
+            scope.launch {
+                if (session.busy || coreFailed || slotMode != mode) return@launch
+                try {
+                    session.clearSaves()
+                    message = resources.getString(R.string.clear_saves_ok)
+                } catch (error: Exception) {
+                    reportFailure(error, R.string.clear_saves_fail)
+                } finally {
+                    slotRevision++
+                }
+            }
+        }
         SaveSlotsDialog(
             store = store,
             mode = mode,
@@ -396,50 +400,32 @@ internal fun GameScreen(
             onChoose = ::chooseSlot,
             onCreate = { chooseSlot(null) },
             onDelete = ::deleteSlot,
+            onClear = ::clearSlots,
         )
     }
     if (showReset) {
-        val cancelFocus = remember { FocusRequester() }
-        LaunchedEffect(Unit) { cancelFocus.requestFocus() }
-        AlertDialog(
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.onKeyEvent { event ->
-                if (event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
-                    dismissReset()
-                    true
-                } else false
-            },
-            onDismissRequest = ::dismissReset,
-            title = { Text(stringResource(R.string.reset_title)) },
-            text = { Text(stringResource(R.string.reset_body)) },
-            confirmButton = {
-                FbngButton(onClick = {
-                    showReset = false
-                    scope.launch {
-                        try {
-                            session.reset()
-                            message = resources.getString(R.string.reset_ok)
-                        } catch (error: Exception) {
-                            reportFailure(error, R.string.reset_fail)
-                        } finally {
-                            if (!pauseBeforeReset) session.togglePause()
-                        }
+        GameConfirmationDialog(
+            title = stringResource(R.string.reset_title),
+            body = stringResource(R.string.reset_body),
+            actionLabel = stringResource(R.string.reset),
+            onDismiss = ::dismissReset,
+            onConfirm = {
+                dismissReset()
+                scope.launch {
+                    try {
+                        session.restart()
+                        message = resources.getString(R.string.reset_ok)
+                    } catch (error: Exception) {
+                        reportFailure(error, R.string.reset_fail)
                     }
-                }) { Text(stringResource(R.string.reset)) }
-            },
-            dismissButton = {
-                FbngButton(
-                    onClick = ::dismissReset,
-                    kind = FbngButtonKind.Neutral,
-                    modifier = Modifier.focusRequester(cancelFocus),
-                ) { Text(stringResource(R.string.cancel)) }
+                }
             },
         )
     }
 }
 
 @Composable
-private fun GamePausePage(
+internal fun GamePausePage(
     ready: Boolean,
     busy: Boolean,
     hasSlot: Boolean,
@@ -453,7 +439,9 @@ private fun GamePausePage(
     onQuit: () -> Unit,
 ) {
     val focus = remember { HudFocus() }
+    val focusManager = LocalFocusManager.current
     LaunchedEffect(ready, busy, dialogOpen) {
+        if (dialogOpen) focusManager.clearFocus(force = true)
         if (busy || dialogOpen) return@LaunchedEffect
         val target = if (ready) focus.tag else ShellTags.Quit
         repeat(4) {
@@ -462,7 +450,12 @@ private fun GamePausePage(
         }
     }
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().onKeyEvent { event ->
+            if (!dialogOpen && event.key == Key.ButtonB && event.type == KeyEventType.KeyUp) {
+                if (ready && !busy) onResume()
+                true
+            } else false
+        },
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {

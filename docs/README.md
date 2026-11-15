@@ -9,6 +9,7 @@ FBNG（FBNeo Next Generation）是自用 Android 街机前端。项目优先支�
 | [使用说明](usage.md) | 导入目录、浏览与筛选、游戏封面、暂停、存读档和手柄操作 |
 | [架构与数据](architecture.md) | 代码入口、扫描与启动流程、存储位置、封面下载和应用更新 |
 | [Islands 界面与交互规则](ui-guidelines.md) | 设计 token、页面布局、手柄焦点、折叠适配和 UI 改动要求 |
+| [掌机手柄优化方案](handheld-controls.md) | Switch 与 Steam Deck 调研、FBNG 交互契约、实施范围和验收矩阵 |
 | [固定的 FBNeo 核心与资源](fbneo-core.md) | 核心与 DAT 的来源、版本、校验、加载方式和许可 |
 | [构建、测试与发布](build-release.md) | SDK 与 JDK、Debug、签名 Release、验签、GitHub Actions 和应用更新约定 |
 

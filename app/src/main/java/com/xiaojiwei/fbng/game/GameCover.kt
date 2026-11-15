@@ -37,7 +37,7 @@ internal object GameCover {
         return Source(view.holder.surface, Rect(left, top, left + gameWidth, top + gameHeight))
     }
 
-    suspend fun captureBeforePause(source: Source): ByteArray? = withTimeoutOrNull(200L) {
+    suspend fun capturePreview(source: Source): ByteArray? = withTimeoutOrNull(200L) {
         suspendCancellableCoroutine { continuation ->
             // Older Android versions can block inside PixelCopy.request itself.
             handler.post {

@@ -47,6 +47,41 @@ class SaveSlotsDialogTest {
     val folder = TemporaryFolder()
 
     @Test
+    fun clearAllReturnsToItsButtonOnCancelAndRemovesAllSlotsOnConfirmation() {
+        val store = SaveStateStore(folder.newFolder("clear"))
+        store.write(byteArrayOf(1), coreCommit = "core")
+        store.createManualSlot(byteArrayOf(2), coreCommit = "core")
+        rule.setContent {
+            var revision by remember { mutableStateOf(0) }
+            FbngTheme {
+                SaveSlotsDialog(
+                    store = store,
+                    mode = SaveSlotMode.Save,
+                    busy = false,
+                    message = "",
+                    revision = revision,
+                    onChoose = {},
+                    onCreate = {},
+                    onDelete = {},
+                    onDismiss = {},
+                    onClear = {
+                        store.clear()
+                        revision++
+                    },
+                )
+            }
+        }
+        val clear = rule.onNodeWithText("清除全部存档")
+        clear.performClick()
+        rule.onNodeWithText("取消").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        clear.assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithText("取消").assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNode(hasText("清除全部存档") and isFocused()).performKeyInput { pressKey(Key.ButtonA) }
+        assertFalse(store.hasSlot())
+        assertFalse(store.hasSlot(1))
+    }
+
+    @Test
     fun newSlotStaysAvailableAfterSavingAndWhileScrollingUntilFull() {
         val store = SaveStateStore(folder.newFolder("slots"))
         var overwrittenSlot: Int? = null

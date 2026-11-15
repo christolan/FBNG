@@ -15,12 +15,17 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -43,14 +48,23 @@ import com.xiaojiwei.fbng.ui.theme.FbngDimens
 private const val QueryCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 
 @Composable
-internal fun LibraryQueryDialog(query: String, resultCount: Int, onQuery: (String) -> Unit, onDismiss: () -> Unit) {
-    val initial = remember { FocusRequester() }
+internal fun LibraryQueryDialog(
+    query: String,
+    resultCount: Int,
+    onQuery: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onDone: () -> Unit = onDismiss,
+) {
+    val requesters = remember {
+        (QueryCharacters.map(Char::toString) + listOf("backspace", "clear", "done"))
+            .associateWith { FocusRequester() }
+    }
+    var focused by rememberSaveable { mutableStateOf("A") }
+    fun target(id: String) = Modifier.focusRequester(requesters.getValue(id))
+        .onFocusChanged { if (it.isFocused) focused = id }
     val title = stringResource(R.string.library_jump_to_letter)
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        LaunchedEffect(Unit) {
-            withFrameNanos { }
-            initial.requestFocus()
-        }
+        DialogGamepadInput()
         Surface(
             modifier = Modifier.padding(horizontal = FbngDimens.compactMargin, vertical = FbngDimens.space8)
                 .widthIn(max = FbngDimens.libraryKeyboardWidth)
@@ -86,15 +100,15 @@ internal fun LibraryQueryDialog(query: String, resultCount: Int, onQuery: (Strin
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    ShellHeaderButton(onClick = { onQuery(query.dropLast(1)) }, enabled = query.isNotEmpty()) {
+                    ShellHeaderButton(modifier = target("backspace"), onClick = { onQuery(query.dropLast(1)) }, enabled = query.isNotEmpty()) {
                         Text(stringResource(R.string.library_query_backspace), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
-                    ShellHeaderButton(onClick = { onQuery("") }, enabled = query.isNotEmpty()) {
+                    ShellHeaderButton(modifier = target("clear"), onClick = { onQuery("") }, enabled = query.isNotEmpty()) {
                         Text(stringResource(R.string.library_query_clear), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
                     FbngButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.height(FbngDimens.buttonHeight),
+                        onClick = onDone,
+                        modifier = target("done").height(FbngDimens.buttonHeight),
                         contentPadding = PaddingValues(horizontal = FbngDimens.space8),
                     ) {
                         Text(stringResource(R.string.library_query_done), style = MaterialTheme.typography.labelLarge, maxLines = 1)
@@ -106,14 +120,19 @@ internal fun LibraryQueryDialog(query: String, resultCount: Int, onQuery: (Strin
                     val rows = keyboardRows(maxWidth, maxHeight, gap, preferredSize)
                     val columns = keyboardColumns(rows)
                     val height = ((maxHeight - gap * (rows - 1)) / rows).coerceIn(Dp.Hairline, preferredSize)
+                    LaunchedEffect(columns, rows, query.isEmpty()) {
+                        val preferred = focused
+                        withFrameNanos { }
+                        if (!requesters.getValue(preferred).requestFocus()) requesters.getValue("A").requestFocus()
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
                         QueryCharacters.chunked(columns).forEach { row ->
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                                 row.forEach { character ->
-                                    val modifier = Modifier.weight(1f).height(height).testTag(ShellTags.letter(character))
                                     FbngButton(
                                         onClick = { onQuery(query + character) },
-                                        modifier = if (character == 'A') modifier.focusRequester(initial) else modifier,
+                                        modifier = target(character.toString()).weight(1f).height(height)
+                                            .testTag(ShellTags.letter(character)),
                                         kind = FbngButtonKind.Neutral,
                                         contentPadding = PaddingValues(),
                                     ) {
