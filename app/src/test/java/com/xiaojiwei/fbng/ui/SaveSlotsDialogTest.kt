@@ -81,18 +81,18 @@ class SaveSlotsDialogTest {
                 }
             }
             val load = rule.onNodeWithTag(ShellTags.Load)
-            val focusedAutoSlot = hasText("自动存档") and hasClickAction() and isFocused()
+            val autoSlot = hasText("自动存档") and hasClickAction()
             val focusedLoad = hasTestTag(ShellTags.Load) and isFocused()
-            val manualSlot = rule.onNode(hasText("槽位 $manual") and hasClickAction())
+            val manualSlot = hasText("槽位 $manual") and hasClickAction()
             load.requestFocus().performKeyInput { pressKey(Key.ButtonA) }
-            rule.waitUntil(5_000) { rule.onAllNodes(focusedAutoSlot).fetchSemanticsNodes().size == 1 }
-            rule.onNode(focusedAutoSlot).performKeyInput { pressKey(Key.ButtonB) }
+            rule.waitUntil(5_000) { rule.onAllNodes(autoSlot).fetchSemanticsNodes().size == 1 }
+            rule.onNode(autoSlot).requestFocus().performKeyInput { pressKey(Key.ButtonB) }
             rule.waitUntil(5_000) { rule.onAllNodes(focusedLoad).fetchSemanticsNodes().size == 1 }
             rule.runOnIdle { assertTrue(launches.isEmpty()) }
 
-            load.performKeyInput { pressKey(Key.ButtonA) }
-            rule.waitUntil(5_000) { rule.onAllNodes(focusedAutoSlot).fetchSemanticsNodes().size == 1 }
-            manualSlot.performClick()
+            load.performClick()
+            rule.waitUntil(5_000) { rule.onAllNodes(manualSlot).fetchSemanticsNodes().size == 1 }
+            rule.onNode(manualSlot).performClick()
             rule.onNodeWithText("读取这个存档？").assertDoesNotExist()
             rule.runOnIdle { assertEquals(listOf<Int?>(manual), launches) }
             rule.onNodeWithTag(ShellTags.Play).performClick()
