@@ -95,7 +95,6 @@ internal object ShellTags {
     const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
-    const val OpenControllerSettings = "shell-open-controller-settings"
     fun cornerRadius(option: CornerRadiusOption) = "shell-corner-radius-${option.name}"
     const val AppUpdate = "shell-app-update"
     const val FetchCovers = "shell-fetch-covers"

@@ -194,7 +194,6 @@ private fun LibraryShell(
     var detailsOrigin by rememberSaveable { mutableStateOf<ShellSection?>(null) }
     var shelfDetailName by rememberSaveable { mutableStateOf<String?>(null) }
     var importFromLibrary by rememberSaveable { mutableStateOf(false) }
-    var controllerSettingsOpen by rememberSaveable { mutableStateOf(false) }
     var playableOnly by rememberSaveable { mutableStateOf(false) }
     var picker by rememberSaveable { mutableStateOf<LibraryPicker?>(null) }
     var focusRequest by remember { mutableStateOf(0) }
@@ -227,7 +226,6 @@ private fun LibraryShell(
             ShellTags.SettingsBack,
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
-            ShellTags.OpenControllerSettings,
             ShellTags.AppUpdate,
             ShellTags.FetchCovers,
             ShellTags.RefreshCovers,
@@ -296,7 +294,6 @@ private fun LibraryShell(
         val selected = if (detailsOpen) byName[shelfDetailName ?: selectedName] else results.byName[selectedName]
         val showDetails = detailsOpen && selected != null
         val pickerOpen = section == ShellSection.Library && picker != null
-        val controlsOpen = section == ShellSection.Settings && controllerSettingsOpen
         val focusedGameName = ShellTags.gameName(libraryFocus)
         val savedGameIndex = remember(results, focusedGameName) {
             if (focusedGameName == null) -1 else results.entries.indexOfFirst { it.game.name == focusedGameName }
@@ -308,7 +305,7 @@ private fun LibraryShell(
         LaunchedEffect(useGamePage, currentPage) {
             if (useGamePage) libraryPage = currentPage
         }
-        LaunchedEffect(gamepad, section, showDetails, pickerOpen, controlsOpen) {
+        LaunchedEffect(gamepad, section, showDetails, pickerOpen) {
             gamepad?.shellSurfaceChanged()
         }
 
@@ -397,15 +394,8 @@ private fun LibraryShell(
             sectionName = destination.name
         }
 
-        fun closeControllerSettings() {
-            controllerSettingsOpen = false
-            savedFocus = ShellTags.OpenControllerSettings
-            restoreFocus(savedFocus)
-        }
-
         fun back() {
             when {
-                controlsOpen -> closeControllerSettings()
                 pickerOpen -> closePicker()
                 section == ShellSection.Library && detailsOpen -> {
                     detailsOpen = false
@@ -446,12 +436,12 @@ private fun LibraryShell(
         val savedRowExists = pageEntries.any { it.game.name == focusedGameName }
         LaunchedEffect(
             section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
-            widthClass, showDetails, pickerOpen, controlsOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
+            widthClass, showDetails, pickerOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
             windowFocused,
             favoriteCards.takeIf { section == ShellSection.Favorites },
             recentCards.takeIf { section == ShellSection.Recent },
         ) {
-            if (libraryFocusBusy || pickerOpen || controlsOpen || returnFromGame != null) return@LaunchedEffect
+            if (libraryFocusBusy || pickerOpen || returnFromGame != null) return@LaunchedEffect
             val target = restoreTarget
             if (target != null) {
                 if (!windowFocused) return@LaunchedEffect
@@ -680,12 +670,6 @@ private fun LibraryShell(
                             openSection(ShellSection.Import)
                         },
                         onOpenSync = { openSection(ShellSection.Sync) },
-                        onOpenControllerSettings = gamepad?.let {
-                            {
-                                focusManager.clearFocus(force = true)
-                                controllerSettingsOpen = true
-                            }
-                        },
                     )
                 }
             }
@@ -700,9 +684,6 @@ private fun LibraryShell(
                 } else {
                     letterPicker?.invoke()
                 }
-            }
-            if (controlsOpen && gamepad != null) {
-                ControllerSettingsDialog(gamepad, ::closeControllerSettings)
             }
         }
     }
@@ -791,7 +772,6 @@ private fun SettingsPage(
     onFocused: (String) -> Unit,
     onOpenImport: () -> Unit,
     onOpenSync: () -> Unit,
-    onOpenControllerSettings: (() -> Unit)?,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
     cornerRadius: CornerRadiusOption,
@@ -821,19 +801,6 @@ private fun SettingsPage(
                 }
             }
             CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
-            if (onOpenControllerSettings != null) {
-                FbngPanel {
-                    FbngButton(
-                        onClick = onOpenControllerSettings,
-                        modifier = Modifier.libraryFocus(
-                            ShellTags.OpenControllerSettings,
-                            requesters.getValue(ShellTags.OpenControllerSettings),
-                            onFocused,
-                        ),
-                        kind = FbngButtonKind.Neutral,
-                    ) { Text(stringResource(R.string.gamepad_settings)) }
-                }
-            }
             if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
             if (covers != null) CoverSettings(covers, requesters, onFocused)
             FocusableMessage(

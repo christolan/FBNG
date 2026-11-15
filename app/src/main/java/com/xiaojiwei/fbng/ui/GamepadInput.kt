@@ -5,9 +5,6 @@ import android.hardware.input.InputManager
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.xiaojiwei.fbng.game.GamepadBridge
 import kotlin.math.abs
@@ -15,20 +12,12 @@ import kotlin.math.abs
 internal val LocalGamepadInput = staticCompositionLocalOf<GamepadInput?> { null }
 
 internal class GamepadInput(context: Context, private val bridge: GamepadBridge) : InputManager.InputDeviceListener {
-    private val preferences = context.getSharedPreferences("gamepad", Context.MODE_PRIVATE)
     private val manager = context.getSystemService(InputManager::class.java)
     private val ports = mutableMapOf<Int, Int>()
     private val directions = mutableMapOf<Int, Directions>()
     private val keys = mutableMapOf<Pair<Int, Int>, Press>()
     private val axes = mutableMapOf<Int, Route>()
     private var shellGeneration = 0
-
-    var swapped by mutableStateOf(preferences.getBoolean("swap-confirm", false))
-        private set
-    var pauseKey by mutableStateOf(preferences.getInt("pause-key", KeyEvent.KEYCODE_UNKNOWN))
-        private set
-    var onInspect: ((KeyEvent) -> Boolean)? = null
-    var onInspectDirection: ((Int, InputDevice?) -> Unit)? = null
 
     fun start() {
         manager.registerInputDeviceListener(this, null)
@@ -60,24 +49,6 @@ internal class GamepadInput(context: Context, private val bridge: GamepadBridge)
         axes.remove(deviceId)
         directions.remove(deviceId)
         if (port == 1) bridge.onPrimaryDisconnected?.invoke()
-    }
-
-    fun changeConfirmLayout(value: Boolean) {
-        swapped = value
-        shellSurfaceChanged()
-        preferences.edit().putBoolean("swap-confirm", value).apply()
-    }
-
-    fun bindPauseKey(keyCode: Int) {
-        pauseKey = keyCode
-        preferences.edit().putInt("pause-key", keyCode).apply()
-    }
-
-    fun resetSettings() {
-        swapped = false
-        pauseKey = KeyEvent.KEYCODE_UNKNOWN
-        shellSurfaceChanged()
-        preferences.edit().clear().apply()
     }
 
     fun shellSurfaceChanged() {
@@ -116,9 +87,9 @@ internal class GamepadInput(context: Context, private val bridge: GamepadBridge)
             }
             else -> return deliver(event)
         }
-        if (onInspect?.invoke(event) == true) return true
         val toggle = bridge.onPauseToggle
-        if (allowPauseShortcut && toggle != null && matchesPauseKey(code, pauseKey)) {
+        val isPauseKey = code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_BUTTON_MODE
+        if (allowPauseShortcut && toggle != null && isPauseKey) {
             if (event.action == KeyEvent.ACTION_UP) toggle()
             return true
         }
@@ -130,10 +101,9 @@ internal class GamepadInput(context: Context, private val bridge: GamepadBridge)
             }
             return true
         }
-        val mapped = menuKeyCode(code, swapped)
-        val handled = deliver(if (mapped == code) event else event.withKeyCode(mapped))
+        val handled = deliver(event)
         // The local action runs on key-up. Owning both edges also suppresses Android's fallback action.
-        return handled || mapped == KeyEvent.KEYCODE_BUTTON_A || mapped == KeyEvent.KEYCODE_BUTTON_B
+        return handled || code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_BUTTON_B
     }
 
     fun dispatchMotion(event: MotionEvent, window: Any, deliverKey: (KeyEvent) -> Boolean): Boolean {
@@ -159,11 +129,6 @@ internal class GamepadInput(context: Context, private val bridge: GamepadBridge)
             event.getAxisValue(MotionEvent.AXIS_X),
             event.getAxisValue(MotionEvent.AXIS_Y),
         )
-        val inspectDirection = onInspectDirection
-        if (inspectDirection != null) {
-            (hat ?: stick)?.let { inspectDirection(it, event.device) }
-            return true
-        }
         if (hat != null) move(device, event.eventTime, hat, fromHat = true, deliverKey)
         if (stick != null && hatX == 0f && hatY == 0f) sendStep(event.eventTime, stick, deliverKey)
         return true
@@ -201,21 +166,6 @@ internal class DpadInput {
     }
 }
 
-internal fun canBindPauseKey(code: Int) = code == KeyEvent.KEYCODE_MENU ||
-    code == KeyEvent.KEYCODE_BUTTON_MODE || code == KeyEvent.KEYCODE_BUTTON_THUMBL ||
-    code == KeyEvent.KEYCODE_BUTTON_THUMBR || code in KeyEvent.KEYCODE_BUTTON_1..KeyEvent.KEYCODE_BUTTON_16
-
-internal fun matchesPauseKey(code: Int, configured: Int) = if (configured == KeyEvent.KEYCODE_UNKNOWN) {
-    code == KeyEvent.KEYCODE_MENU || code == KeyEvent.KEYCODE_BUTTON_MODE
-} else code == configured
-
-internal fun menuKeyCode(code: Int, swapped: Boolean): Int = when {
-    !swapped -> code
-    code == KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
-    code == KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A
-    else -> code
-}
-
 private val CardinalKeys = setOf(
     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
@@ -227,9 +177,6 @@ private val StickAxes = intArrayOf(
 )
 
 private fun isCentered(event: MotionEvent): Boolean = StickAxes.all { abs(event.getAxisValue(it)) < .25f }
-
-private fun KeyEvent.withKeyCode(code: Int) =
-    KeyEvent(downTime, eventTime, action, code, repeatCount, metaState, deviceId, scanCode, flags, source)
 
 private fun KeyEvent.isController() = KeyEvent.isGamepadButton(keyCode) ||
     isFromSource(InputDevice.SOURCE_DPAD) || isFromSource(InputDevice.SOURCE_GAMEPAD) ||

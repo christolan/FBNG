@@ -8,9 +8,7 @@ import android.view.MotionEvent
 import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.game.GamepadBridge
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -29,11 +27,6 @@ class GamepadInputTest {
     private val shell = Any()
     private val dialog = Any()
     private val delivered = mutableListOf<Pair<Int, Int>>()
-
-    @Before
-    fun resetSettings() {
-        input.resetSettings()
-    }
 
     @Test
     fun heldConfirmCannotActivateAnotherWindowOrSurface() {
@@ -73,33 +66,28 @@ class GamepadInputTest {
     }
 
     @Test
-    fun onlyFreshConfiguredPausePressTogglesInActivity() {
+    fun onlyFreshMenuOrModePressTogglesPauseInActivity() {
         var toggles = 0
         bridge.onPauseToggle = { toggles++ }
-        assertTrue(canBindPauseKey(KeyEvent.KEYCODE_BUTTON_THUMBR))
-        assertFalse(canBindPauseKey(KeyEvent.KEYCODE_BUTTON_START))
-        input.bindPauseKey(KeyEvent.KEYCODE_BUTTON_THUMBR)
-        sendKey(100, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_MODE, shell)
-        sendKey(100, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_MODE, shell)
-        sendKey(200, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_THUMBR, dialog)
-        sendKey(200, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_THUMBR, dialog)
-        sendKey(300, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_THUMBR, shell)
+        sendKey(100, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_THUMBR, shell)
+        sendKey(100, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_THUMBR, shell)
+        sendKey(200, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_MODE, dialog)
+        sendKey(200, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_MODE, dialog)
+        sendKey(300, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_MODE, shell)
         assertEquals(0, toggles)
-        sendKey(400, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_THUMBR, shell)
-        sendKey(400, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_THUMBR, shell)
-        assertEquals(1, toggles)
+
+        sendKey(400, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_MODE, shell)
+        sendKey(400, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_MODE, shell)
+        sendKey(500, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MENU, shell)
+        sendKey(500, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MENU, shell)
+        assertEquals(2, toggles)
     }
 
     @Test
-    fun menuLayoutPersistsAndMapsBothEdges() {
-        input.changeConfirmLayout(true)
-        assertTrue(GamepadInput(context, bridge).swapped)
+    fun menuButtonsDeliverBothEdges() {
         sendKey(100, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BUTTON_B, dialog)
         sendKey(100, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BUTTON_B, dialog)
-        assertEquals(step(KeyEvent.KEYCODE_BUTTON_A), delivered)
-        input.resetSettings()
-        assertFalse(GamepadInput(context, bridge).swapped)
-        assertEquals(KeyEvent.KEYCODE_UNKNOWN, GamepadInput(context, bridge).pauseKey)
+        assertEquals(step(KeyEvent.KEYCODE_BUTTON_B), delivered)
     }
 
     @Test

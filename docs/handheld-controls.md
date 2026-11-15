@@ -1,17 +1,17 @@
 # 掌机手柄优化方案
 
-目标是用默认手柄配置走完「找游戏 → 开始 → 暂停 → 存读档 → 恢复或退出 → 回原卡片」。主设备是 Find N6，同时覆盖 Android 掌机内置手柄与 USB、蓝牙外接手柄。
+目标是用手柄走完「找游戏 → 开始 → 暂停 → 存读档 → 恢复或退出 → 回原卡片」。主设备是 Find N6，同时覆盖 Android 掌机内置手柄与 USB、蓝牙外接手柄。
 
 ## 调研
 
-- Switch 短按 HOME 挂起游戏并打开首页，长按进入快捷设置，B 可关闭快捷设置。Nintendo Classics 在游戏内暂停菜单集中存读档，入口随手柄类型变化。FBNG 参考暂停入口可配置、面板返回只退一层。 [Switch 硬件说明](https://www.nintendo.com/ph/hardware/detail/switch/index.html) · [快捷设置](https://en-americas-support.nintendo.com/app/answers/detail/a_id/22321/~/how-to-access/change-the-quick-settings) · [Nintendo Classics](https://en-americas-support.nintendo.com/app/answers/detail/a_id/41233/p/988/c/120)
+- Switch 短按 HOME 挂起游戏并打开首页，长按进入快捷设置，B 可关闭快捷设置。Nintendo Classics 在游戏内暂停菜单集中存读档，入口随手柄类型变化。FBNG 参考通过手柄键打开暂停页，以及面板返回只退一层。 [Switch 硬件说明](https://www.nintendo.com/ph/hardware/detail/switch/index.html) · [快捷设置](https://en-americas-support.nintendo.com/app/answers/detail/a_id/22321/~/how-to-access/change-the-quick-settings) · [Nintendo Classics](https://en-americas-support.nintendo.com/app/answers/detail/a_id/41233/p/988/c/120)
 - Steam Deck 的主菜单与 Quick Access 分工，电源键提供系统级挂起与恢复。Valve 要求默认配置覆盖全部操作，使用匹配当前设备的按键提示，并支持纯手柄文字输入。FBNG 参考默认配置可达、上下文提示和恢复原位置。 [Steam Deck 菜单](https://www.steamdeck.com/en/news/?p=46) · [挂起与恢复](https://www.steamdeck.com/en/hardware) · [兼容性要求](https://partner.steamgames.com/doc/steamhardware/compat)
 
 ## 交互与实施
 
 1. **输入、暂停与设备切换。** 主窗口和弹窗共用输入处理。壳层的十字键和左摇杆一次一格，合并同一次 D-pad 和 HAT 输入。游戏与菜单切换时释放核心输入并等待物理按键释放或摇杆回中。游戏运行中系统返回或可用的菜单键打开暂停，暂停页上的返回恢复游戏，显式退出才走自动存档退出。最上层弹窗优先处理返回。Android 分给 P1 的手柄断连时清输入并暂停，再由玩家选择恢复。暂停后异步获取存档预览。
 2. **搜索、焦点与存档。** 收藏和最近保留一键启动，游戏库保留详情和肩键翻页。游戏库支持 Y 打开搜索，「完成」聚焦结果，「返回」回搜索入口；空结果保留继续搜索或清空的操作。从详情、弹窗、游戏返回时，以来源和稳定 ID 恢复焦点，窗口变化时保留选项、页码和滚动位置。暂停默认聚焦恢复，返回存档弹窗的发起按钮。重新开始和清除全部存档分别操作，后者放在存档管理并单独确认。
-3. **手柄配置。** 设置提供按键检测、菜单确认／返回布局、暂停键配置和恢复默认。菜单配置独立于 RetroPad 游戏映射。按游戏重映射、投币／开始键和双人端口配置按具体游戏的实测需求另行决定。
+3. **固定按键。** 菜单用 A 确认、B 返回，游戏中用 Menu / Mode 打开暂停页。游戏操作沿用 RetroPad 映射。按游戏重映射、投币／开始键和双人端口配置按具体游戏的实测需求另行决定。
 
 界面沿用 [Islands 规则](ui-guidelines.md) 的电光蓝焦点描边、字号、圆角和间距。按键提示贴近操作。暂停页挂在当前游戏会话上，游戏画面区域保持沉浸。Android 后台保存与进程重建按现有存档契约处理。
 
