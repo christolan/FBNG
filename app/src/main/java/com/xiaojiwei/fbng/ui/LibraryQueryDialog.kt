@@ -100,12 +100,10 @@ internal fun LibraryQueryDialog(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    ShellHeaderButton(modifier = target("backspace"), onClick = { onQuery(query.dropLast(1)) }, enabled = query.isNotEmpty()) {
-                        Text(stringResource(R.string.library_query_backspace), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    QueryEditButton(R.string.library_query_backspace, target("backspace"), query.isNotEmpty()) {
+                        onQuery(query.dropLast(1))
                     }
-                    ShellHeaderButton(modifier = target("clear"), onClick = { onQuery("") }, enabled = query.isNotEmpty()) {
-                        Text(stringResource(R.string.library_query_clear), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                    }
+                    QueryEditButton(R.string.library_query_clear, target("clear"), query.isNotEmpty()) { onQuery("") }
                     FbngButton(
                         onClick = onDone,
                         modifier = target("done").height(FbngDimens.buttonHeight),
@@ -146,6 +144,19 @@ internal fun LibraryQueryDialog(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun QueryEditButton(label: Int, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
+    FbngButton(
+        onClick = onClick,
+        modifier = modifier.height(FbngDimens.buttonHeight),
+        enabled = enabled,
+        kind = FbngButtonKind.Toolbar,
+        contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+    ) {
+        Text(stringResource(label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
 }
 

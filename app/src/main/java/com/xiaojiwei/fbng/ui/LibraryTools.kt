@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +39,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
@@ -50,7 +50,6 @@ internal fun LibraryFilters(
     query: String,
     playableOnly: Boolean,
     wide: Boolean,
-    compactWidth: Dp,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     onOpenLetters: () -> Unit,
@@ -60,13 +59,11 @@ internal fun LibraryFilters(
     val searchLabel = stringResource(R.string.library_search_shortcut, letters)
     val status = stringResource(filterLabel(playableOnly))
     val statusFilter = stringResource(R.string.library_filter_title)
-    val scheme = MaterialTheme.colorScheme
-    val statusColor = if (playableOnly) scheme.secondary else scheme.onSurface
     ShellHeaderButton(
         onClick = onOpenLetters,
         selected = query.isNotEmpty(),
         modifier = Modifier
-            .width(if (wide) FbngDimens.libraryLetterFilterWidth else compactWidth)
+            .width(if (wide) FbngDimens.libraryLetterFilterWidth else FbngDimens.buttonHeight)
             .libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused)
             .semantics {
                 contentDescription = searchLabel
@@ -84,7 +81,7 @@ internal fun LibraryFilters(
         onClick = onOpenFilter,
         selected = playableOnly,
         modifier = Modifier
-            .width(if (wide) FbngDimens.libraryStatusFilterWidth else compactWidth)
+            .width(if (wide) FbngDimens.libraryStatusFilterWidth else FbngDimens.buttonHeight)
             .libraryFocus(ShellTags.LibraryFilter, requesters.getValue(ShellTags.LibraryFilter), onFocused)
             .semantics {
                 contentDescription = statusFilter
@@ -99,6 +96,7 @@ internal fun LibraryFilters(
                 overflow = TextOverflow.Ellipsis,
             )
         } else {
+            val statusColor = LocalContentColor.current
             Canvas(Modifier.size(FbngDimens.icon)) {
                 val stroke = size.minDimension / 10
                 drawLine(statusColor, Offset(size.width * .15f, size.height * .24f),

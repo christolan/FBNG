@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Badge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +37,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -45,8 +48,12 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.constrainHeight
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngButton
@@ -69,6 +76,7 @@ internal enum class ShellSection {
 
 internal object ShellTags {
     const val Header = "shell-header"
+    const val HeaderTitle = "shell-header-title"
     private const val GamePrefix = "shell-game-"
     private const val FavoritePrefix = "shell-favorite-game-"
     const val Play = "shell-play"
@@ -139,29 +147,77 @@ internal fun ShellPage(
         Modifier.fillMaxSize().padding(margin),
         verticalArrangement = Arrangement.spacedBy(contentGap),
     ) {
-        BoxWithConstraints(
-            Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight)
-                .testTag(ShellTags.Header).fbngIsland()
-                .padding(horizontal = FbngDimens.space12),
-        ) {
-            val width = maxWidth
-            Row(
-                Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                leadingAction?.invoke()
-                Text(
-                    title,
-                    modifier = Modifier.weight(1f).semantics { heading() },
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                headerAction?.invoke(width)
+        ShellHeader(title, leadingAction, headerAction)
+        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+    }
+}
+
+@Composable
+private fun ShellHeader(
+    title: String,
+    leadingAction: (@Composable () -> Unit)?,
+    actions: (@Composable (Dp) -> Unit)?,
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth().testTag(ShellTags.Header)) {
+        val width = maxWidth
+        Layout(
+            contents = listOf(
+                {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        leadingAction?.invoke()
+                        Box(
+                            Modifier.weight(1f).widthIn(min = FbngDimens.shellHeaderTitleMinWidth)
+                                .height(FbngDimens.shellHeaderHeight).testTag(ShellTags.HeaderTitle)
+                                .fbngIsland().padding(horizontal = FbngDimens.space8),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            Text(
+                                title,
+                                modifier = Modifier.semantics { heading() },
+                                style = MaterialTheme.typography.headlineSmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                },
+                { actions?.invoke(width) },
+            ),
+        ) { (heading, controls), constraints ->
+            val rowWidth = constraints.maxWidth
+            val rowHeight = FbngDimens.shellHeaderHeight.roundToPx()
+            val gap = FbngDimens.space8.roundToPx()
+            val titleRow = heading.single()
+            val controlWidths = controls.map { it.maxIntrinsicWidth(rowHeight).coerceAtMost(rowWidth) }
+            val controlsWidth = controlWidths.sum() + gap * (controls.size - 1).coerceAtLeast(0)
+            val wrap = controls.isNotEmpty() && titleRow.maxIntrinsicWidth(rowHeight) + gap + controlsWidth > rowWidth
+            val titleWidth = if (wrap || controls.isEmpty()) rowWidth else rowWidth - controlsWidth - gap
+            val placedTitle = titleRow.measure(Constraints.fixed(titleWidth, rowHeight))
+
+            // Reposition the existing controls on resize so their focus targets stay attached.
+            var extraWidth = if (wrap) (rowWidth - controlsWidth).coerceAtLeast(0) else 0
+            var x = if (wrap) 0 else titleWidth + gap
+            var y = if (wrap) rowHeight + gap else 0
+            val placedControls = controls.mapIndexed { index, control ->
+                val extra = extraWidth / (controls.size - index)
+                extraWidth -= extra
+                val controlWidth = controlWidths[index] + extra
+                if (wrap && x > 0 && x + controlWidth > rowWidth) {
+                    x = 0
+                    y += rowHeight + gap
+                }
+                val position = IntOffset(x, y)
+                x += controlWidth + gap
+                control.measure(Constraints.fixed(controlWidth, rowHeight)) to position
+            }
+            layout(rowWidth, constraints.constrainHeight(y + rowHeight)) {
+                placedTitle.placeRelative(0, 0)
+                placedControls.forEach { (control, position) -> control.placeRelative(position.x, position.y) }
             }
         }
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
     }
 }
 
@@ -175,9 +231,9 @@ internal fun ShellHeaderButton(
 ) {
     FbngButton(
         onClick = onClick,
-        modifier = modifier.height(FbngDimens.buttonHeight),
+        modifier = modifier.height(FbngDimens.shellHeaderHeight),
         enabled = enabled,
-        kind = FbngButtonKind.Toolbar,
+        kind = FbngButtonKind.Island,
         contentPadding = PaddingValues(horizontal = FbngDimens.space4),
         selected = selected,
         content = content,
@@ -194,44 +250,51 @@ internal fun ShellPagination(
     onFocused: (String) -> Unit,
     onPage: (Int) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-        verticalAlignment = Alignment.CenterVertically,
+    val previous = stringResource(R.string.library_previous_page)
+    val next = stringResource(R.string.library_next_page)
+    ShellHeaderButton(
+        onClick = { onPage(pageIndex - 1) },
+        enabled = !busy && pageIndex > 0,
+        modifier = Modifier
+            .width(buttonWidth)
+            .libraryFocus(ShellTags.PreviousPage, requesters.getValue(ShellTags.PreviousPage), onFocused)
+            .semantics { contentDescription = previous },
+    ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
+
+    val number = if (pages == 0) 0 else pageIndex + 1
+    val pageDescription = stringResource(R.string.library_page_number, number, pages)
+    val pageStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
+    val widestPage = stringResource(R.string.library_page_short, pages, pages)
+    val widthPixels = rememberTextMeasurer().measure(widestPage, pageStyle).size.width
+    val pageWidth = with(LocalDensity.current) { widthPixels.toDp() } + FbngDimens.space8
+    Box(
+        Modifier.widthIn(min = maxOf(FbngDimens.shellHeaderHeight, pageWidth))
+            .height(FbngDimens.shellHeaderHeight).fbngIsland()
+            .clearAndSetSemantics { contentDescription = pageDescription }
+            .padding(horizontal = FbngDimens.space4),
+        contentAlignment = Alignment.Center,
     ) {
-        val previous = stringResource(R.string.library_previous_page)
-        val next = stringResource(R.string.library_next_page)
-        ShellHeaderButton(
-            onClick = { onPage(pageIndex - 1) },
-            enabled = !busy && pageIndex > 0,
-            modifier = Modifier
-                .width(buttonWidth)
-                .libraryFocus(ShellTags.PreviousPage, requesters.getValue(ShellTags.PreviousPage), onFocused)
-                .semantics { contentDescription = previous },
-        ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
-        val number = if (pages == 0) 0 else pageIndex + 1
-        val pageDescription = stringResource(R.string.library_page_number, number, pages)
         Text(
             stringResource(R.string.library_page_short, number, pages),
-            modifier = Modifier.clearAndSetSemantics { contentDescription = pageDescription },
-            style = MaterialTheme.typography.labelLarge,
+            style = pageStyle,
             maxLines = 1,
         )
-        ShellHeaderButton(
-            onClick = { onPage(pageIndex + 1) },
-            enabled = !busy && pageIndex + 1 < pages,
-            modifier = Modifier
-                .width(buttonWidth)
-                .libraryFocus(ShellTags.NextPage, requesters.getValue(ShellTags.NextPage), onFocused)
-                .semantics { contentDescription = next },
-        ) { Text("›", style = MaterialTheme.typography.titleMedium) }
     }
+    ShellHeaderButton(
+        onClick = { onPage(pageIndex + 1) },
+        enabled = !busy && pageIndex + 1 < pages,
+        modifier = Modifier
+            .width(buttonWidth)
+            .libraryFocus(ShellTags.NextPage, requesters.getValue(ShellTags.NextPage), onFocused)
+            .semantics { contentDescription = next },
+    ) { Text("›", style = MaterialTheme.typography.titleMedium) }
 }
 
 @Composable
 internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier, enabled: Boolean = true) {
     ShellHeaderButton(
         onClick = onClick,
-        modifier = modifier.width(FbngDimens.buttonHeight).semantics { contentDescription = label },
+        modifier = modifier.width(FbngDimens.shellHeaderHeight).semantics { contentDescription = label },
         enabled = enabled,
     ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
 }

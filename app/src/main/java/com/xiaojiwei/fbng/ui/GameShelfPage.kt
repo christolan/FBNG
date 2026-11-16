@@ -53,11 +53,8 @@ internal fun GameShelfPage(
     ShellPage(
         title = stringResource(if (recent) R.string.recent_title else R.string.favorites_title),
         margin = margin,
-        headerAction = { width ->
-            val buttonWidth = if (width < FbngDimens.libraryHeaderNarrow) {
-                FbngDimens.libraryHeaderNarrowButton
-            } else FbngDimens.buttonHeight
-            ShellPagination(pageIndex, pages, buttonWidth, false, requesters, onPageControlFocused, onPage)
+        headerAction = {
+            ShellPagination(pageIndex, pages, FbngDimens.shellHeaderHeight, false, requesters, onPageControlFocused, onPage)
         },
     ) {
         Column(

@@ -21,12 +21,11 @@ internal object FbngDimens {
 
     val buttonHeight = space48
     val shellHeaderHeight = buttonHeight + space8
+    val shellHeaderTitleMinWidth = space48 + space32 + space8
     val shortShellHeight = space48 * 8
     val icon = space24
     val detailCoverWidth = space48 * 5
     val libraryHeaderWide = space48 * 12
-    val libraryHeaderNarrow = space48 * 7
-    val libraryHeaderNarrowButton = space32 + space8
     val libraryLetterFilterWidth = space48 * 3
     val libraryStatusFilterWidth = space48 * 2 + space16
     val libraryToolbarBreakpoint = space48 * 13

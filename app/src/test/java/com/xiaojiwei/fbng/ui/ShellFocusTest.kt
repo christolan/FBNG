@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotSelected
@@ -345,6 +346,10 @@ class ShellFocusTest {
         }
         val header = rule.onNodeWithTag(ShellTags.Header)
         val headerBounds = header.getUnclippedBoundsInRoot()
+        val titleIsland = rule.onNodeWithTag(ShellTags.HeaderTitle).getUnclippedBoundsInRoot()
+        val letters = rule.onNodeWithTag(ShellTags.JumpToLetter).getUnclippedBoundsInRoot()
+        assertEquals(titleIsland.top, letters.top)
+        assertEquals(8.dp, letters.left - titleIsland.right)
         val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
         val cardBounds = games.map { game ->
             rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
@@ -369,7 +374,7 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w320dp-h360dp-mdpi")
-    fun compactTabsAndSubpagesUseTheSameHeaderBounds() {
+    fun narrowLibraryWrapsControlsAndBackButtonsSitBesideTheTitle() {
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -384,26 +389,51 @@ class ShellFocusTest {
         }
         val header = rule.onNodeWithTag(ShellTags.Header)
         val initial = header.getUnclippedBoundsInRoot()
+        val title = rule.onNodeWithTag(ShellTags.HeaderTitle)
+        val shelfTitle = title.getUnclippedBoundsInRoot()
+        val previous = rule.onNodeWithTag(ShellTags.PreviousPage)
+        val shelfPrevious = previous.getUnclippedBoundsInRoot()
+        assertEquals(shelfTitle.top, shelfPrevious.top)
+        assertEquals(8.dp, shelfPrevious.left - shelfTitle.right)
         rule.onNodeWithTag(ShellTags.NavRecent).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.NavLibrary).performClick()
-        assertEquals(initial, header.getUnclippedBoundsInRoot())
+        val wrappedHeader = header.getUnclippedBoundsInRoot()
+        assertEquals(initial.copy(bottom = initial.bottom + 64.dp), wrappedHeader)
+        assertEquals(initial, title.getUnclippedBoundsInRoot())
         rule.onNode(hasText("游戏库") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)).assertIsDisplayed()
-        listOf(ShellTags.JumpToLetter, ShellTags.LibraryFilter, ShellTags.PreviousPage, ShellTags.NextPage).forEach { tag ->
-            val control = rule.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
-            assertTrue(control.left >= initial.left && control.right <= initial.right)
-            assertTrue(control.top >= initial.top && control.bottom <= initial.bottom)
+        val letter = rule.onNodeWithTag(ShellTags.JumpToLetter)
+        val status = rule.onNodeWithTag(ShellTags.LibraryFilter)
+        val page = rule.onNodeWithContentDescription("第 1 / 1 页").assertHasNoClickAction()
+        val next = rule.onNodeWithTag(ShellTags.NextPage)
+        val controls = listOf(letter, status, previous, page, next)
+            .map { it.assertIsDisplayed().getUnclippedBoundsInRoot() }
+        assertEquals(initial.left, controls.first().left)
+        assertEquals(initial.right, controls.last().right)
+        controls.forEach { bounds ->
+            assertEquals(8.dp, bounds.top - initial.bottom)
+            assertEquals(wrappedHeader.bottom, bounds.bottom)
+            assertTrue(bounds.right - bounds.left >= 48.dp)
         }
+        controls.zipWithNext().forEach { (left, right) ->
+            assertEquals(8.dp, right.left - left.right)
+        }
+        letter.requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
+        status.assertIsFocused()
         rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.game("galaga")).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.NavSettings).assertDoesNotExist()
-        rule.onNodeWithTag(ShellTags.DetailBack).performClick()
+        val detailBack = rule.onNodeWithTag(ShellTags.DetailBack)
+        assertEquals(8.dp, title.getUnclippedBoundsInRoot().left - detailBack.getUnclippedBoundsInRoot().right)
+        detailBack.performClick()
         rule.onNodeWithTag(ShellTags.NavSettings).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.OpenImport).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
-        rule.onNodeWithTag(ShellTags.SettingsBack).performClick()
+        val settingsBack = rule.onNodeWithTag(ShellTags.SettingsBack)
+        assertEquals(8.dp, title.getUnclippedBoundsInRoot().left - settingsBack.getUnclippedBoundsInRoot().right)
+        settingsBack.performClick()
         rule.onNodeWithTag(ShellTags.OpenSync).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
     }

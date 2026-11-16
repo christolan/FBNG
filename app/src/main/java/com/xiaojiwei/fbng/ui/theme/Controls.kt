@@ -25,6 +25,8 @@ enum class FbngButtonKind {
     Neutral,
 
     Toolbar,
+
+    Island,
 }
 
 @Composable
@@ -40,6 +42,7 @@ fun FbngButton(
 ) {
     val scheme = MaterialTheme.colorScheme
     val container = when {
+        kind == FbngButtonKind.Island -> scheme.surfaceContainerHigh
         !enabled -> scheme.surfaceContainerHighest
         selected -> scheme.secondaryContainer
         kind == FbngButtonKind.Filled -> scheme.primary
@@ -53,6 +56,7 @@ fun FbngButton(
     }
     val focused = if (kind == FbngButtonKind.Filled && !selected) scheme.onPrimary else scheme.primary
     val contentColor = when {
+        !enabled && kind == FbngButtonKind.Island -> scheme.onSurfaceVariant.copy(alpha = 0.4f)
         !enabled -> scheme.onSurfaceVariant
         selected -> scheme.secondary
         kind == FbngButtonKind.Filled -> scheme.onPrimary

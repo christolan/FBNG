@@ -75,15 +75,12 @@ internal fun GameLibraryPage(
         contentGap = if (compactBottomBar) FbngDimens.space4 else FbngDimens.space12,
         headerAction = { width ->
             val labelWidth = with(LocalDensity.current) { MaterialTheme.typography.labelLarge.fontSize.toDp() } * 4
-            val buttonWidth = if (width < FbngDimens.libraryHeaderNarrow) {
-                FbngDimens.libraryHeaderNarrowButton
-            } else FbngDimens.buttonHeight
+            val wideHeader = width >= FbngDimens.libraryHeaderWide
+            val buttonWidth = if (wideHeader) FbngDimens.shellHeaderHeight else FbngDimens.buttonHeight
             LibraryFilters(
                 query = query,
                 playableOnly = playableOnly,
-                wide = width >= FbngDimens.libraryHeaderWide &&
-                    labelWidth + FbngDimens.space8 <= FbngDimens.libraryStatusFilterWidth,
-                compactWidth = buttonWidth,
+                wide = wideHeader && labelWidth + FbngDimens.space8 <= FbngDimens.libraryStatusFilterWidth,
                 requesters = requesters,
                 onFocused = onFocused,
                 onOpenLetters = onOpenLetters,

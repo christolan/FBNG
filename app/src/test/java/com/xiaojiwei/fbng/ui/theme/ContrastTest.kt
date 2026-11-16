@@ -169,6 +169,8 @@ class ContrastTest {
         assertRatio("primary/background", FbngPalette.primary, FbngPalette.background, 3.0)
         assertRatio("primary/surface", FbngPalette.primary, FbngPalette.surface, 3.0)
         assertRatio("primary/surfaceVariant (neutral and outline focus)", FbngPalette.primary, FbngPalette.surfaceVariant, 3.0)
+        assertRatio("primary/surfaceContainerHigh (header focus)", FbngPalette.primary, FbngPalette.surfaceContainerHigh, 3.0)
+        assertRatio("secondary/surfaceContainerHigh (active filters)", FbngPalette.secondary, FbngPalette.surfaceContainerHigh, 4.5)
         // Linear progress: primary indicator on the secondaryContainer track.
         assertRatio(
             "primary/secondaryContainer",
