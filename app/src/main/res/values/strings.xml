@@ -34,6 +34,7 @@
     <string name="library_query_backspace">退格</string>
     <string name="library_query_clear">清空</string>
     <string name="library_query_done">完成</string>
+    <string name="library_query_hint">完成后开始筛选</string>
     <string name="library_close_picker">关闭面板</string>
     <string name="library_previous_page">上一页</string>
     <string name="library_next_page">下一页</string>

@@ -32,7 +32,6 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
@@ -50,11 +49,10 @@ private const val QueryCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 @Composable
 internal fun LibraryQueryDialog(
     query: String,
-    resultCount: Int,
-    onQuery: (String) -> Unit,
+    onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
-    onDone: () -> Unit = onDismiss,
 ) {
+    var draft by rememberSaveable(query) { mutableStateOf(query) }
     val requesters = remember {
         (QueryCharacters.map(Char::toString) + listOf("backspace", "clear", "done"))
             .associateWith { FocusRequester() }
@@ -87,27 +85,27 @@ internal fun LibraryQueryDialog(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            query.ifEmpty { title },
+                            draft.ifEmpty { title },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            pluralStringResource(R.plurals.library_game_count, resultCount, resultCount),
+                            stringResource(R.string.library_query_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    QueryEditButton(R.string.library_query_backspace, target("backspace"), query.isNotEmpty()) {
-                        onQuery(query.dropLast(1))
+                    QueryEditButton(R.string.library_query_backspace, target("backspace"), draft.isNotEmpty()) {
+                        draft = draft.dropLast(1)
                     }
-                    QueryEditButton(R.string.library_query_clear, target("clear"), query.isNotEmpty()) { onQuery("") }
+                    QueryEditButton(R.string.library_query_clear, target("clear"), draft.isNotEmpty()) { draft = "" }
                     FbngButton(
-                        onClick = onDone,
+                        onClick = { onConfirm(draft) },
                         modifier = target("done").height(FbngDimens.buttonHeight),
-                        contentPadding = PaddingValues(horizontal = FbngDimens.space8),
+                        contentPadding = PaddingValues(horizontal = FbngDimens.space16),
                     ) {
                         Text(stringResource(R.string.library_query_done), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
@@ -118,7 +116,7 @@ internal fun LibraryQueryDialog(
                     val rows = keyboardRows(maxWidth, maxHeight, gap, preferredSize)
                     val columns = keyboardColumns(rows)
                     val height = ((maxHeight - gap * (rows - 1)) / rows).coerceIn(Dp.Hairline, preferredSize)
-                    LaunchedEffect(columns, rows, query.isEmpty()) {
+                    LaunchedEffect(columns, rows, draft.isEmpty()) {
                         val preferred = focused
                         withFrameNanos { }
                         if (!requesters.getValue(preferred).requestFocus()) requesters.getValue("A").requestFocus()
@@ -128,7 +126,7 @@ internal fun LibraryQueryDialog(
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                                 row.forEach { character ->
                                     FbngButton(
-                                        onClick = { onQuery(query + character) },
+                                        onClick = { draft += character },
                                         modifier = target(character.toString()).weight(1f).height(height)
                                             .testTag(ShellTags.letter(character)),
                                         kind = FbngButtonKind.Neutral,
@@ -154,7 +152,7 @@ private fun QueryEditButton(label: Int, modifier: Modifier, enabled: Boolean, on
         modifier = modifier.height(FbngDimens.buttonHeight),
         enabled = enabled,
         kind = FbngButtonKind.Toolbar,
-        contentPadding = PaddingValues(horizontal = FbngDimens.space4),
+        contentPadding = PaddingValues(horizontal = FbngDimens.space16),
     ) {
         Text(stringResource(label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }

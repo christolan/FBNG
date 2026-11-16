@@ -460,13 +460,28 @@ class ShellFocusTest {
             rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
         }
         listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        val panel = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))
+            .getUnclippedBoundsInRoot()
+        assertEquals(624.dp, panel.right - panel.left)
+        val firstRow = rule.onNodeWithTag(ShellTags.letter('A')).getUnclippedBoundsInRoot()
+        val secondRow = rule.onNodeWithTag(ShellTags.letter('K')).getUnclippedBoundsInRoot()
+        val thirdRow = rule.onNodeWithTag(ShellTags.letter('U')).getUnclippedBoundsInRoot()
+        val fourthRow = rule.onNodeWithTag(ShellTags.letter('4')).getUnclippedBoundsInRoot()
+        assertTrue(firstRow.top < secondRow.top && secondRow.top < thirdRow.top && thirdRow.top < fourthRow.top)
         rule.onNodeWithTag(ShellTags.letter('Q')).performTouchInput { click() }
-        rule.onNodeWithText("0 款游戏").assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.letter('A')).performKeyInput { pressKey(Key.ButtonB) }
+        filter.assertIsFocused().performClick()
+        rule.onNodeWithText("字母筛选").assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.letter('Q')).performClick()
+        rule.onNodeWithText("完成").performClick()
+        rule.onNodeWithTag(ShellTags.EditSearch).assertIsFocused().performClick()
         rule.onNodeWithText("清空").performClick()
         rule.onNodeWithTag(ShellTags.letter('M')).performClick()
         rule.onNodeWithTag(ShellTags.letter('S')).performClick()
-        rule.onNodeWithTag(ShellTags.letter('A')).performKeyInput { pressKey(Key.ButtonB) }
-        filter.assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertDoesNotExist()
+        rule.onNodeWithText("完成").performClick()
+        rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.game("galaga")).assertDoesNotExist()
     }
@@ -476,7 +491,7 @@ class ShellFocusTest {
     fun letterPickerKeepsItsSideMarginsAndAllKeysInACompactWindow() {
         rule.setContent {
             FbngTheme {
-                LibraryQueryDialog(query = "", resultCount = 2, onQuery = {}, onDismiss = {})
+                LibraryQueryDialog(query = "", onConfirm = {}, onDismiss = {})
             }
         }
         val panel = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))

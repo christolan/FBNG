@@ -43,7 +43,7 @@ internal object FbngDimens {
     val railWidthExpanded = space48 * 2
 
     val libraryPickerWidth = space48 * 9
-    val libraryKeyboardWidth = space48 * 18
+    val libraryKeyboardWidth = space48 * 13
 }
 
 internal enum class CornerRadiusOption(val radius: Dp) {

@@ -363,13 +363,17 @@ private fun LibraryShell(
         fun closePicker(showResults: Boolean = false) {
             libraryFocus = when (picker) {
                 LibraryPicker.Letters -> if (showResults) {
-                    pageEntries.firstOrNull()?.game?.name?.let(ShellTags::game)
-                        ?: if (entries.isEmpty()) ShellTags.EmptyImport else ShellTags.EditSearch
+                    // Let the focus effect choose from the newly confirmed results.
+                    ""
                 } else ShellTags.JumpToLetter
                 LibraryPicker.Status, null -> ShellTags.LibraryFilter
             }
             picker = null
-            restoreFocus(libraryFocus)
+            if (showResults) {
+                restoreTarget = null
+                navFocus = null
+                focusRequest++
+            } else restoreFocus(libraryFocus)
         }
 
         fun showPicker(target: LibraryPicker) {
@@ -385,10 +389,13 @@ private fun LibraryShell(
             {
                 LibraryQueryDialog(
                     query = searchQuery,
-                    resultCount = results.entries.size,
-                    onQuery = { searchQuery = it; libraryPage = 0; selectedName = null },
+                    onConfirm = {
+                        searchQuery = it
+                        libraryPage = 0
+                        selectedName = null
+                        closePicker(showResults = true)
+                    },
                     onDismiss = { closePicker() },
-                    onDone = { closePicker(showResults = true) },
                 )
             }
         } else null
@@ -484,6 +491,7 @@ private fun LibraryShell(
                         libraryFocus,
                         card,
                         ShellTags.EmptyImport,
+                        ShellTags.EditSearch,
                         ShellTags.JumpToLetter,
                         ShellTags.LibraryFilter,
                     )
