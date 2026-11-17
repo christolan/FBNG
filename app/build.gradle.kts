@@ -119,8 +119,8 @@ android {
         applicationId = "com.xiaojiwei.fbng"
         minSdk = 33
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.9.0"
+        versionCode = 25
+        versionName = "0.9.1"
         ndk {
             abiFilters += "arm64-v8a"
         }

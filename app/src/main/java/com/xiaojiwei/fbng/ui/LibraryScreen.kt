@@ -196,7 +196,8 @@ private fun LibraryShell(
     var focusRequest by remember { mutableStateOf(0) }
     var restoreTarget by remember { mutableStateOf<String?>(null) }
     var libraryPage by rememberSaveable { mutableStateOf(0) }
-    val libraryPageSize = LibraryPageSize
+    var libraryRows by rememberSaveable { mutableStateOf(MaxLibraryRows) }
+    val libraryPageSize = LibraryColumns * libraryRows
     val cardRequesters = remember { mutableMapOf<String, FocusRequester>() }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val section = ShellSection.valueOf(sectionName)
@@ -300,8 +301,12 @@ private fun LibraryShell(
         val savedGameIndex = remember(results, focusedGameName) {
             if (focusedGameName == null) -1 else results.entries.indexOfFirst { it.game.name == focusedGameName }
         }
+        val selectedGameIndex = remember(results, selectedName) {
+            if (selectedName == null) -1 else results.entries.indexOfFirst { it.game.name == selectedName }
+        }
         val useGamePage = section == ShellSection.Library && !pickerOpen && !showDetails && savedGameIndex >= 0
-        val lastPage = ((results.entries.size - 1) / libraryPageSize).coerceAtLeast(0)
+        val pageCount = (results.entries.size + libraryPageSize - 1) / libraryPageSize
+        val lastPage = (pageCount - 1).coerceAtLeast(0)
         val currentPage = if (useGamePage) savedGameIndex / libraryPageSize else libraryPage.coerceIn(0, lastPage)
         val pageEntries = results.entries.drop(currentPage * libraryPageSize).take(libraryPageSize)
         LaunchedEffect(useGamePage, currentPage) {
@@ -586,7 +591,7 @@ private fun LibraryShell(
                         },
                     )
                     ShellSection.Library -> GameLibraryPage(
-                        results = results,
+                        games = pageEntries,
                         totalGames = entries.size,
                         playableOnly = playableOnly,
                         emptyMessage = if (playableOnly && matchingEntries.isNotEmpty()) {
@@ -595,6 +600,13 @@ private fun LibraryShell(
                             R.string.search_empty
                         },
                         pageIndex = currentPage,
+                        pages = pageCount,
+                        rows = libraryRows,
+                        onRows = { rows ->
+                            val anchor = selectedGameIndex.takeIf { it >= 0 } ?: currentPage * libraryPageSize
+                            libraryPage = anchor / (LibraryColumns * rows)
+                            libraryRows = rows
+                        },
                         onPage = ::changePage,
                         cardRequesters = cardRequesters,
                         wide = rail,

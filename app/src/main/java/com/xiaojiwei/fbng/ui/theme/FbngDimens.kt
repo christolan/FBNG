@@ -25,9 +25,13 @@ internal object FbngDimens {
     val shortShellHeight = space48 * 8
     val icon = space24
     val detailCoverWidth = space48 * 5
+    val progressSidebarMinWidth = space48 * 3
+    val progressCardMetadataHeight = space48 * 3
+    val progressPreviewMaxHeight = space48 * 3
     val libraryHeaderWide = space48 * 12
     val libraryLetterFilterWidth = space48 * 3
     val libraryStatusFilterWidth = space48 * 2 + space16
+    val libraryCardWithFileMinWidth = space48 * 6
     val libraryToolbarBreakpoint = space48 * 13
     val hudActionWidth = space48 + space24
     val hudActionsWidth = space48 * 12

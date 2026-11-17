@@ -1,6 +1,6 @@
 # FBNG 项目文档
 
-FBNG（FBNeo Next Generation）是自用 Android 街机前端。项目只适配横屏，以手柄操作为主，主设备是 OPPO Find N6。APP 启动后固定横屏，不随设备转动切换为竖屏。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页显示「即将推出」，现阶段仅支持 FBNeo 街机核心。
+FBNG（FBNeo Next Generation）是自用 Android 街机前端。RP6 掌机是项目唯一的设备适配和真机验收目标。应用从启动起固定横屏，以内置手柄操作为主。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页显示「即将推出」，现阶段仅支持 FBNeo 街机核心。
 
 ## 现行说明
 
@@ -9,7 +9,7 @@ FBNG（FBNeo Next Generation）是自用 Android 街机前端。项目只适配�
 | [横屏游戏页：槽位与快照](game-page-slots-snapshots.md) | 3 个固定槽位、独立快照、暂停时应用与删除进度，含设计参考稿 |
 | [使用说明](usage.md) | 导入目录、浏览与筛选、游戏封面、暂停、存读档和手柄操作 |
 | [架构与数据](architecture.md) | 代码入口、扫描与启动流程、存储位置、封面下载和应用更新 |
-| [Islands 界面与交互规则](ui-guidelines.md) | 设计 token、页面布局、手柄焦点、折叠适配和 UI 改动要求 |
+| [Islands 界面与交互规则](ui-guidelines.md) | 设计 token、横屏布局、手柄焦点和 UI 改动要求 |
 | [掌机手柄优化方案](handheld-controls.md) | Switch 与 Steam Deck 调研、FBNG 交互契约、实施范围和验收矩阵 |
 | [固定的 FBNeo 核心与资源](fbneo-core.md) | 核心与 DAT 的来源、版本、校验、加载方式和许可 |
 | [构建、测试与发布](build-release.md) | SDK 与 JDK、Debug、签名 Release、验签、GitHub Actions 和应用更新约定 |

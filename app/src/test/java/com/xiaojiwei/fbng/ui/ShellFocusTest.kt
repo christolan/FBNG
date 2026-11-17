@@ -340,19 +340,22 @@ class ShellFocusTest {
     }
 
     @Test
-    @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
-    fun shortLibraryFitsTenCardsWithoutScrollingAndKeepsDetailsFocus() {
+    @Config(sdk = [33], qualifiers = "w540dp-h480dp-land-mdpi")
+    fun shortLibraryPaginatesWithReadableCardsAndKeepsDetailsFocus() {
         val games = (1..10).map { LibraryGame("game$it", "Game $it") }
+        var height by mutableStateOf(320.dp)
         rule.setContent {
             FbngTheme {
-                LibraryContent(
-                    load = readyCatalog(),
-                    snapshot = LibrarySnapshot(games),
-                    busy = false,
-                    readFold = { null },
-                    onPlay = { _, _ -> },
-                    initialSection = ShellSection.Library,
-                )
+                Box(Modifier.height(height)) {
+                    LibraryContent(
+                        load = readyCatalog(),
+                        snapshot = LibrarySnapshot(games),
+                        busy = false,
+                        readFold = { null },
+                        onPlay = { _, _ -> },
+                        initialSection = ShellSection.Library,
+                    )
+                }
             }
         }
         val header = rule.onNodeWithTag(ShellTags.Header)
@@ -362,26 +365,32 @@ class ShellFocusTest {
         assertEquals(titleIsland.top, letters.top)
         assertEquals(8.dp, letters.left - titleIsland.right)
         val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
-        val cardBounds = games.map { game ->
+        val cardBounds = games.take(6).map { game ->
             rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
         }
         assertTrue(cardBounds.all { it.top >= headerBounds.bottom && it.bottom <= nav.top })
+        assertTrue(cardBounds.all { it.bottom - it.top >= 48.dp })
+        rule.onNodeWithTag(ShellTags.game(games[6].name)).assertDoesNotExist()
+        rule.onNodeWithContentDescription("第 1 / 2 页").assertIsDisplayed()
         rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)).assertDoesNotExist()
-        games.take(5).forEachIndexed { index, game ->
+        games.take(3).forEachIndexed { index, game ->
             val card = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsFocused().assertIsDisplayed()
-            val title = rule.onNodeWithText(game.description, useUnmergedTree = true)
-                .assertIsDisplayed().getUnclippedBoundsInRoot()
-            val file = rule.onNodeWithText("${game.name}.zip", useUnmergedTree = true)
-                .assertIsDisplayed().getUnclippedBoundsInRoot()
-            assertTrue(title.right <= file.left)
+            rule.onNodeWithText(game.description, useUnmergedTree = true).assertIsDisplayed()
+            rule.onNodeWithText("${game.name}.zip", useUnmergedTree = true).assertDoesNotExist()
             assertEquals(cardBounds[index], card.getUnclippedBoundsInRoot())
-            if (index < 4) card.performKeyInput { pressKey(Key.DirectionDown) }
+            if (index < 2) card.performKeyInput { pressKey(Key.DirectionDown) }
         }
         assertEquals(headerBounds, header.getUnclippedBoundsInRoot())
-        rule.onNodeWithTag(ShellTags.game(games[4].name)).performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.game(games[2].name)).performKeyInput { pressKey(Key.ButtonR1) }
+        val target = rule.onNodeWithTag(ShellTags.game(games[8].name)).assertIsFocused()
+        target.performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
+        rule.onNodeWithText("${games[8].name}.zip").assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.game(games[4].name)).assertIsFocused().assertIsDisplayed()
+        target.assertIsFocused().assertIsDisplayed()
+        rule.runOnIdle { height = 480.dp }
+        rule.onNodeWithContentDescription("第 1 / 1 页").assertIsDisplayed()
+        target.assertIsFocused().assertIsDisplayed()
     }
 
     @Test

@@ -229,5 +229,7 @@
     <string name="progress_page">%1$d / %2$d</string>
     <string name="progress_save_quit">保存并退出</string>
     <string name="progress_loading">正在读取进度…</string>
+    <string name="progress_slots_read_failed">无法读取槽位。请检查剩余空间后重试。</string>
+    <string name="progress_snapshots_read_failed">无法读取快照。请检查存储空间后重试。</string>
     <string name="progress_next">下一步</string>
 </resources>

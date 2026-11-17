@@ -13,10 +13,13 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,12 +29,16 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.game.SaveStateStore
+import com.xiaojiwei.fbng.game.GameProgressStore
+import com.xiaojiwei.fbng.game.SavedSlot
 import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
+import java.io.File
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
@@ -88,6 +95,100 @@ class SaveSlotsDialogTest {
         } finally {
             stateDir.deleteRecursively()
         }
+    }
+
+    @Test
+    fun snapshotListingFailureKeepsLaunchAvailable() {
+        val directory = folder.newFolder("unreadable-snapshots")
+        File(directory, "snapshots").writeText("not a directory")
+        val store = GameProgressStore(directory)
+        val game = LibraryGame("launch", "Launch")
+        var launchedSlot: Int? = null
+        rule.setContent {
+            FbngTheme {
+                GameProgressPage(
+                    LibraryEntry(game, game.description, 'L'), null, null, false, store,
+                    busy = false, ready = true, message = "", onPrimary = { launchedSlot = it },
+                    onToggleFavorite = {}, onBack = {},
+                )
+            }
+        }
+        rule.onNodeWithTag("snapshots-tab").performClick()
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag(ShellTags.Play).assertIsEnabled().performClick()
+        rule.runOnIdle { assertEquals(1, launchedSlot) }
+        File(directory, "snapshots").delete()
+        rule.onNodeWithTag("retry-snapshots").performClick()
+        rule.waitUntil(5_000) {
+            rule.onAllNodes(hasText("还没有快照。游玩时暂停即可生成。")).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun pauseCanResumeWhenSlotAndSnapshotListingsFail() {
+        val store = GameProgressStore(folder.newFile("unreadable-progress"))
+        val game = LibraryGame("pause", "Pause")
+        var resumedSlot: Int? = null
+        rule.setContent {
+            FbngTheme {
+                GameProgressPage(
+                    LibraryEntry(game, game.description, 'P'), null, null, false, store,
+                    busy = false, ready = true, message = "", onPrimary = { resumedSlot = it },
+                    onToggleFavorite = {}, onBack = {}, activeSlot = 2,
+                )
+            }
+        }
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-slots")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag(ShellTags.Pause).assertIsFocused().assertIsEnabled()
+        rule.onNodeWithTag("snapshots-tab").performClick()
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag(ShellTags.Pause).assertIsEnabled().performClick()
+        rule.runOnIdle { assertEquals(2, resumedSlot) }
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
+    fun pauseKeepsPrimaryAndSnapshotActionsVisibleAndRestoresCardFocus() {
+        val store = GameProgressStore(folder.newFolder("snapshots"))
+        repeat(7) { index -> store.createSnapshot(SavedSlot(byteArrayOf(1), "", index + 1L), null, 1) }
+        val game = LibraryGame("pause", "Pause")
+        var resumedSlot: Int? = null
+        rule.setContent {
+            FbngTheme {
+                GameProgressPage(
+                    LibraryEntry(game, game.description, 'P'), null, null, false, store,
+                    busy = false, ready = true, message = "", onPrimary = { resumedSlot = it },
+                    onToggleFavorite = {}, onBack = {}, activeSlot = 1,
+                    onCreateSnapshot = { error("unexpected snapshot creation") }, onQuit = {},
+                )
+            }
+        }
+        val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
+        val resumeBounds = resume.getUnclippedBoundsInRoot()
+        rule.onNodeWithTag("snapshots-tab").performClick()
+        awaitSnapshotFocus("snapshot-6", request = true)
+        rule.onNodeWithTag("snapshot-6").performKeyInput { pressKey(Key.ButtonR1) }
+        awaitSnapshotFocus("snapshot-3")
+        rule.onNodeWithTag("snapshot-3").performKeyInput { pressKey(Key.ButtonR1) }
+        awaitSnapshotFocus("snapshot-1")
+        assertEquals(resumeBounds, resume.getUnclippedBoundsInRoot())
+        for (tag in listOf("create-snapshot", "apply-snapshot", "delete-snapshot", "snapshot-prev")) {
+            val action = rule.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
+            assertTrue(action.bottom <= 320.dp)
+        }
+        rule.onNodeWithTag("delete-snapshot").performClick()
+        rule.onNode(hasText("删除快照") and hasClickAction() and hasAnyAncestor(isDialog()))
+            .assertIsDisplayed().performClick()
+        awaitSnapshotFocus("snapshot-2")
+        resume.assertIsEnabled().performClick()
+        rule.runOnIdle { assertEquals(1, resumedSlot) }
+    }
+
+    private fun awaitSnapshotFocus(tag: String, request: Boolean = false) {
+        val node = rule.onNodeWithTag(tag)
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
+        if (request) node.requestFocus()
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag(tag) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test

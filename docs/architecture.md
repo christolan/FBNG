@@ -25,7 +25,7 @@
 
 套件名是游戏、收藏、最近、存档和封面的稳定标识。中文名用于显示和检索。DAT 的 `romof` 描述 ROM 依赖，`cloneof` 用于封面索引沿父游戏查找图片。
 
-壳层使用 `FoldingFeature` 判断铰链姿态和读取边界。当前 `GameScreen` 让 `GLRetroView` 铺满安全区，暂停页覆盖在其上。桌面模式布局约束见[窗口与折叠](ui-guidelines.md#窗口与折叠)。
+当前 `GameScreen` 让 `GLRetroView` 铺满安全区，暂停页覆盖在其上。壳层仍有基于 `FoldingFeature` 的铰链兼容分支。设备适配与真机验收以 RP6 为准，见[横屏窗口](ui-guidelines.md#横屏窗口)。
 
 ## 本地数据
 
