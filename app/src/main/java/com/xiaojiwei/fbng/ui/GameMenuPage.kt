@@ -75,77 +75,21 @@ internal fun GameLaunchPage(
     onBack: () -> Unit,
 ) {
     val context = LocalContext.current
-    val resources = LocalResources.current
-    val game = entry.game
-    val store = remember(context, game.name) { SaveStateStore(AppStorage(context.filesDir).stateDir(game.name)) }
-    val scope = rememberCoroutineScope()
-    var slotsOpen by rememberSaveable { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf(false) }
-    var revision by remember { mutableStateOf(0) }
-    var slotMessage by remember { mutableStateOf("") }
-    val showSlots = slotsOpen && game.canLaunch
-    fun back() {
-        if (busy || deleting) return
-        if (showSlots) slotsOpen = false else onBack()
+    val store = remember(context, entry.game.name) {
+        com.xiaojiwei.fbng.game.GameProgressStore(AppStorage(context.filesDir).stateDir(entry.game.name))
     }
-    BackHandler(onBack = ::back)
-    GameMenuPage(
-        entry = entry,
-        cover = cover,
-        fold = fold,
-        favorite = favorite,
-        busy = busy,
-        dialogOpen = showSlots,
-        ready = true,
+    GameProgressPage(
+        entry = entry, cover = cover, fold = fold, favorite = favorite, store = store,
+        busy = busy, ready = true,
         message = when {
             launchError -> stringResource(R.string.preparing_game_failed)
             busy -> stringResource(R.string.preparing_game)
             else -> ""
         },
         messageIsError = launchError,
-        onPrimary = if (game.canLaunch) ({ onPlay(null) }) else onConfigureFolders,
-        onLoad = if (game.canLaunch) ({
-            slotMessage = ""
-            slotsOpen = true
-        }) else null,
-        onToggleFavorite = onToggleFavorite,
-        onBack = ::back,
+        onPrimary = { if (entry.game.canLaunch) onPlay(it) else onConfigureFolders() },
+        onToggleFavorite = onToggleFavorite, onBack = onBack,
     )
-    if (showSlots) {
-        SaveSlotsDialog(
-            store = store,
-            mode = SaveSlotMode.Load,
-            beforePlay = true,
-            busy = busy || deleting,
-            message = slotMessage,
-            revision = revision,
-            onDismiss = ::back,
-            onChoose = { id ->
-                if (!busy && !deleting) {
-                    slotsOpen = false
-                    onPlay(id)
-                }
-            },
-            onDelete = { id ->
-                if (!busy && !deleting) {
-                    deleting = true
-                    scope.launch {
-                        try {
-                            withContext(NonCancellable + Dispatchers.IO) { store.delete(id) }
-                            slotMessage = resources.getString(R.string.delete_save_ok)
-                        } catch (error: Exception) {
-                            if (error is CancellationException) throw error
-                            Log.e("FBNG", "Could not delete save for ${game.name}", error)
-                            slotMessage = resources.getString(R.string.delete_save_fail, error.message.orEmpty())
-                        } finally {
-                            revision++
-                            deleting = false
-                        }
-                    }
-                }
-            },
-        )
-    }
 }
 
 @Composable

@@ -1,0 +1,161 @@
+<div id="fbng-landscape-design">
+  <div class="viz-controls" aria-label="设计稿演示状态">
+    <label class="form-label">预览状态 <select class="form-select" id="ls-demo-mode"><option value="launch">开局前</option><option value="paused">暂停中</option></select></label>
+  </div>
+  <p class="ls-small-note">此稿仅展示横屏，请展开预览查看。</p>
+  <section class="ls-app" aria-label="横屏游戏页：三个槽位与独立快照">
+    <header class="ls-header">
+      <button class="ls-btn ls-back cursor-interaction" aria-label="返回"><span aria-hidden="true">‹</span></button>
+      <div class="ls-title"><h2>三国战纪</h2><span class="ls-page-state">游戏详情</span></div>
+      <button class="ls-btn ls-favorite cursor-interaction" aria-pressed="false">收藏</button>
+    </header>
+    <div class="ls-body">
+      <aside class="ls-sidebar">
+        <div class="ls-cover" aria-label="无封面时使用游戏名占位"><span>KNIGHTS OF VALOUR</span><div>三国<br>战纪</div><span>暂无封面</span></div>
+        <div class="ls-launch-panel"><button class="ls-btn ls-primary ls-main cursor-interaction">开始游戏</button><p class="ls-bound-slot">将从槽位 1 继续</p></div>
+        <button class="ls-btn ls-exit cursor-interaction" hidden>保存并退出</button>
+        <details class="ls-info"><summary class="cursor-interaction">游戏信息</summary><p>Knights of Valour</p><p>kov.zip · 可以开始游戏</p></details>
+      </aside>
+      <section class="ls-workspace" aria-label="进度管理">
+        <div class="ls-topline">
+          <div class="ls-tabs" role="tablist" aria-label="进度类型">
+            <button class="ls-tab cursor-interaction" id="ls-slot-tab" role="tab" aria-controls="ls-slot-panel" aria-selected="true">槽位</button>
+            <button class="ls-tab cursor-interaction" id="ls-snapshot-tab" role="tab" aria-controls="ls-snapshot-panel" aria-selected="false">快照 <span class="ls-snapshot-count">4</span></button>
+          </div>
+          <span class="ls-session-label">开局时选择槽位</span>
+        </div>
+        <div id="ls-slot-panel" role="tabpanel" aria-labelledby="ls-slot-tab">
+          <div class="ls-slot-grid"></div>
+          <div class="ls-action-panel"><div><h3 class="ls-slot-heading">槽位 1</h3><p class="ls-slot-description">开始后，自动保存到这个槽位。</p></div><button class="ls-btn ls-delete-slot cursor-interaction">删除进度</button></div>
+        </div>
+        <div id="ls-snapshot-panel" role="tabpanel" aria-labelledby="ls-snapshot-tab" hidden>
+          <div class="ls-snapshot-toolbar"><span>历史进度 · 不随游玩更新</span><button class="ls-btn ls-create-snapshot cursor-interaction" hidden>＋ 生成快照</button></div>
+          <div class="ls-snapshot-grid"></div>
+          <div class="ls-pagination"><button class="ls-btn ls-prev cursor-interaction" aria-label="上一页快照">上一页</button><span class="ls-page-number">1 / 2</span><button class="ls-btn ls-next cursor-interaction" aria-label="下一页快照">下一页</button></div>
+          <div class="ls-action-panel ls-snapshot-action"><div><h3 class="ls-snapshot-heading"></h3><p class="ls-snapshot-description"></p></div><div class="ls-action-buttons"><button class="ls-btn ls-apply-snapshot cursor-interaction">应用到槽位</button><button class="ls-btn ls-delete-snapshot cursor-interaction">删除快照</button></div></div>
+        </div>
+        <p class="ls-message" role="status" aria-live="polite">选择一个槽位，开始或继续游戏。</p>
+      </section>
+    </div>
+    <div class="ls-overlay" hidden><section class="ls-dialog" role="dialog" aria-modal="true" aria-labelledby="ls-dialog-title" aria-describedby="ls-dialog-text"><h3 id="ls-dialog-title"></h3><p id="ls-dialog-text"></p><div class="ls-dialog-content"></div><div class="ls-dialog-buttons"></div></section></div>
+  </section>
+</div>
+<style>
+#fbng-landscape-design .ls-small-note{display:none}
+#fbng-landscape-design .ls-app{--ls-bg:#101318;--ls-surface:#1e2530;--ls-raised:#293140;--ls-text:#f4f7fb;--ls-muted:#d5dce6;--ls-blue:#206afb;--ls-lightblue:#a9c4ff;--ls-radius:12px;position:relative;margin-top:16px;width:100%;padding:16px;border-radius:16px;background:var(--ls-bg);color:var(--ls-text);color-scheme:dark;font:400 16px/1.5 system-ui,-apple-system,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}
+#fbng-landscape-design .ls-app,#fbng-landscape-design .ls-app *{box-sizing:border-box}
+#fbng-landscape-design .ls-app [hidden]{display:none!important}
+#fbng-landscape-design .ls-app h2,#fbng-landscape-design .ls-app h3,#fbng-landscape-design .ls-app p{margin:0}
+#fbng-landscape-design .ls-app h2{font-size:24px;font-weight:500;line-height:1.3}
+#fbng-landscape-design .ls-app h3{font-size:20px;font-weight:500;line-height:1.4}
+#fbng-landscape-design .ls-header{display:flex;gap:8px;min-height:56px;margin-bottom:16px}
+#fbng-landscape-design .ls-title{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;min-width:0;padding:12px 16px;background:var(--ls-surface);border-radius:var(--ls-radius)}
+#fbng-landscape-design .ls-page-state{color:var(--ls-muted);white-space:nowrap}
+#fbng-landscape-design .ls-btn,#fbng-landscape-design .ls-tab{min-height:48px;padding:8px 16px;border:2px solid transparent;border-radius:var(--ls-radius);background:var(--ls-raised);color:var(--ls-text);font:inherit;line-height:1.5;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+#fbng-landscape-design .ls-btn:not(:disabled):hover,#fbng-landscape-design .ls-tab:hover{filter:brightness(1.12)}
+#fbng-landscape-design .ls-btn:focus-visible,#fbng-landscape-design .ls-tab:focus-visible,#fbng-landscape-design .ls-card:focus-visible,#fbng-landscape-design summary:focus-visible{outline:2px solid var(--ls-blue);outline-offset:2px}
+#fbng-landscape-design .ls-primary:focus-visible{outline-color:#fff}
+#fbng-landscape-design .ls-btn:disabled{opacity:.5;cursor:default}
+#fbng-landscape-design .ls-back{width:56px;background:var(--ls-surface);flex-shrink:0;font-size:28px}
+#fbng-landscape-design .ls-favorite{background:var(--ls-surface)}
+#fbng-landscape-design .ls-primary{background:var(--ls-blue);color:#fff;width:100%}
+#fbng-landscape-design .ls-body{display:grid;grid-template-columns:minmax(170px,23%) minmax(0,1fr);gap:16px;align-items:start}
+#fbng-landscape-design .ls-sidebar{display:flex;flex-direction:column;gap:12px;min-width:0}
+#fbng-landscape-design .ls-cover{height:204px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:16px 12px;background:var(--ls-surface);border-radius:var(--ls-radius);text-align:center}
+#fbng-landscape-design .ls-cover>span{font-size:12px;color:var(--ls-muted);letter-spacing:1px}
+#fbng-landscape-design .ls-cover>div{font-size:36px;font-weight:500;letter-spacing:8px;line-height:1.3;padding-left:8px}
+#fbng-landscape-design .ls-launch-panel{padding:12px;background:var(--ls-surface);border-radius:var(--ls-radius);display:flex;flex-direction:column;gap:8px}
+#fbng-landscape-design .ls-bound-slot{color:var(--ls-muted);text-align:center}
+#fbng-landscape-design .ls-info{padding:12px 16px;background:var(--ls-surface);border-radius:var(--ls-radius);color:var(--ls-muted)}
+#fbng-landscape-design .ls-info summary{color:var(--ls-text);min-height:24px}
+#fbng-landscape-design .ls-info p{padding-top:8px;overflow-wrap:anywhere}
+#fbng-landscape-design .ls-workspace{min-width:0;display:flex;flex-direction:column;gap:12px}
+#fbng-landscape-design .ls-topline{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#fbng-landscape-design .ls-tabs{display:flex;gap:8px}
+#fbng-landscape-design .ls-tab{background:var(--ls-surface);padding:8px 24px}
+#fbng-landscape-design .ls-tab[aria-selected=true]{background:var(--ls-raised);color:var(--ls-lightblue)}
+#fbng-landscape-design .ls-snapshot-count{font-variant-numeric:tabular-nums;color:var(--ls-muted)}
+#fbng-landscape-design .ls-session-label{color:var(--ls-muted);text-align:right}
+#fbng-landscape-design .ls-slot-grid,#fbng-landscape-design .ls-snapshot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:4px}
+#fbng-landscape-design .ls-card{width:100%;min-width:0;min-height:228px;text-align:left;display:flex;flex-direction:column;gap:8px;padding:12px;background:var(--ls-surface);color:var(--ls-text);border:2px solid transparent;border-radius:var(--ls-radius);font:inherit;line-height:1.5}
+#fbng-landscape-design .ls-card[aria-pressed=true]{background:var(--ls-raised)}
+#fbng-landscape-design .ls-card:disabled{color:var(--ls-muted);cursor:default}
+#fbng-landscape-design .ls-card:disabled .ls-thumb{opacity:.6}
+#fbng-landscape-design .ls-thumb{width:100%;height:100px;min-height:100px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;padding:8px;background:var(--ls-bg);border-radius:8px;text-align:center;color:var(--ls-muted)}
+#fbng-landscape-design .ls-card-title{font-size:20px;font-weight:500;line-height:1.3;display:flex;align-items:center;justify-content:space-between;gap:4px;width:100%}
+#fbng-landscape-design .ls-check{font-size:16px;font-weight:400;color:var(--ls-lightblue)}
+#fbng-landscape-design .ls-card-time{font-size:16px;color:var(--ls-muted);font-variant-numeric:tabular-nums}
+#fbng-landscape-design .ls-card-status{font-size:16px;color:var(--ls-lightblue)}
+#fbng-landscape-design .ls-action-panel{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px;background:var(--ls-surface);border-radius:var(--ls-radius);margin-top:12px;min-height:92px}
+#fbng-landscape-design .ls-action-panel>div:first-child{min-width:0}
+#fbng-landscape-design .ls-action-panel p{color:var(--ls-muted);padding-top:4px}
+#fbng-landscape-design .ls-action-panel>.ls-btn{flex-shrink:0}
+#fbng-landscape-design .ls-message{color:var(--ls-muted);min-height:48px;padding:4px}
+#fbng-landscape-design .ls-snapshot-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;color:var(--ls-muted);margin-bottom:8px}
+#fbng-landscape-design .ls-pagination{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:8px}
+#fbng-landscape-design .ls-page-number{font-variant-numeric:tabular-nums;color:var(--ls-muted)}
+#fbng-landscape-design .ls-action-buttons{display:flex;gap:8px;flex-shrink:0}
+#fbng-landscape-design .ls-empty-snapshots{grid-column:1/-1;min-height:228px;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--ls-muted);background:var(--ls-surface);border-radius:var(--ls-radius);padding:24px}
+#fbng-landscape-design .ls-overlay{position:absolute;inset:0;z-index:3;background:#101318e8;border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center}
+#fbng-landscape-design .ls-dialog{width:min(100%,580px);background:var(--ls-surface);border-radius:var(--ls-radius);padding:24px;display:flex;flex-direction:column;gap:16px;max-height:100%;overflow:auto}
+#fbng-landscape-design .ls-dialog p{color:var(--ls-muted)}
+#fbng-landscape-design .ls-dialog-buttons{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+#fbng-landscape-design .ls-dialog-buttons button{min-width:112px}
+#fbng-landscape-design .ls-target-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+#fbng-landscape-design .ls-target{display:flex;flex-direction:column;gap:8px;text-align:left;min-height:112px;align-items:flex-start;justify-content:center}
+#fbng-landscape-design .ls-target[aria-pressed=true]{border-color:var(--ls-lightblue)}
+#fbng-landscape-design .ls-target-note{font-size:16px;color:var(--ls-muted)}
+#fbng-landscape-design .ls-apply-summary{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:16px;background:var(--ls-raised);border-radius:var(--ls-radius)}
+#fbng-landscape-design .ls-apply-summary>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+#fbng-landscape-design .ls-apply-summary span{color:var(--ls-muted)}
+@media(min-width:681px) and (max-width:820px){#fbng-landscape-design .ls-session-label{max-width:130px}#fbng-landscape-design .ls-tab{padding:8px 16px}#fbng-landscape-design .ls-action-panel{flex-wrap:wrap}#fbng-landscape-design .ls-card{padding:8px}#fbng-landscape-design .ls-card-title{font-size:20px}#fbng-landscape-design .ls-cover>span:first-child{font-size:11px}#fbng-landscape-design .ls-btn{padding:8px 12px}}
+@media(max-width:680px){#fbng-landscape-design .ls-app{display:none}#fbng-landscape-design .ls-small-note{display:block;margin:16px 0}}
+</style>
+<script>
+(()=>{
+const root=document.getElementById('fbng-landscape-design');
+const $=s=>root.querySelector(s),$$=s=>Array.from(root.querySelectorAll(s));
+const app=$('.ls-app');
+const previous=window.openai?.widgetState?.privateContent;
+const s={mode:previous?.mode==='paused'?'paused':'launch',tab:previous?.tab==='snapshots'?'snapshots':'slots',selectedSlot:[1,2,3].includes(previous?.slot)?previous.slot:1,activeSlot:null,live:null,snapshotId:'s1',page:0,favorite:false,generated:0,deletedSession:false};
+const slots=[{id:1,progress:'slot-1-latest',time:'11月17日 14:28'},{id:2,progress:'slot-2-latest',time:'11月16日 21:06'},{id:3,progress:null,time:null}];
+let snapshots=[{id:'s1',title:'快照 4',time:'11月17日 14:12',source:1,progress:'snapshot-4'},{id:'s2',title:'快照 3',time:'11月16日 21:06',source:2,progress:'snapshot-3'},{id:'s3',title:'快照 2',time:'11月15日 19:42',source:1,progress:'snapshot-2'},{id:'s4',title:'快照 1',time:'11月14日 20:30',source:1,progress:'snapshot-1'}];
+let dialogOrigin=null,dialogReturnKey=null,pendingRestore=null;
+function persist(){window.openai?.setWidgetState?.({modelContent:{design:'横屏：3 个固定槽位与独立快照',mode:s.mode,tab:s.tab,slot:s.activeSlot||s.selectedSlot},privateContent:{mode:s.mode,tab:s.tab,slot:s.activeSlot||s.selectedSlot}})?.catch(()=>{});}
+function tell(text){$('.ls-message').textContent=text;}
+function button(text,fn,classes='',disabled=false){const b=document.createElement('button');b.type='button';b.className=`ls-btn cursor-interaction ${classes}`;b.textContent=text;b.disabled=disabled;b.onclick=fn;return b;}
+function getSlot(id){return slots.find(x=>x.id===id);}
+function currentSnapshot(){return snapshots.find(x=>x.id===s.snapshotId);}
+function focusKey(key){if(key)$(`[data-key="${key}"]`)?.focus();}
+function newLive(){return `fresh-run-${Date.now()}`;}
+function bindSession(){s.activeSlot=s.selectedSlot;s.live=getSlot(s.activeSlot).progress||newLive();s.deletedSession=false;}
+function updateBindings(){const id=s.activeSlot||s.selectedSlot;$('.ls-bound-slot').textContent=s.mode==='paused'?`本局：槽位 ${id}`:getSlot(id).progress?`将从槽位 ${id} 继续`:`槽位 ${id} 为空 · 从头开始`;$('.ls-page-state').textContent=s.mode==='paused'?`已暂停 · 槽位 ${id}`:'游戏详情';$('.ls-session-label').textContent=s.mode==='paused'?`自动保存 → 槽位 ${id}`:'开局时选择槽位';$('.ls-main').textContent=s.mode==='paused'?'恢复':'开始游戏';$('.ls-exit').hidden=s.mode!=='paused';$('.ls-create-snapshot').hidden=s.mode!=='paused';app.dataset.activeSlot=s.activeSlot||'';app.dataset.liveProgress=s.live||'';app.dataset.mode=s.mode;$('#ls-demo-mode').value=s.mode;}
+function renderSlots(){const grid=$('.ls-slot-grid');grid.replaceChildren();const selected=s.activeSlot||s.selectedSlot;slots.forEach(slot=>{const b=button('',()=>{if(s.mode==='paused')return;s.selectedSlot=slot.id;updateBindings();renderSlots();focusKey(`slot-${slot.id}`);persist();},'ls-card',s.mode==='paused'&&slot.id!==s.activeSlot);b.dataset.key=`slot-${slot.id}`;b.dataset.slot=slot.id;b.setAttribute('aria-pressed',String(slot.id===selected));b.setAttribute('aria-label',`槽位 ${slot.id}，${slot.progress?'已有进度':'空槽位'}${s.mode==='paused'&&slot.id!==s.activeSlot?'，本局不可切换':''}`);b.innerHTML=`<span class="ls-thumb">${slot.progress?'存档截图':'空槽位'}</span><span class="ls-card-title">槽位 ${slot.id}<span class="ls-check">${slot.id===selected?'✓':''}</span></span><span class="ls-card-time">${slot.time||'尚无进度'}</span><span class="ls-card-status">${s.mode==='paused'?slot.id===s.activeSlot?'本局自动保存':'本局不可切换':slot.id===s.selectedSlot?'已选择':slot.progress?'继续这条进度':'从头开始'}</span>`;grid.append(b);});$('.ls-slot-heading').textContent=`槽位 ${selected}${s.mode==='paused'?' · 本局':''}`;$('.ls-slot-description').textContent=s.mode==='paused'?'退出或切后台时保存，本局不能切换槽位。':getSlot(selected).progress?'开始后，自动保存到这个槽位。':'从头开始，之后自动保存到这个槽位。';$('.ls-delete-slot').disabled=s.mode==='launch'&&!getSlot(selected).progress;$('.ls-delete-slot').textContent='删除进度';}
+function renderSnapshots(){const total=Math.max(1,Math.ceil(snapshots.length/3));s.page=Math.min(s.page,total-1);if(!currentSnapshot())s.snapshotId=snapshots[s.page*3]?.id||null;const grid=$('.ls-snapshot-grid');grid.replaceChildren();const pageItems=snapshots.slice(s.page*3,s.page*3+3);if(!snapshots.length){const empty=document.createElement('div');empty.className='ls-empty-snapshots';empty.textContent=s.mode==='paused'?'还没有快照。生成快照，保留当前进度。':'还没有快照。游玩时暂停即可生成。';grid.append(empty);}pageItems.forEach(snapshot=>{const b=button('',()=>{s.snapshotId=snapshot.id;renderSnapshots();focusKey(snapshot.id);},'ls-card');b.dataset.key=snapshot.id;b.dataset.snapshot=snapshot.id;b.setAttribute('aria-pressed',String(s.snapshotId===snapshot.id));b.innerHTML=`<span class="ls-thumb">快照截图</span><span class="ls-card-title">${snapshot.title}<span class="ls-check">${s.snapshotId===snapshot.id?'✓':''}</span></span><span class="ls-card-time">${snapshot.time}</span><span class="ls-card-status">来源：槽位 ${snapshot.source}</span>`;grid.append(b);});$('.ls-snapshot-count').textContent=snapshots.length;$('.ls-page-number').textContent=`${s.page+1} / ${total}`;$('.ls-prev').disabled=s.page===0;$('.ls-next').disabled=s.page>=total-1;const selected=currentSnapshot();$('.ls-snapshot-action').hidden=!selected;$('.ls-snapshot-heading').textContent=selected?.title||'';$('.ls-snapshot-description').textContent=s.mode==='paused'?`只应用到本局槽位 ${s.activeSlot}`:'应用后可从目标槽位开始';$('.ls-apply-snapshot').textContent=s.mode==='paused'?`应用到槽位 ${s.activeSlot}`:'应用到槽位';}
+function setTab(tab,focus=false){s.tab=tab;$('#ls-slot-panel').hidden=tab!=='slots';$('#ls-snapshot-panel').hidden=tab!=='snapshots';$('#ls-slot-tab').setAttribute('aria-selected',String(tab==='slots'));$('#ls-snapshot-tab').setAttribute('aria-selected',String(tab==='snapshots'));if(focus)$(tab==='slots'?'#ls-slot-tab':'#ls-snapshot-tab').focus();}
+function render(){updateBindings();renderSlots();renderSnapshots();setTab(s.tab);}
+function restoreFocus(){if(dialogReturnKey){const match=$(`[data-key="${dialogReturnKey}"]`);if(match){match.focus();return;}}if(dialogOrigin?.isConnected&&!dialogOrigin.closest('[hidden]'))dialogOrigin.focus();else $('.ls-main').focus();}
+function closeDialog(focus=true){$('.ls-overlay').hidden=true;Array.from(app.children).forEach(x=>x.inert=false);if(focus)restoreFocus();}
+function openDialog(title,text,content,actions,keepOrigin=false){if(!keepOrigin){dialogOrigin=document.activeElement;dialogReturnKey=dialogOrigin?.dataset?.key||null;}$('.ls-dialog h3').textContent=title;$('.ls-dialog p').textContent=text;$('.ls-dialog-content').replaceChildren(...content);$('.ls-dialog-buttons').replaceChildren(...actions);$('.ls-overlay').hidden=false;Array.from(app.children).filter(x=>!x.classList.contains('ls-overlay')).forEach(x=>x.inert=true);$('.ls-dialog-buttons button').focus();}
+function confirm(title,text,label,action,content=[],keepOrigin=false){openDialog(title,text,content,[button('取消',()=>closeDialog()),button(label,()=>{closeDialog(false);action();})],keepOrigin);}
+function applySummary(snapshot,id){const view=document.createElement('div');view.className='ls-apply-summary';view.innerHTML=`<div><strong>${snapshot.title}</strong><span>${snapshot.time}</span></div><span aria-hidden="true">→</span><div><strong>槽位 ${id}${s.mode==='paused'?' · 本局':''}</strong><span>${getSlot(id).progress?'已有进度将被覆盖':'写入空槽位'}</span></div>`;return view;}
+function confirmApply(snapshot,id,keepOrigin=false){const paused=s.mode==='paused';confirm(`应用${snapshot.title}到槽位 ${id}？`,paused?'将覆盖这个槽位的已保存进度，并替换当前运行进度。当前未保存的进度会丢失，原快照仍保留。':`将替换槽位 ${id} 的进度。原快照仍保留，应用后不会自动开始游戏。`,`应用到槽位 ${id}`,()=>{const slot=getSlot(id);slot.progress=snapshot.progress;slot.time=snapshot.time;if(paused){s.live=snapshot.progress;render();$('.ls-main').focus();tell(`已应用到槽位 ${id}，当前运行进度也已替换。游戏保持暂停。`);}else{s.selectedSlot=id;setTab('slots');render();$('.ls-main').focus();tell(`已应用到槽位 ${id}。选择「开始游戏」继续。`);}persist();},[applySummary(snapshot,id)],keepOrigin);}
+function selectTarget(snapshot){pendingRestore=snapshot;let target=s.selectedSlot;const grid=document.createElement('div');grid.className='ls-target-grid';function drawTargets(){grid.replaceChildren(...slots.map(slot=>{const b=button('',()=>{target=slot.id;drawTargets();grid.querySelector(`[data-target="${target}"]`).focus();},'ls-target');b.dataset.target=slot.id;b.setAttribute('aria-pressed',String(target===slot.id));b.innerHTML=`<strong>槽位 ${slot.id}${target===slot.id?' ✓':''}</strong><span class="ls-target-note">${slot.time||'空槽位'}</span>`;return b;}));}drawTargets();openDialog('选择目标槽位',`${snapshot.title}将应用到哪个槽位？`,[grid],[button('取消',()=>closeDialog()),button('下一步',()=>{confirmApply(pendingRestore,target,true);})]);}
+$('#ls-slot-tab').onclick=()=>{setTab('slots');persist();};$('#ls-snapshot-tab').onclick=()=>{setTab('snapshots');persist();};
+$('#ls-demo-mode').onchange=e=>{const next=e.target.value;if(s.mode==='paused'&&next==='launch'&&!s.deletedSession){getSlot(s.activeSlot).progress=s.live;getSlot(s.activeSlot).time='11月17日 14:35';}s.mode=next;if(next==='paused')bindSession();else{s.activeSlot=null;s.live=null;}render();tell(next==='paused'?'游戏已暂停。槽位固定，可生成或应用快照。':'选择一个槽位，开始或继续游戏。');persist();};
+$('.ls-main').onclick=()=>{if(s.mode==='paused'){tell(`演示：恢复槽位 ${s.activeSlot} 的当前进度，游戏页关闭。`);return;}bindSession();s.mode='paused';render();$('.ls-main').focus();tell(`演示：从槽位 ${s.activeSlot} 启动游戏，当前展示暂停页。`);persist();};
+$('.ls-back').onclick=()=>tell(s.mode==='paused'?`演示：恢复槽位 ${s.activeSlot} 的当前进度。`:'演示：返回来源列表，并聚焦原游戏卡片。');
+$('.ls-exit').onclick=()=>{const id=s.activeSlot;getSlot(id).progress=s.live;getSlot(id).time='11月17日 14:35';s.mode='launch';s.selectedSlot=id;s.activeSlot=null;s.live=null;render();$('.ls-main').focus();tell(`已自动保存到槽位 ${id}。演示：退出到来源列表。`);persist();};
+$('.ls-favorite').onclick=()=>{s.favorite=!s.favorite;$('.ls-favorite').setAttribute('aria-pressed',String(s.favorite));$('.ls-favorite').textContent=s.favorite?'已收藏':'收藏';};
+$('.ls-delete-slot').onclick=()=>{const id=s.activeSlot||s.selectedSlot;const paused=s.mode==='paused';confirm(paused?`删除槽位 ${id} 并结束本局？`:`删除槽位 ${id} 的进度？`,paused?'本局不会再次自动保存。这个槽位会变空，下次从头开始；已有快照不受影响。':'这个槽位会变空，下次从头开始。已有快照不受影响。',paused?'删除并结束本局':'删除进度',()=>{s.deletedSession=true;getSlot(id).progress=null;getSlot(id).time=null;if(paused){s.activeSlot=null;s.live=null;s.mode='launch';s.selectedSlot=id;}setTab('slots');render();$('.ls-main').focus();tell(`槽位 ${id} 已清空，开始游戏将从头开始。`);persist();});};
+$('.ls-create-snapshot').onclick=()=>{if(s.mode!=='paused')return;s.generated++;const snapshot={id:`generated-${s.generated}`,title:`快照 ${4+s.generated}`,time:'11月17日 14:33',source:s.activeSlot,progress:s.live};snapshots.unshift(snapshot);s.snapshotId=snapshot.id;s.page=0;renderSnapshots();$('.ls-create-snapshot').focus();tell(`已生成${snapshot.title}。本局仍自动保存到槽位 ${s.activeSlot}。`);};
+$('.ls-apply-snapshot').onclick=()=>{const snapshot=currentSnapshot();if(!snapshot)return;if(s.mode==='paused')confirmApply(snapshot,s.activeSlot);else selectTarget(snapshot);};
+$('.ls-delete-snapshot').onclick=()=>{const snapshot=currentSnapshot();if(!snapshot)return;confirm(`删除${snapshot.title}？`,'只删除这份历史快照，不影响槽位和当前游戏进度。','删除快照',()=>{const oldIndex=snapshots.indexOf(snapshot);snapshots=snapshots.filter(x=>x.id!==snapshot.id);s.page=Math.min(s.page,Math.max(0,Math.ceil(snapshots.length/3)-1));s.snapshotId=snapshots[Math.min(oldIndex,snapshots.length-1)]?.id||null;renderSnapshots();if(s.snapshotId)focusKey(s.snapshotId);else $('#ls-snapshot-tab').focus();tell('快照已删除，槽位和运行进度保持不变。');});};
+function pageSnapshots(delta){s.page=Math.max(0,Math.min(s.page+delta,Math.ceil(snapshots.length/3)-1));s.snapshotId=snapshots[s.page*3]?.id||null;renderSnapshots();focusKey(s.snapshotId);}
+$('.ls-prev').onclick=()=>pageSnapshots(-1);$('.ls-next').onclick=()=>pageSnapshots(1);
+app.addEventListener('keydown',e=>{const modal=!$('.ls-overlay').hidden;if(e.key==='Escape'){e.preventDefault();if(modal)closeDialog();else $('.ls-back').click();return;}const scope=modal?$('.ls-dialog'):app;if(e.key==='Tab'&&modal){const items=Array.from(scope.querySelectorAll('button:not(:disabled)'));const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;const origin=document.activeElement;if(!scope.contains(origin))return;const r=origin.getBoundingClientRect(),cx=r.x+r.width/2,cy=r.y+r.height/2;const horizontal=e.key==='ArrowLeft'||e.key==='ArrowRight';const forward=e.key==='ArrowRight'||e.key==='ArrowDown';const candidates=Array.from(scope.querySelectorAll('button:not(:disabled),summary')).filter(el=>el!==origin&&el.getClientRects().length&&!el.closest('[hidden]')).map(el=>{const a=el.getBoundingClientRect(),dx=a.x+a.width/2-cx,dy=a.y+a.height/2-cy;const main=horizontal?dx:dy,cross=horizontal?dy:dx;return{el,main:main*(forward?1:-1),distance:Math.abs(main)+Math.abs(cross)*3};}).filter(x=>x.main>8).sort((a,b)=>a.distance-b.distance);if(candidates[0]){e.preventDefault();candidates[0].el.focus();}});
+window.addEventListener('openai:set_globals',e=>{const p=e.detail?.globals?.widgetState?.privateContent;if(!p)return;if(['slots','snapshots'].includes(p.tab))setTab(p.tab);});
+if(s.mode==='paused')bindSession();render();
+if(globalThis.Tweak){const design={radius:'12'};const tweak=new Tweak({container:app,onChange:()=>app.style.setProperty('--ls-radius',`${Number(design.radius)}px`)});tweak.addSelect(design,'radius',{label:'圆角大小',options:[{label:'更小 · 8',value:'8'},{label:'默认 · 12',value:'12'},{label:'更大 · 16',value:'16'}]});}
+})();
+</script>

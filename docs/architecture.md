@@ -20,8 +20,8 @@
 1. `FolderLibrary` 持久化 Android 文件选择器授予的目录读取权限，递归枚举 ZIP。应用启动、添加目录或手动重新扫描时更新目录。
 2. `LibraryIndex` 以文件名、大小和修改时间复用归档识别结果。扫描先发布可用缓存，随后更新套件列表和目录统计。
 3. `LibraryScanner` 与 `RomSetMatcher` 按固定 DAT 和 ZIP 成员信息识别套件。规范的套件文件名用于区分 ROM 内容相同的候选。依赖可来自多个目录或旧版导入，单个 ZIP 已含所需文件时也可启动。
-4. 在游戏页选择「开始游戏」或选中读档槽位时，`FolderLibrary.prepare` 将所需归档放入临时播放目录，完整读取 ZIP 并与扫描时的成员信息核对。失败会清理这次准备的目录。
-5. `GameScreen` 创建会话并加载 FBNeo。`RunningGame` 管理生命周期与自动存档，`GamepadBridge` 在运行时把手柄交给核心。开局前和暂停时复用 `GameMenuPage`，暂停时覆盖在同一个 `GLRetroView` 上方。显式选择的槽位随启动传给 `RunningGame`，直接开始游戏时使用自动存档。成功启动的套件加入最近游玩。
+4. 在游戏页选择固定槽位并按「开始游戏」时，`FolderLibrary.prepare` 将所需归档放入临时播放目录，完整读取 ZIP 并与扫描时的成员信息核对。失败会清理这次准备的目录。
+5. `GameScreen` 创建会话并加载 FBNeo。`RunningGame` 管理生命周期与自动存档，`GamepadBridge` 在运行时把手柄交给核心。开局前和暂停时复用 `GameProgressPage`，暂停时覆盖在同一个 `GLRetroView` 上方。开局选定的槽位随启动传给 `RunningGame` 并保持固定，自动保存更新同一槽位。`GameProgressStore` 管理 3 个槽位、独立快照、旧档迁移与分页读取，`SaveStateStore` 负责底层原子存档包。暂停时应用快照先加载并验证，再原子写入槽位；失败时恢复原运行状态，后台/销毁回调等待操作完成，不与它并发覆盖。成功启动的套件加入最近游玩。
 
 套件名是游戏、收藏、最近、存档和封面的稳定标识。中文名用于显示和检索。DAT 的 `romof` 描述 ROM 依赖，`cloneof` 用于封面索引沿父游戏查找图片。
 
@@ -37,7 +37,9 @@
 | `files/library-index` | 本地归档扫描索引 |
 | `files/cache/play/` | 每次启动游戏所需的临时归档 |
 | `files/saves/` | 核心使用的保存目录 |
-| `files/states/<套件名>/` | 自动存档、手动存档和槽位封面。读写兼容性见[存档与读档](usage.md#存档与读档) |
+| `files/states/<套件名>/progress/` | 3 个固定槽位及对应截图 |
+| `files/states/<套件名>/snapshots/` | 独立历史快照，分页读取元数据与截图 |
+| `files/states/<套件名>/` | 旧档迁移备份、`progress-v1.migrated` 标记及 `selected-slot`；兼容性见[存档与读档](usage.md#存档与读档) |
 | `files/artwork/downloaded/` | 已下载的游戏封面 |
 | `library-folders`、`library-favorites`、`library-recent`、`cover-attempts` | 目录、收藏、最近游玩和重复缺图探测的本地偏好 |
 | `appearance` | 全局圆角大小的本地偏好 |

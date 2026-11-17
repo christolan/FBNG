@@ -9,8 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-/** Owns one core. All entry points run on the main thread, including lifecycle callbacks. */
-internal class RunningGame(val view: GLRetroView, private val store: SaveStateStore) {
+/** One immutable slot binding per core. Lifecycle callbacks and core mutations run on main. */
+internal class RunningGame(val view: GLRetroView, private val store: GameProgressStore, val slotId: Int) {
     val life = SessionLifecycleOwner()
     var ready by mutableStateOf(false)
         private set
@@ -18,137 +18,118 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
         private set
     var paused by mutableStateOf(false)
         private set
-    var hasSlot by mutableStateOf(store.hasSlot())
-        private set
     var initializationStarted = false
         private set
     private var foreground = false
     private var closed = false
+    private var destroyRequested = false
     private var failed = false
     private var canAutoSave = false
-    private var autoSaveAfterResume = false
     private var quitSaved = false
     private var dialogOpen = false
     private var pauseCover: ByteArray? = null
     private var coverGeneration = 0
 
     init {
+        require(slotId in 1..GameProgressStore.SLOT_COUNT)
         life.lifecycle.addObserver(view)
         life.create()
     }
 
-    fun start() {
-        foreground = true
-        updatePlayback()
-    }
+    fun start() { foreground = true; updatePlayback() }
 
     fun togglePause() {
         if (!ready || busy || dialogOpen) return
         paused = !paused
-        if (!paused) {
-            clearPauseCover()
-            if (autoSaveAfterResume) {
-                canAutoSave = true
-                autoSaveAfterResume = false
-            }
-        }
+        if (!paused) clearPauseCover()
         updatePlayback()
     }
 
     suspend fun capturePauseCover() {
-        if (!foreground || !paused) return
+        if (!foreground || !paused || busy) return
         val generation = coverGeneration
         val source = GameCover.source(view) ?: return
         val cover = GameCover.capturePreview(source)
         if (generation == coverGeneration) pauseCover = cover
     }
 
-    private fun clearPauseCover() {
-        coverGeneration++
-        pauseCover = null
-    }
+    private fun clearPauseCover() { coverGeneration++; pauseCover = null }
+    fun setDialogOpen(open: Boolean) { dialogOpen = open; updatePlayback() }
 
-    fun setDialogOpen(open: Boolean) {
-        dialogOpen = open
-        updatePlayback()
-    }
-
-    suspend fun initialize(slotId: Int?): SavedSlot? {
+    suspend fun initialize(): SavedSlot? {
         check(!initializationStarted)
         initializationStarted = true
-        return try {
-            load(slotId ?: SaveStateStore.AUTO_SLOT, requireExisting = slotId != null)
-        } finally {
-            if (!closed && !failed) ready = true
-        }
-    }
-
-    suspend fun save(id: Int = SaveStateStore.AUTO_SLOT) = saveToSlot(id)
-
-    suspend fun createManualSave() = saveToSlot(null)
-
-    suspend fun deleteSave(id: Int) = withPausedCore {
-        try {
-            withContext(NonCancellable + Dispatchers.IO) { store.delete(id) }
-        } finally {
-            hasSlot = store.hasSlot()
-        }
-    }
-
-    private suspend fun saveToSlot(id: Int?) = withPausedCore {
-        val bytes = snapshot()
-        val cachedCover = pauseCover
-        val coverSource = if (!paused && id == SaveStateStore.AUTO_SLOT) GameCover.source(view) else null
-        // Once captured, finish the disk write even if the screen is disposed.
-        withContext(NonCancellable + Dispatchers.IO) {
-            val cover = cachedCover ?: GameCover.capture(coverSource)
-            if (id == null) {
-                store.createManualSlot(bytes, BuildConfig.FBNEO_COMMIT, cover)
-            } else {
-                check(id == SaveStateStore.AUTO_SLOT || store.hasSlot(id)) { "这个槽位没有存档，请选择其他槽位。" }
-                store.write(bytes, BuildConfig.FBNEO_COMMIT, id = id, cover = cover)
+        return withPausedCore {
+            try {
+                val slot = withContext(Dispatchers.IO) { store.readSlot(slotId) }
+                if (slot != null) check(view.unserializeState(slot.bytes, useEmulationThread = false)) {
+                    "无法恢复这个槽位，请尝试应用兼容快照或删除进度后重新开始。"
+                }
+                withContext(NonCancellable + Dispatchers.IO) { store.selectSlot(slotId) }
+                canAutoSave = true
+                ready = true
+                slot
+            } catch (error: Exception) {
+                fail()
+                throw error
             }
         }
-        hasSlot = store.hasSlot()
-        canAutoSave = true
-        autoSaveAfterResume = false
     }
 
-    suspend fun load(id: Int, requireExisting: Boolean = true): SavedSlot? = withPausedCore {
-        // A failed read must not let a later automatic save overwrite the old slot.
-        canAutoSave = false
-        autoSaveAfterResume = false
-        val slot = withContext(Dispatchers.IO) { store.read(id) }
-        check(!requireExisting || slot != null) { "这个槽位没有存档，请选择其他槽位。" }
-        check(!closed && !failed) { "游戏已关闭或核心出错" }
-        if (slot != null) {
-            clearPauseCover()
-            check(view.unserializeState(slot.bytes, useEmulationThread = false)) { "无法读取存档，请检查核心版本或重新开始。" }
+    suspend fun createSnapshot(): Int = withPausedCore {
+        val state = captureState()
+        val cover = pauseCover
+        withContext(NonCancellable + Dispatchers.IO) { store.createSnapshot(state, cover, slotId) }
+    }
+
+    /** Disk stays untouched until the snapshot has loaded. Failed loads restore the original core. */
+    suspend fun applySnapshot(id: Int): SavedSlot = withPausedCore {
+        withContext(NonCancellable) {
+            val state = withContext(Dispatchers.IO) { store.readSnapshot(id) }
+            val cover = withContext(Dispatchers.IO) { store.snapshotCover(id) }
+            val original = captureState()
+            val wasAllowed = canAutoSave
+            canAutoSave = false
+            try {
+                check(view.unserializeState(state.bytes, useEmulationThread = false)) {
+                    "无法应用快照，请检查核心版本。原槽位未修改。"
+                }
+                withContext(Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
+                clearPauseCover()
+                pauseCover = cover
+                canAutoSave = true
+                state
+            } catch (error: Exception) {
+                val restored = runCatching { view.unserializeState(original.bytes, useEmulationThread = false) }.getOrDefault(false)
+                if (restored) canAutoSave = wasAllowed else fail()
+                throw error
+            }
         }
-        canAutoSave = true
-        hasSlot = store.hasSlot()
-        slot
     }
 
-    suspend fun restart() = withPausedCore {
-        clearPauseCover()
-        view.reset(useEmulationThread = false)
-        canAutoSave = false
-        autoSaveAfterResume = true
-    }
-
-    suspend fun clearSaves() = withPausedCore {
-        canAutoSave = false
-        autoSaveAfterResume = true
-        try {
-            withContext(NonCancellable + Dispatchers.IO) { store.clear() }
-        } finally {
-            hasSlot = store.hasSlot()
+    suspend fun deleteCurrentProgress() = withPausedCore {
+        withContext(NonCancellable) {
+            val wasAllowed = canAutoSave
+            canAutoSave = false
+            try {
+                withContext(Dispatchers.IO) { store.deleteSlot(slotId) }
+                quitSaved = true
+                ready = false
+            } catch (error: Exception) {
+                canAutoSave = wasAllowed
+                throw error
+            }
         }
     }
 
     suspend fun saveBeforeQuit() {
-        if (ready && canAutoSave) save()
+        if (ready && canAutoSave) withPausedCore {
+            val state = captureState()
+            val cover = pauseCover ?: GameCover.capture(GameCover.source(view))
+            withContext(NonCancellable + Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
+            // Set while still busy, so a deferred background callback cannot save twice.
+            quitSaved = true
+        }
         quitSaved = true
     }
 
@@ -169,9 +150,8 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
     fun destroy() {
         if (closed) return
         life.pause()
-        try {
-            saveBeforeStop()
-        } finally {
+        if (busy) { destroyRequested = true; return }
+        try { saveBeforeStop() } finally {
             closed = true
             ready = false
             clearPauseCover()
@@ -181,32 +161,32 @@ internal class RunningGame(val view: GLRetroView, private val store: SaveStateSt
 
     private fun saveBeforeStop() {
         if (!ready || busy || !canAutoSave || quitSaved || closed) return
-        // Android can kill the process immediately after onStop. Finish the write
-        // before returning from the lifecycle callback.
-        val bytes = snapshot()
+        // Complete before the lifecycle callback returns: Android may kill the process immediately.
+        val state = captureState()
         val cover = if (paused) pauseCover else GameCover.capture(GameCover.source(view))
-        store.write(bytes, BuildConfig.FBNEO_COMMIT, cover = cover)
-        hasSlot = store.hasSlot()
+        store.saveSlot(slotId, state, cover)
     }
 
-    private fun snapshot(): ByteArray = view.serializeState(useEmulationThread = false).also {
-        check(it.isNotEmpty()) { "核心没有返回存档数据" }
-    }
+    private fun captureState() = SavedSlot(
+        view.serializeState(useEmulationThread = false).also { check(it.isNotEmpty()) { "核心没有返回存档数据。" } },
+        BuildConfig.FBNEO_COMMIT, System.currentTimeMillis(),
+    )
 
     private suspend fun <T> withPausedCore(action: suspend () -> T): T {
-        check(!closed && !busy && !failed)
+        check(!closed && !destroyRequested && !busy && !failed)
         busy = true
         life.pause()
-        return try {
-            action()
-        } finally {
+        return try { action() } finally {
             busy = false
-            updatePlayback()
+            if (destroyRequested) destroy() else {
+                if (!foreground) saveBeforeStop()
+                updatePlayback()
+            }
         }
     }
 
     private fun updatePlayback() {
-        if (closed) return
+        if (closed || destroyRequested) return
         if (foreground && !paused && !dialogOpen && !busy && !failed) life.resume() else life.pause()
     }
 }

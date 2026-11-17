@@ -15,12 +15,14 @@ data class SavedSlot(
     val bytes: ByteArray,
     val coreCommit: String,
     val savedAtEpochMs: Long,
+    val sourceSlot: Int? = null,
 )
 
 data class SaveSlotInfo(
     val id: Int,
     val savedAtEpochMs: Long,
     val available: Boolean = true,
+    val sourceSlot: Int? = null,
 ) {
     val automatic: Boolean get() = id == SaveStateStore.AUTO_SLOT
 }
@@ -55,14 +57,16 @@ class SaveStateStore(private val directory: File) {
         }.filter { it > AUTO_SLOT }.toSet()
     }
 
-    fun listSlots(): List<SaveSlotInfo> = (listOf(AUTO_SLOT) + manualSlotIds().sorted()).map { id ->
+    fun listSlots(): List<SaveSlotInfo> = (listOf(AUTO_SLOT) + manualSlotIds().sorted()).map(::slotInfo)
+
+    fun slotInfo(id: Int): SaveSlotInfo {
         val file = bundle(id)
         val available = hasSlot(id)
         // A damaged slot stays visible and cannot be silently overwritten as a new slot.
-        val timestamp = runCatching {
-            metadata(id).getProperty("savedAtEpochMs")?.toLongOrNull()
-        }.getOrNull() ?: if (file.isFile) file.lastModified() else legacyState.lastModified()
-        SaveSlotInfo(id, timestamp, available)
+        val meta = runCatching { metadata(id) }.getOrNull()
+        val timestamp = meta?.getProperty("savedAtEpochMs")?.toLongOrNull()
+            ?: if (file.isFile) file.lastModified() else legacyState.lastModified()
+        return SaveSlotInfo(id, timestamp, available, meta?.getProperty("sourceSlot")?.toIntOrNull())
     }
 
     fun read(id: Int = AUTO_SLOT): SavedSlot? {
@@ -83,7 +87,8 @@ class SaveStateStore(private val directory: File) {
         }
         check(bytes.isNotEmpty()) { "存档数据为空，请选择其他槽位。" }
         return SavedSlot(bytes, props.getProperty("coreCommit").orEmpty(),
-            props.getProperty("savedAtEpochMs")?.toLongOrNull() ?: 0L)
+            props.getProperty("savedAtEpochMs")?.toLongOrNull() ?: 0L,
+            props.getProperty("sourceSlot")?.toIntOrNull())
     }
 
     fun readCover(id: Int): ByteArray? {
@@ -112,6 +117,7 @@ class SaveStateStore(private val directory: File) {
         savedAtEpochMs: Long = System.currentTimeMillis(),
         id: Int = AUTO_SLOT,
         cover: ByteArray? = null,
+        sourceSlot: Int? = null,
     ) {
         require(bytes.isNotEmpty())
         check(directory.isDirectory || directory.mkdirs()) { "无法创建存档目录，请检查剩余空间。" }
@@ -121,6 +127,7 @@ class SaveStateStore(private val directory: File) {
             setProperty("coreCommit", coreCommit)
             setProperty("savedAtEpochMs", savedAtEpochMs.toString())
             setProperty("size", bytes.size.toString())
+            if (sourceSlot != null) setProperty("sourceSlot", sourceSlot.toString())
         }
         val metaBytes = ByteArrayOutputStream().also { props.store(it, "FBNG slot $id") }.toByteArray()
         try {

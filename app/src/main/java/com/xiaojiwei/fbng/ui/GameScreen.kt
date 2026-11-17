@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,7 +71,7 @@ import com.xiaojiwei.fbng.artwork.CoverImage
 import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.RunningGame
-import com.xiaojiwei.fbng.game.SaveStateStore
+import com.xiaojiwei.fbng.game.GameProgressStore
 import com.xiaojiwei.fbng.game.SavedSlot
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.PreparedGame
@@ -98,6 +100,32 @@ internal fun GameScreen(
     onQuit: () -> Unit,
     onStarted: () -> Unit = {},
 ) {
+    var selecting by rememberSaveable(game.rom.absolutePath) { mutableStateOf(false) }
+    var selected by rememberSaveable(game.rom.absolutePath) { mutableStateOf(initialSlot ?: 1) }
+    var generation by rememberSaveable(game.rom.absolutePath) { mutableStateOf(0) }
+    if (selecting) {
+        GameLaunchPage(entry, cover, rememberFoldSnapshot(), favorite, busy = false, launchError = false,
+            onPlay = { selected = it ?: 1; generation++; selecting = false },
+            onToggleFavorite = onToggleFavorite, onConfigureFolders = onQuit, onBack = onQuit)
+    } else key(generation) {
+        GameSessionScreen(game, entry, selected, cover, favorite, bridge, onToggleFavorite, onQuit,
+            onStarted = onStarted, onDeleted = { selecting = true })
+    }
+}
+
+@Composable
+private fun GameSessionScreen(
+    game: PreparedGame,
+    entry: LibraryEntry,
+    initialSlot: Int,
+    cover: CoverImage?,
+    favorite: Boolean,
+    bridge: GamepadBridge,
+    onToggleFavorite: () -> Unit,
+    onQuit: () -> Unit,
+    onStarted: () -> Unit,
+    onDeleted: () -> Unit,
+) {
     val context = LocalContext.current
     val resources by rememberUpdatedState(LocalResources.current)
     val activity = context.findActivity()
@@ -109,19 +137,12 @@ internal fun GameScreen(
         FbneoCore.resolveLoadPath(File(info.nativeLibraryDir), apks)
     }
     if (corePath == null) {
-        LaunchedEffect(activity) {
-            Log.e(
-                TAG,
-                "no ${FbneoCore.FILE_NAME} in ${activity.applicationInfo.nativeLibraryDir} and no stored ${FbneoCore.ZIP_ENTRY}",
-            )
-        }
         BackHandler(onBack = onQuit)
         MissingCore(onQuit)
         return
     }
-
-    val store = remember(game.stateDir) { SaveStateStore(game.stateDir) }
-    val session = remember(corePath, game.rom.absolutePath) {
+    val store = remember(game.stateDir) { GameProgressStore(game.stateDir) }
+    val session = remember(corePath, game.rom.absolutePath, initialSlot) {
         val data = GLRetroViewData(activity).apply {
             coreFilePath = corePath
             gameFilePath = game.rom.absolutePath
@@ -134,75 +155,34 @@ internal fun GameScreen(
             skipDuplicateFrames = false
             enableMicrophone = false
         }
-        val view = GLRetroView(activity, data)
-        // Load the core before the GL surface exists so retro_load_game is not raced.
-        val running = RunningGame(view, store)
-        Log.i(
-            TAG,
-            "core $corePath game ${game.rom.absolutePath} system ${game.systemDir}",
-        )
-        running
+        RunningGame(GLRetroView(activity, data), store, initialSlot)
     }
     val scope = rememberCoroutineScope()
     var message by remember(session) { mutableStateOf("") }
-    var showReset by remember(session) { mutableStateOf(false) }
-    var slotMode by remember(session) { mutableStateOf<SaveSlotMode?>(null) }
-    var slotRevision by remember(session) { mutableStateOf(0) }
+    var messageError by remember(session) { mutableStateOf(false) }
     var pausePageOpen by remember(session) { mutableStateOf(false) }
+    var panelInputBlocked by remember(session) { mutableStateOf(false) }
     var coreFailed by remember(session) { mutableStateOf(false) }
-    var foreground by remember(session) {
-        mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
-    }
+    var foreground by remember(session) { mutableStateOf(activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
     val started by rememberUpdatedState(onStarted)
     val fold = rememberFoldSnapshot()
-
     fun reportFailure(error: Exception, resource: Int) {
         if (error is CancellationException) throw error
-        Log.e(TAG, "game operation failed", error)
+        Log.e(TAG, "Game operation failed", error)
         message = resources.getString(resource, error.message ?: error.javaClass.simpleName)
+        messageError = true
         pausePageOpen = true
         bridge.target = null
+        if (!session.ready) coreFailed = true
         if (!session.paused) session.togglePause()
     }
-
-    fun loadMessage(slot: SavedSlot?): String {
-        val warning = if (slot != null && slot.coreCommit.isNotEmpty() && slot.coreCommit != BuildConfig.FBNEO_COMMIT) {
-            "\n" + resources.getString(R.string.load_version_warn, slot.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
-        } else ""
-        return (if (slot == null) resources.getString(R.string.load_missing) else resources.getString(R.string.load_ok)) + warning
-    }
-
     fun quit() {
-        if (session.busy || showReset || slotMode != null) return
+        if (session.busy || panelInputBlocked) return
         scope.launch {
-            message = resources.getString(R.string.save_working)
-            try {
-                session.saveBeforeQuit()
-                onQuit()
-            } catch (error: Exception) {
-                reportFailure(error, R.string.save_fail)
-            }
+            try { session.saveBeforeQuit(); onQuit() }
+            catch (error: Exception) { reportFailure(error, R.string.save_fail) }
         }
     }
-
-    fun dismissReset() {
-        showReset = false
-    }
-
-    fun dismissSlots() {
-        if (session.busy) return
-        slotMode = null
-        session.setDialogOpen(false)
-    }
-
-    fun openSlots(mode: SaveSlotMode) {
-        if (!session.ready || session.busy || coreFailed || showReset || slotMode != null) return
-        bridge.target = null
-        session.setDialogOpen(true)
-        message = ""
-        slotMode = mode
-    }
-
     fun openPausePage() {
         if (pausePageOpen) return
         bridge.target = null
@@ -210,52 +190,27 @@ internal fun GameScreen(
         pausePageOpen = true
         scope.launch { session.capturePauseCover() }
     }
-
     fun resume() {
-        if (!session.ready || session.busy || coreFailed || showReset || slotMode != null) return
+        if (!session.ready || session.busy || coreFailed || panelInputBlocked) return
         if (session.paused) session.togglePause()
         pausePageOpen = false
         if (foreground) bridge.target = session.view
     }
-
-    // A back gesture during loading still opens the page. Once initialization
-    // finishes, pause before giving control back to the player.
-    LaunchedEffect(session, pausePageOpen, session.ready, session.busy, showReset, slotMode) {
-        if (pausePageOpen && session.ready && !session.busy && !session.paused && !showReset && slotMode == null) {
-            session.togglePause()
-        }
-    }
-
-    fun back() {
-        when {
-            slotMode != null -> dismissSlots()
-            showReset -> dismissReset()
-            coreFailed -> Unit
-            pausePageOpen -> resume()
-            else -> openPausePage()
-        }
-    }
+    fun back() { if (pausePageOpen) resume() else openPausePage() }
     BackHandler(onBack = ::back)
-
+    LaunchedEffect(session, pausePageOpen, session.ready, session.busy, panelInputBlocked) {
+        if (pausePageOpen && session.ready && !session.busy && !session.paused && !panelInputBlocked) session.togglePause()
+    }
     DisposableEffect(session) {
-        val window = activity.window
-        val insets = WindowCompat.getInsetsController(window, window.decorView)
+        val insets = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
         insets.hide(WindowInsetsCompat.Type.systemBars())
         insets.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         if (activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) session.start()
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    foreground = true
-                    session.start()
-                }
-                Lifecycle.Event.ON_PAUSE -> try {
-                    foreground = false
-                    bridge.target = null
-                    session.stop()
-                } catch (error: Exception) {
-                    reportFailure(error, R.string.save_fail)
-                }
+                Lifecycle.Event.ON_RESUME -> { foreground = true; session.start() }
+                Lifecycle.Event.ON_PAUSE -> try { foreground = false; bridge.target = null; session.stop() }
+                    catch (error: Exception) { reportFailure(error, R.string.save_fail) }
                 else -> Unit
             }
         }
@@ -265,44 +220,27 @@ internal fun GameScreen(
             bridge.onPrimaryDisconnected = null
             bridge.target = null
             activity.lifecycle.removeObserver(observer)
-            try {
-                session.destroy()
-            } catch (error: Exception) {
-                Log.e(TAG, "Could not save on disposal", error)
-            }
+            try { session.destroy() } catch (error: Exception) { Log.e(TAG, "Could not save on disposal", error) }
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    val coreReceivesInput = foreground && session.ready && !pausePageOpen && !session.paused &&
-        !session.busy && !showReset && slotMode == null && !coreFailed
+    val receivesInput = foreground && session.ready && !pausePageOpen && !session.paused && !session.busy && !panelInputBlocked && !coreFailed
     SideEffect {
-        bridge.target = session.view.takeIf { coreReceivesInput }
-        bridge.onPauseToggle = {
-            if (foreground && !showReset && slotMode == null && !session.busy) back()
-        }
-        bridge.onPrimaryDisconnected = {
-            if (!coreFailed) {
-                openPausePage()
-                message = resources.getString(R.string.gamepad_disconnected)
-            }
-        }
+        bridge.target = session.view.takeIf { receivesInput }
+        bridge.onPauseToggle = { if (foreground && !panelInputBlocked && !session.busy) back() }
+        bridge.onPrimaryDisconnected = { if (!coreFailed) { openPausePage(); message = resources.getString(R.string.gamepad_disconnected) } }
     }
-
     LaunchedEffect(session.view) {
         session.view.getGLRetroEvents().collect { event ->
-            if (event is GLRetroView.GLRetroEvents.SurfaceCreated ||
-                event is GLRetroView.GLRetroEvents.FrameRendered
-            ) {
+            if (event is GLRetroView.GLRetroEvents.SurfaceCreated || event is GLRetroView.GLRetroEvents.FrameRendered) {
                 if (!session.initializationStarted && !coreFailed) {
-                    message = resources.getString(R.string.load_working)
                     try {
-                        val slot = session.initialize(initialSlot)
-                        message = if (slot == null) "" else loadMessage(slot)
-                    } catch (error: Exception) {
-                        reportFailure(error, R.string.auto_load_fail)
-                    }
-                    if (pausePageOpen && !session.paused) session.togglePause()
-                    if (!coreFailed) started()
+                        val saved = session.initialize()
+                        val warning = saved?.takeIf { it.coreCommit.isNotEmpty() && it.coreCommit != BuildConfig.FBNEO_COMMIT }
+                        message = warning?.let { resources.getString(R.string.load_version_warn, it.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT) } ?: ""
+                        if (pausePageOpen && !session.paused) session.togglePause()
+                        started()
+                    } catch (error: Exception) { reportFailure(error, R.string.auto_load_fail) }
                 }
             }
         }
@@ -311,125 +249,29 @@ internal fun GameScreen(
         session.view.getGLRetroErrors().collect { code ->
             coreFailed = true
             session.fail()
-            message = when (code) {
-                GLRetroView.ERROR_LOAD_LIBRARY -> resources.getString(R.string.core_error_library)
-                GLRetroView.ERROR_LOAD_GAME -> resources.getString(R.string.core_error_game)
-                else -> resources.getString(R.string.core_error_generic, code)
-            }
-            Log.e(TAG, "core error $code")
+            messageError = true
+            message = resources.getString(when (code) {
+                GLRetroView.ERROR_LOAD_LIBRARY -> R.string.core_error_library
+                GLRetroView.ERROR_LOAD_GAME -> R.string.core_error_game
+                else -> R.string.core_error_generic
+            }, code)
         }
     }
-
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing),
-        ) {
-            // One AndroidView for the session. It fills the play area; LibretroDroid
-            // letterboxes inside that rect without reserving any space for controls.
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             AndroidView(factory = { session.view }, modifier = Modifier.fillMaxSize())
-            // Keep the same GL surface mounted underneath an opaque pause page.
-            // Running games have no HUD, regardless of the available black bars.
-            if (pausePageOpen || coreFailed) GameMenuPage(
-                entry = entry,
-                cover = cover,
-                fold = fold,
-                favorite = favorite,
-                ready = session.ready && !coreFailed,
-                busy = session.busy,
-                dialogOpen = showReset || slotMode != null,
-                message = message,
-                messageIsError = coreFailed,
-                failed = coreFailed,
-                hasAutoSave = session.hasSlot,
-                onSave = { openSlots(SaveSlotMode.Save) },
-                onLoad = { openSlots(SaveSlotMode.Load) },
-                onPrimary = ::resume,
-                onReset = { showReset = true },
-                onQuit = ::quit,
-                onToggleFavorite = onToggleFavorite,
-                onBack = ::back,
+            if (pausePageOpen || coreFailed) GameProgressPage(
+                entry, cover, fold, favorite, store,
+                busy = session.busy, ready = session.ready && !coreFailed, message = message,
+                messageIsError = messageError, activeSlot = session.slotId,
+                onPrimary = { resume() }, onToggleFavorite = onToggleFavorite, onBack = ::resume,
+                onQuit = ::quit, onDialogOpen = { panelInputBlocked = it; session.setDialogOpen(it) },
+                onCreateSnapshot = { session.createSnapshot() },
+                onApplySnapshot = { session.applySnapshot(it) },
+                onDeleteCurrent = { session.deleteCurrentProgress(); onDeleted() },
+                onOperationError = { reportFailure(it, R.string.auto_load_fail) },
             )
         }
-    }
-    slotMode?.let { mode ->
-        fun chooseSlot(id: Int?) {
-            scope.launch {
-                if (session.busy || coreFailed || slotMode != mode) return@launch
-                message = resources.getString(if (mode == SaveSlotMode.Save) R.string.save_working else R.string.load_working)
-                try {
-                    if (mode == SaveSlotMode.Save) {
-                        if (id == null) session.createManualSave() else session.save(id)
-                        message = resources.getString(R.string.save_ok)
-                        slotRevision++
-                    } else {
-                        message = loadMessage(session.load(requireNotNull(id)))
-                        dismissSlots()
-                    }
-                } catch (error: Exception) {
-                    reportFailure(error, if (mode == SaveSlotMode.Save) R.string.save_fail else R.string.auto_load_fail)
-                }
-            }
-        }
-        fun deleteSlot(id: Int) {
-            scope.launch {
-                if (session.busy || coreFailed || slotMode != mode) return@launch
-                message = resources.getString(R.string.delete_save_working)
-                try {
-                    session.deleteSave(id)
-                    message = resources.getString(R.string.delete_save_ok)
-                } catch (error: Exception) {
-                    reportFailure(error, R.string.delete_save_fail)
-                } finally {
-                    slotRevision++
-                }
-            }
-        }
-        fun clearSlots() {
-            scope.launch {
-                if (session.busy || coreFailed || slotMode != mode) return@launch
-                try {
-                    session.clearSaves()
-                    message = resources.getString(R.string.clear_saves_ok)
-                } catch (error: Exception) {
-                    reportFailure(error, R.string.clear_saves_fail)
-                } finally {
-                    slotRevision++
-                }
-            }
-        }
-        SaveSlotsDialog(
-            store = store,
-            mode = mode,
-            busy = session.busy,
-            message = message,
-            revision = slotRevision,
-            onDismiss = ::dismissSlots,
-            onChoose = ::chooseSlot,
-            onCreate = { chooseSlot(null) },
-            onDelete = ::deleteSlot,
-            onClear = ::clearSlots,
-        )
-    }
-    if (showReset) {
-        GameConfirmationDialog(
-            title = stringResource(R.string.reset_title),
-            body = stringResource(R.string.reset_body),
-            actionLabel = stringResource(R.string.reset),
-            onDismiss = ::dismissReset,
-            onConfirm = {
-                dismissReset()
-                scope.launch {
-                    try {
-                        session.restart()
-                        message = resources.getString(R.string.reset_ok)
-                    } catch (error: Exception) {
-                        reportFailure(error, R.string.reset_fail)
-                    }
-                }
-            },
-        )
     }
 }
 

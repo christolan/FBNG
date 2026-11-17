@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -55,48 +56,35 @@ class SaveSlotsDialogTest {
     val folder = TemporaryFolder()
 
     @Test
-    fun launchPageReturnsFromSlotPickerAndStartsWithTheSelectedManualSlot() {
+    fun launchPageStartsOnlyAfterConfirmingTheSelectedFixedSlot() {
         val game = LibraryGame("slot_test", "Slot test")
         val context = ApplicationProvider.getApplicationContext<Context>()
         val stateDir = AppStorage(context.filesDir).stateDir(game.name)
         val store = SaveStateStore(stateDir)
         store.write(byteArrayOf(1), coreCommit = "core")
-        val manual = store.createManualSlot(byteArrayOf(2), coreCommit = "core")
+        store.createManualSlot(byteArrayOf(2), coreCommit = "core")
         val launches = mutableListOf<Int?>()
         try {
             rule.setContent {
                 FbngTheme {
                     GameLaunchPage(
                         entry = LibraryEntry(game, game.description, 'S'),
-                        cover = null,
-                        fold = null,
-                        favorite = false,
-                        busy = false,
-                        launchError = false,
+                        cover = null, fold = null, favorite = false,
+                        busy = false, launchError = false,
                         onPlay = { launches.add(it) },
-                        onToggleFavorite = {},
-                        onConfigureFolders = {},
-                        onBack = {},
+                        onToggleFavorite = {}, onConfigureFolders = {}, onBack = {},
                     )
                 }
             }
-            val load = rule.onNodeWithTag(ShellTags.Load)
-            val autoSlot = hasText("自动存档") and hasClickAction()
-            val focusedLoad = hasTestTag(ShellTags.Load) and isFocused()
-            val manualSlot = hasText("槽位 $manual") and hasClickAction()
-            load.requestFocus().performKeyInput { pressKey(Key.ButtonA) }
-            rule.waitUntil(5_000) { rule.onAllNodes(autoSlot).fetchSemanticsNodes().size == 1 }
-            rule.onNode(autoSlot).requestFocus().performKeyInput { pressKey(Key.ButtonB) }
-            rule.waitUntil(5_000) { rule.onAllNodes(focusedLoad).fetchSemanticsNodes().size == 1 }
+            rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("progress-slot-3")).fetchSemanticsNodes().size == 1 }
+            rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+            rule.onNodeWithTag("progress-slot-3").performClick()
             rule.runOnIdle { assertTrue(launches.isEmpty()) }
-
-            load.performClick()
-            rule.waitUntil(5_000) { rule.onAllNodes(manualSlot).fetchSemanticsNodes().size == 1 }
-            rule.onNode(manualSlot).performClick()
-            rule.onNodeWithText("读取这个存档？").assertDoesNotExist()
-            rule.runOnIdle { assertEquals(listOf<Int?>(manual), launches) }
             rule.onNodeWithTag(ShellTags.Play).performClick()
-            rule.runOnIdle { assertEquals(listOf(manual, null), launches) }
+            rule.runOnIdle { assertEquals(listOf<Int?>(3), launches) }
+            rule.onNodeWithTag("progress-slot-1").performClick()
+            rule.onNodeWithTag(ShellTags.Play).performClick()
+            rule.runOnIdle { assertEquals(listOf<Int?>(3, 1), launches) }
         } finally {
             stateDir.deleteRecursively()
         }
@@ -128,6 +116,7 @@ class SaveSlotsDialogTest {
             }
         }
         val clear = rule.onNodeWithText("清除全部存档")
+        rule.waitUntil(5_000) { runCatching { clear.assertIsEnabled(); true }.getOrDefault(false) }
         clear.performClick()
         rule.onNodeWithText("取消").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         clear.assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }

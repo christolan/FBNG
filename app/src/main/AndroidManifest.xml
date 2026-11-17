@@ -25,12 +25,14 @@
         android:resizeableActivity="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.FBNG">
+        <!-- Keep the fixed landscape request on large-screen Android 16 devices. -->
         <property
             android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
             android:value="true" />
         <receiver
             android:name=".update.UpdateInstallReceiver"
             android:exported="false" />
+        <!-- Product scope: landscape only, from launch through every page and dialog. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode|keyboard|keyboardHidden|navigation|colorMode|fontScale|layoutDirection|touchscreen"

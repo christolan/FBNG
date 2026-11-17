@@ -1,11 +1,12 @@
 # FBNG 项目文档
 
-FBNG（FBNeo Next Generation）是自用 Android 街机前端。项目优先支持横屏与手柄操作，主设备是 OPPO Find N6。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页显示「即将推出」，现阶段仅支持 FBNeo 街机核心。
+FBNG（FBNeo Next Generation）是自用 Android 街机前端。项目只适配横屏，以手柄操作为主，主设备是 OPPO Find N6。APP 启动后固定横屏，不随设备转动切换为竖屏。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页显示「即将推出」，现阶段仅支持 FBNeo 街机核心。
 
 ## 现行说明
 
 | 文档 | 内容 |
 | --- | --- |
+| [横屏游戏页：槽位与快照](game-page-slots-snapshots.md) | 3 个固定槽位、独立快照、暂停时应用与删除进度，含设计参考稿 |
 | [使用说明](usage.md) | 导入目录、浏览与筛选、游戏封面、暂停、存读档和手柄操作 |
 | [架构与数据](architecture.md) | 代码入口、扫描与启动流程、存储位置、封面下载和应用更新 |
 | [Islands 界面与交互规则](ui-guidelines.md) | 设计 token、页面布局、手柄焦点、折叠适配和 UI 改动要求 |

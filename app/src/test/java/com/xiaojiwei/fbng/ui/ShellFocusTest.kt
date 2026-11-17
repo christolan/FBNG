@@ -31,6 +31,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
@@ -65,6 +66,12 @@ class ShellFocusTest {
     @get:Rule
     val rule = createComposeRule()
 
+    private fun awaitGamePage() {
+        rule.waitUntil(5_000) {
+            runCatching { rule.onNodeWithTag(ShellTags.Play).assertIsFocused(); true }.getOrDefault(false)
+        }
+    }
+
     @Test
     @Config(sdk = [33], qualifiers = "w900dp-h640dp-mdpi")
     fun dpadSelectsTheNextGameAndStartsItsSet() {
@@ -91,6 +98,7 @@ class ShellFocusTest {
             .performKeyInput { pressKey(Key.DirectionDown) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         assertEquals("mslug", played)
     }
@@ -116,16 +124,16 @@ class ShellFocusTest {
         rule.onNodeWithText("取消收藏").assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.Load).assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionRight) }
         rule.onNodeWithTag(ShellTags.ToggleFavorite).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         rule.onNodeWithText("添加到收藏").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.favorite("mslug")).assertIsFocused().performTouchInput { click() }
-        rule.onNodeWithTag(ShellTags.ToggleFavorite).performTouchInput { click() }
+        awaitGamePage()
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).performScrollTo().performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.DetailBack).performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.OpenLibrary).assertIsFocused()
     }
@@ -153,6 +161,7 @@ class ShellFocusTest {
         rule.runOnIdle { snapshot = LibrarySnapshot(listOf(LibraryGame("1942", "1942")) + snapshot.games) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         assertEquals("mslug", played)
     }
@@ -175,6 +184,7 @@ class ShellFocusTest {
             .performKeyInput { pressKey(Key.DirectionDown) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
     }
@@ -234,6 +244,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.NextPage).performTouchInput { click() }
         card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle { assertTrue(!inGame) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle {
             assertTrue(inGame)
@@ -368,6 +379,7 @@ class ShellFocusTest {
         }
         assertEquals(headerBounds, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.game(games[4].name)).performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.game(games[4].name)).assertIsFocused().assertIsDisplayed()
     }
@@ -722,6 +734,7 @@ class ShellFocusTest {
         }
         rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
@@ -729,6 +742,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.NavLibrary).performClick()
         rule.onNodeWithTag(ShellTags.game("mslug")).requestFocus()
             .performKeyInput { pressKey(Key.ButtonA) }
+        awaitGamePage()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
         rule.runOnIdle { returnFromGame = "mslug" }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
