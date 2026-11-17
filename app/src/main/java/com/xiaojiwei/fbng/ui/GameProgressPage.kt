@@ -173,16 +173,16 @@ internal fun GameProgressPage(
     LaunchedEffect(blocked, primaryEnabled, slotsError, snapshotsLoaded, snapshotsError, dialogOpen, snapshotsOpen, windowSize, windowFocused, focusRevision, fold) {
         if (blocked || dialogOpen || !windowFocused) return@LaunchedEffect
         if (focused == primary && primaryNeedsSlots && ready && !slotsLoaded && !slotsError) return@LaunchedEffect
-        val keys = listOfNotNull(
-            restoreKey, focused,
-            "retry-snapshots".takeIf { snapshotsOpen && snapshotsError },
-            "retry-slots".takeIf { !snapshotsOpen && slotsError },
-            "snapshots-tab".takeIf { snapshotsOpen },
-            primary.takeIf { primaryEnabled },
-            if (paused) ShellTags.Quit else ShellTags.DetailBack,
-        ).distinct()
         repeat(4) {
             withFrameNanos { }
+            val keys = listOfNotNull(
+                restoreKey, focused,
+                "retry-snapshots".takeIf { snapshotsOpen && snapshotsError },
+                "retry-slots".takeIf { !snapshotsOpen && slotsError },
+                "snapshots-tab".takeIf { snapshotsOpen },
+                primary.takeIf { primaryEnabled },
+                if (paused) ShellTags.Quit else ShellTags.DetailBack,
+            ).distinct()
             for (key in keys) if (runCatching { requesters[key]?.requestFocus() == true }.getOrDefault(false)) {
                 restoreKey = null
                 return@LaunchedEffect

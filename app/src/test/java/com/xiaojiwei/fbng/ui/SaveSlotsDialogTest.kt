@@ -149,8 +149,13 @@ class SaveSlotsDialogTest {
     @Test
     @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
     fun pauseKeepsPrimaryAndSnapshotActionsVisibleAndRestoresCardFocus() {
-        val store = GameProgressStore(folder.newFolder("snapshots"))
-        repeat(7) { index -> store.createSnapshot(SavedSlot(byteArrayOf(1), "", index + 1L), null, 1) }
+        val directory = folder.newFolder("snapshots")
+        val store = GameProgressStore(directory)
+        repeat(7) { index ->
+            val savedAt = 1_700_000_000_000L + index * 2_000L
+            val id = store.createSnapshot(SavedSlot(byteArrayOf(1), "", savedAt), null, 1)
+            assertTrue(File(directory, "snapshots/slot$id.save").setLastModified(savedAt))
+        }
         val game = LibraryGame("pause", "Pause")
         var resumedSlot: Int? = null
         rule.setContent {
@@ -186,9 +191,9 @@ class SaveSlotsDialogTest {
 
     private fun awaitSnapshotFocus(tag: String, request: Boolean = false) {
         val node = rule.onNodeWithTag(tag)
-        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil("$tag appears", 5_000) { rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
         if (request) node.requestFocus()
-        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag(tag) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
+        rule.waitUntil("$tag is focused", 5_000) { rule.onAllNodes(hasTestTag(tag) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
     }
 
     @Test
