@@ -48,4 +48,4 @@
 ## 联网流程
 
 - 封面由 `CoverWorker` 交给 WorkManager，在联网时处理收藏或成功玩过的套件。相同图片路径共享下载和磁盘文件。已下载图片由 Coil 从本地显示。内置索引只保存路径，生成方法见[游戏封面](usage.md#游戏封面)。
-- Release 应用匿名查询 GitHub Releases。它通过发布说明、tag 和附件元数据选出更高的 `versionCode`，下载后检查大小和 SHA-256，交给系统安装前还会核对包名、版本和签名。发版端的约定见[构建、测试与发布](build-release.md#github-actions-与应用更新)。
+- Debug 和 Release 应用均在启动时匿名查询 GitHub Releases，也可手动查询。应用通过发布说明、tag 和附件元数据选出更高的 `versionCode`，下载后检查大小和 SHA-256，交给系统安装前还会核对包名、版本和签名。发版端的约定见[构建、测试与发布](build-release.md#github-actions-与应用更新)。

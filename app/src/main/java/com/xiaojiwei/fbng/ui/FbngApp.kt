@@ -20,7 +20,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.FbngApplication
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.artwork.CoverRepository
@@ -70,10 +69,10 @@ fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
     val appearance = remember(context) { AppearancePreferences(context) }
     var cornerRadius by remember(appearance) { mutableStateOf(appearance.readCornerRadius()) }
-    val updater = if (BuildConfig.DEBUG) null else (context as FbngApplication).appUpdate
-    val updateState = updater?.state?.collectAsStateWithLifecycle()?.value
+    val updater = (context as FbngApplication).appUpdate
+    val updateState by updater.state.collectAsStateWithLifecycle()
     val installingUpdate = updateState == UpdateState.Installed || updateState is UpdateState.Installing
-    LaunchedEffect(updater) { updater?.checkOnStartup() }
+    LaunchedEffect(updater) { updater.checkOnStartup() }
     val storage = remember { AppStorage(context.filesDir).also(AppStorage::ensure) }
     val folders = remember { FolderLibrary(context, storage) }
     val recentGames = remember { RecentGames(context) }
@@ -144,7 +143,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun updateLibrary(message: Int, action: suspend (DatCatalog) -> Unit = {}) {
-        if (workMessage != null || preparing || playing != null || updater?.installing == true) return
+        if (workMessage != null || preparing || playing != null || updater.installing) return
         workMessage = message
         folderError = null
         launchError = null
@@ -176,7 +175,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     fun play(entry: LibraryEntry, initialSlot: Int?) {
-        if (preparing || playing != null || updater?.installing == true) return
+        if (preparing || playing != null || updater.installing) return
         val setName = entry.game.name
         val game = library?.snapshot?.games?.firstOrNull { it.name == setName && it.canLaunch } ?: return
         preparing = true
@@ -236,9 +235,7 @@ fun FbngApp(bridge: GamepadBridge) {
                     returnFromGame = returnFromGame,
                     onReturnRestored = { returnFromGame = null },
                     covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
-                    appUpdate = if (updater != null && updateState != null) {
-                        UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing)
-                    } else null,
+                    appUpdate = UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing),
                     onToggleFavorite = ::toggleFavorite,
                 )
             }

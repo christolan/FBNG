@@ -15,7 +15,9 @@
 ./gradlew :app:testDebugUnitTest
 ```
 
-Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`，只用发布证书签名：Debug 与 Release 因此可以相互覆盖安装并保留应用数据。Debug 和 Release 打包后都会检查原生库的 ELF 和 APK 16 KB 对齐。核心来源和校验见[固定的 FBNeo 核心与资源](fbneo-core.md)。
+Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`。Debug 和 Release 共用包名、版本配置和发布证书，日常可直接用 Android Studio 运行 Debug 包并保留游戏库及存档。两种包的应用功能一致，Debug 包可连接调试器。Debug 和 Release 打包后都会检查原生库的 ELF 和 APK 16 KB 对齐。核心来源和校验见[固定的 FBNeo 核心与资源](fbneo-core.md)。
+
+包名和证书匹配时，相同 `versionCode` 的两种包可以双向覆盖安装，更高 `versionCode` 的版本可以覆盖升级。端内更新只提供 `versionCode` 更高的 GitHub Release。日常调试沿用当前发布版本的 `versionCode`，准备发布新版时再递增，方便用当前正式包覆盖调试包。 [Android 应用更新规则](https://developer.android.com/google/play/app-updates)
 
 [测试源码](../app/src/test/java/com/xiaojiwei/fbng/)使用 JUnit、Robolectric 和 Compose 测试库，覆盖 DAT、归档识别、目录扫描、核心加载路径、游戏库检索、存档、更新元数据、焦点、布局和对比度。
 
@@ -88,4 +90,4 @@ Gradle 依赖缓存按工具链和依赖配置复用。依赖解析失败时刷�
 
 工作流验证 v1、v2、v3 签名和 APK 的 16 KB 对齐。成功后上传 `FBNG-<versionName>` artifact，保留 14 天。PR 到此结束。向 `main` 推送时，仅在 `versionName` 或 `versionCode` 变化后发布，手动运行也可发布。Release 标题为 `FBNG <versionName>`，tag 为 `v<versionName>`，附件为 `FBNG-<versionName>.apk`。0.x 版本标记为 prerelease。
 
-从 0.6.0 起，Release 应用启动时会匿名检查 GitHub Releases。「设置 → 应用更新」也可手动检查、下载和安装。发布新版时递增 `versionCode` 并沿用同一张 Release 证书。发布说明中的 `版本 <versionName>（versionCode <versionCode>）` 与 tag、附件名和附件摘要共同供应用识别更新。应用核对下载文件的大小和 SHA-256，安装前再核对包名、版本和签名。首次安装更新按系统提示授权 FBNG 安装未知应用，系统要求确认时会打开安装界面。
+Debug 和 Release 应用启动时都会匿名检查 GitHub Releases，也可通过「设置 → 关于 → 应用更新」手动检查、下载和安装。发布新版时递增 `versionCode` 并沿用同一张 Release 证书。发布说明中的 `版本 <versionName>（versionCode <versionCode>）` 与 tag、附件名和附件摘要共同供应用识别更新。应用核对下载文件的大小和 SHA-256，安装前再核对包名、版本和签名。首次安装更新按系统提示授权 FBNG 安装未知应用，系统要求确认时会打开安装界面。

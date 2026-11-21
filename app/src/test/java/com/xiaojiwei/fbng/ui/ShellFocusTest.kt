@@ -40,6 +40,7 @@ import androidx.compose.ui.test.requestFocus
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
+import com.xiaojiwei.fbng.FbngApplication
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.library.FolderScan
@@ -50,6 +51,7 @@ import com.xiaojiwei.fbng.library.MissingDependency
 import com.xiaojiwei.fbng.library.indexLibrary
 import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
+import com.xiaojiwei.fbng.update.UpdateState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -563,6 +565,32 @@ class ShellFocusTest {
         larger.assertIsNotSelected()
         assertRadius(8f)
         assertEquals(CornerRadiusOption.Smaller, AppearancePreferences(context).readCornerRadius())
+    }
+
+    @Test
+    @Config(sdk = [33], qualifiers = "w900dp-h480dp-land-mdpi")
+    fun dpadReachesManualUpdatesInAbout() {
+        val updater = ApplicationProvider.getApplicationContext<FbngApplication>().appUpdate
+        rule.setContent {
+            FbngTheme {
+                LibraryContent(
+                    load = readyCatalog(),
+                    snapshot = readySnapshot(),
+                    busy = false,
+                    readFold = { null },
+                    onPlay = { _, _ -> },
+                    initialSection = ShellSection.Settings,
+                    appUpdate = UpdateUiState(updater, UpdateState.Current, canInstall = true),
+                )
+            }
+        }
+        val about = rule.onNodeWithText("关于")
+        about.requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNodeWithText("应用更新").assertIsDisplayed()
+        rule.onNodeWithText("检查更新").assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.AppUpdate).assertIsFocused()
+            .performKeyInput { pressKey(Key.ButtonB) }
+        about.assertIsFocused()
     }
 
     @Test
