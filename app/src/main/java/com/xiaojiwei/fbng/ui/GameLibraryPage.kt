@@ -1,7 +1,5 @@
 package com.xiaojiwei.fbng.ui
 
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,8 +17,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -38,8 +36,8 @@ import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 
-internal const val LibraryColumns = 1
-internal const val MaxLibraryRows = 5
+internal const val LibraryColumns = 2
+internal const val MaxLibraryRows = 4
 
 @Composable
 internal fun GameLibraryPage(
@@ -54,8 +52,6 @@ internal fun GameLibraryPage(
     onPage: (Int) -> Unit,
     cardRequesters: MutableMap<String, FocusRequester>,
     navigation: @Composable () -> Unit,
-    covers: CoverUiState?,
-    selectedName: String?,
     scanning: Boolean,
     margin: Dp,
     requesters: Map<String, FocusRequester>,
@@ -74,7 +70,7 @@ internal fun GameLibraryPage(
     ShellPage(
         title = "",
         leadingAction = navigation,
-        footer = { BrowseFooter(pageIndex, pages, true, scanning, requesters, onFocused, onPage) },
+        footer = { BrowseFooter(pageIndex, pages, ShellTags.NavLibrary, scanning, requesters, onFocused, onPage) },
         margin = margin,
         headerAction = { width ->
             val labelWidth = with(LocalDensity.current) { MaterialTheme.typography.labelLarge.fontSize.toDp() } * 4
@@ -118,50 +114,45 @@ internal fun GameLibraryPage(
                 }
             }
         } else {
-            val selected = games.firstOrNull { it.game.name == selectedName } ?: games.first()
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                BoxWithConstraints(
-                    Modifier.weight(5f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
-                ) {
-                    val minRow = maxOf(FbngDimens.space32, with(LocalDensity.current) {
-                        MaterialTheme.typography.titleMedium.lineHeight.toDp()
-                    })
-                    val fits = ((maxHeight + rowGap) / (minRow + rowGap)).toInt().coerceIn(1, MaxLibraryRows)
-                    LaunchedEffect(fits, rows) { if (fits != rows) onRows(fits) }
-                    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(rowGap)) {
-                        repeat(rows) { row ->
-                            val entry = games.getOrNull(row)
-                            val cell = Modifier.weight(1f).fillMaxWidth()
-                            if (entry == null) {
-                                Spacer(cell)
-                            } else key(entry.game.name) {
-                                val name = entry.game.name
-                                val tag = ShellTags.game(name)
-                                val requester = remember { FocusRequester() }
-                                DisposableEffect(tag, requester) {
-                                    cardRequesters[tag] = requester
-                                    onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
+            BoxWithConstraints(Modifier.fillMaxSize().fbngIsland().padding(FbngDimens.panelInset)) {
+                val typography = MaterialTheme.typography
+                val minRow = with(LocalDensity.current) {
+                    typography.titleMedium.lineHeight.toDp() + typography.labelMedium.lineHeight.toDp()
+                } + FbngDimens.space8
+                val fits = ((maxHeight + rowGap) / (minRow + rowGap)).toInt().coerceIn(1, MaxLibraryRows)
+                LaunchedEffect(fits, rows) { if (fits != rows) onRows(fits) }
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(rowGap)) {
+                    repeat(rows) { row ->
+                        Row(
+                            Modifier.weight(1f).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(rowGap),
+                        ) {
+                            repeat(LibraryColumns) { column ->
+                                val entry = games.getOrNull(row * LibraryColumns + column)
+                                val cell = Modifier.weight(1f).fillMaxHeight()
+                                if (entry == null) {
+                                    Spacer(cell)
+                                } else key(entry.game.name) {
+                                    val name = entry.game.name
+                                    val tag = ShellTags.game(name)
+                                    val requester = remember { FocusRequester() }
+                                    DisposableEffect(tag, requester) {
+                                        cardRequesters[tag] = requester
+                                        onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
+                                    }
+                                    GameBrowseRow(
+                                        entry,
+                                        cell.focusProperties {
+                                            if (row == 0) up = requesters.getValue(ShellTags.NavLibrary)
+                                        }.libraryFocus(tag, requester) {
+                                            onFocused(it)
+                                            onSelected(name)
+                                        }.fbngFocusTarget({ onDetails(name) }, scheme.surface),
+                                    )
                                 }
-                                GameBrowseRow(
-                                    entry,
-                                    cell.focusProperties {
-                                        if (row == 0) up = requesters.getValue(ShellTags.NavLibrary)
-                                    }.libraryFocus(tag, requester) {
-                                        onFocused(it)
-                                        onSelected(name)
-                                    }.fbngFocusTarget({ onDetails(name) }, scheme.surface),
-                                )
                             }
                         }
                     }
-                }
-                Column(
-                    Modifier.weight(3f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
-                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                ) {
-                    GameCover(covers?.images?.get(selected.game.name),
-                        Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
-                    GameCardText(selected, Modifier.fillMaxWidth())
                 }
             }
         }
@@ -169,34 +160,32 @@ internal fun GameLibraryPage(
 }
 
 @Composable
-internal fun GameBrowseRow(entry: LibraryEntry, modifier: Modifier) {
+private fun GameBrowseRow(entry: LibraryEntry, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
-    val missing = entry.game.missing
     val status = when {
-        missing.any { it.isBios } -> stringResource(R.string.library_missing_bios_short)
+        entry.game.missing.any { it.isBios } -> stringResource(R.string.library_missing_bios_short)
         !entry.game.canLaunch -> stringResource(R.string.card_needs_dependencies)
-        else -> entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip"
+        else -> null
     }
-    Row(
+    Column(
         modifier.padding(horizontal = FbngDimens.space12),
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.Center,
     ) {
-        Text(entry.title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(status, Modifier.weight(0.7f), style = MaterialTheme.typography.labelMedium,
-            textAlign = androidx.compose.ui.text.style.TextAlign.End, color = if (entry.game.canLaunch) scheme.onSurfaceVariant else androidx.compose.ui.graphics.Color(0xFFF1C484),
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-@Composable
-internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
-    Column(modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
-        Text(entry.title, style = MaterialTheme.typography.headlineSmall, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
-            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(entry.title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+            Text(
+                entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
+                Modifier.weight(1f),
+                style = MaterialTheme.typography.labelMedium,
+                color = scheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (status != null) {
+                Text(status, Modifier.weight(.6f, fill = false), style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFFF3CE98), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 

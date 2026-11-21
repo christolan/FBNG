@@ -5,11 +5,12 @@ import androidx.compose.ui.unit.dp
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -64,6 +65,12 @@ internal enum class ShellSection {
     Settings,
 }
 
+internal val ShellSection.topLevelTab: ShellSection
+    get() = when (this) {
+        ShellSection.Import, ShellSection.Sync -> ShellSection.Settings
+        else -> this
+    }
+
 internal object ShellTags {
     const val Header = "shell-header"
     const val HeaderTitle = "shell-header-title"
@@ -91,7 +98,6 @@ internal object ShellTags {
     const val Sync = "shell-sync"
     const val OpenImport = "shell-open-import"
     const val OpenSync = "shell-open-sync"
-    const val SettingsBack = "shell-settings-back"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
     fun cornerRadius(option: CornerRadiusOption) = "shell-corner-radius-${option.name}"
@@ -121,6 +127,7 @@ private val Destinations = listOf(
     ShellDestination(ShellSection.Favorites, R.string.favorites_title, ShellTags.NavFavorites),
     ShellDestination(ShellSection.Recent, R.string.recent_title, ShellTags.NavRecent),
     ShellDestination(ShellSection.Library, R.string.shell_library, ShellTags.NavLibrary),
+    ShellDestination(ShellSection.Settings, R.string.shell_settings, ShellTags.NavSettings),
 )
 
 internal val BrowseSections = Destinations.map(ShellDestination::section)
@@ -257,7 +264,10 @@ internal fun ShellTabs(
     updateAvailable: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val showBrand = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 460.dp
+    val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
+    val showBrand = width >= 460.dp
+    val tabPadding = if (width < 360.dp) FbngDimens.space8 else FbngDimens.space12
+    val updateDescription = if (updateAvailable) stringResource(R.string.update_nav_available) else null
     Row(Modifier.testTag(ShellTags.HeaderTitle),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
         if (showBrand) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
@@ -269,11 +279,13 @@ internal fun ShellTabs(
             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
         ) {
             Destinations.forEach { destination ->
-                val selected = destination.section == section
+                val selected = destination.section == section.topLevelTab
+                val hasUpdate = destination.section == ShellSection.Settings && updateAvailable
                 Box(
                     Modifier.libraryFocus(destination.tag, requesters.getValue(destination.tag), onFocused)
                         .semantics {
                             this.selected = selected
+                            if (hasUpdate && updateDescription != null) stateDescription = updateDescription
                         }
                         .fbngFocusTarget(
                             onClick = { onSection(destination.section) },
@@ -281,23 +293,18 @@ internal fun ShellTabs(
                             restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
                             role = Role.Tab,
                         )
-                        .height(FbngDimens.space24).padding(horizontal = FbngDimens.space12),
+                        .height(FbngDimens.space24).padding(horizontal = tabPadding),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(stringResource(destination.label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                    ) {
+                        Text(stringResource(destination.label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        if (hasUpdate) Badge(containerColor = scheme.primary)
+                    }
                 }
             }
-        }
-        val updateDescription = if (updateAvailable) stringResource(R.string.update_nav_available) else null
-        FbngButton(
-            onClick = { onSection(ShellSection.Settings) },
-            modifier = Modifier.height(FbngDimens.shellHeaderHeight).libraryFocus(ShellTags.NavSettings, requesters.getValue(ShellTags.NavSettings), onFocused)
-                .semantics { if (updateDescription != null) stateDescription = updateDescription },
-            kind = FbngButtonKind.Outline,
-            contentPadding = PaddingValues(horizontal = FbngDimens.space12),
-        ) {
-            Text(stringResource(R.string.shell_settings), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-            if (updateAvailable) Badge(containerColor = scheme.primary)
         }
     }
 }
@@ -344,7 +351,7 @@ internal fun ShellFooter(
 internal fun BrowseFooter(
     page: Int,
     pages: Int,
-    library: Boolean,
+    tab: String,
     scanning: Boolean,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
@@ -352,12 +359,26 @@ internal fun BrowseFooter(
 ) {
     val hints = buildList {
         add("A" to R.string.shell_hint_open)
-        if (pages > 1) add("← / →" to R.string.shell_hint_page)
-        if (library) add("Y" to R.string.library_jump_to_letter)
+        val direction = when (tab) {
+            ShellTags.NavFavorites -> R.string.shell_hint_gallery
+            ShellTags.NavLibrary -> R.string.shell_hint_grid
+            else -> R.string.shell_hint_page
+        }
+        if (pages > 1 || (pages == 1 && tab != ShellTags.NavRecent)) add("← / →" to direction)
+        if (tab == ShellTags.NavLibrary) add("Y" to R.string.library_jump_to_letter)
         add("L1 / R1" to R.string.shell_hint_switch_page)
     }
     ShellFooter(hints) {
-        if (scanning) Text(stringResource(R.string.scanning), color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)
+        if (scanning) {
+            val color = MaterialTheme.colorScheme.primary
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(FbngDimens.space4).background(color, CircleShape))
+                Text(stringResource(R.string.scanning_badge), color = color, style = MaterialTheme.typography.labelMedium)
+            }
+        }
         if (pages > 0) {
             val scheme = MaterialTheme.colorScheme
             for ((step, glyph, label) in listOf(Triple(-1, "‹", R.string.library_previous_page), Triple(0, "", 0), Triple(1, "›", R.string.library_next_page))) {

@@ -3,6 +3,7 @@
     <string name="app_name">FBNG</string>
     <string name="library_sub">FBNeo 自用前端</string>
     <string name="legal_notice">本应用不包含任何 ROM 或 BIOS。请使用自己持有的 ZIP。</string>
+    <string name="scanning_badge">扫描中</string>
     <string name="scanning">正在扫描游戏库…</string>
     <string name="loading_dat">正在读取 FBNeo DAT…</string>
     <string name="dat_error_title">无法读取 FBNeo DAT</string>
@@ -235,6 +236,9 @@
     <string name="progress_next">下一步</string>
     <string name="shell_hint_open">打开</string>
     <string name="shell_hint_page">翻页</string>
+    <string name="shell_hint_gallery">选卡 / 翻页</string>
+    <string name="shell_hint_grid">换列 / 翻页</string>
+    <string name="shell_hint_return_category">返回分类</string>
     <string name="shell_hint_switch_page">切换页面</string>
     <string name="shell_hint_switch_tab">切换标签</string>
     <string name="shell_hint_favorite">添加收藏</string>

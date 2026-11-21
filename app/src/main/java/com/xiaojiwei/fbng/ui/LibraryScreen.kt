@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -242,7 +243,6 @@ private fun LibraryShell(
             ShellTags.Sync,
             ShellTags.OpenImport,
             ShellTags.OpenSync,
-            ShellTags.SettingsBack,
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
             ShellTags.AppUpdate,
@@ -309,8 +309,9 @@ private fun LibraryShell(
         val savedShelfIndex = if (recent) recentIndex else favoritesIndex
         val shelfIndex = shelfCards.indexOf(savedShelfFocus).takeIf { it >= 0 }
             ?: savedShelfIndex.coerceAtMost(shelfCards.lastIndex)
-        val shelfPage = shelfIndex.coerceAtLeast(0) / ShelfPageSize
-        val shelfPages = (shelfCards.size + ShelfPageSize - 1) / ShelfPageSize
+        val shelfPageSize = if (recent) RecentPageSize else FavoritesPageSize
+        val shelfPage = shelfIndex.coerceAtLeast(0) / shelfPageSize
+        val shelfPages = (shelfCards.size + shelfPageSize - 1) / shelfPageSize
         val needle = searchQuery.trim()
         val matchingEntries = remember(entries, needle) {
             if (needle.isEmpty()) entries else entries.filter { it.matches(needle) }
@@ -372,9 +373,10 @@ private fun LibraryShell(
             if (next == currentPage) return
             val selectedIndex = pageEntries.indexOfFirst { it.game.name == selectedName }
             val nextPageStart = next * libraryPageSize
-            val targetIndex = selectedIndex.takeIf {
-                it >= 0 && nextPageStart + it < results.entries.size
-            } ?: 0
+            val lastIndex = minOf(libraryPageSize, results.entries.size - nextPageStart) - 1
+            val row = minOf(selectedIndex.coerceAtLeast(0) / LibraryColumns, lastIndex / LibraryColumns)
+            val column = if (next > currentPage) 0 else LibraryColumns - 1
+            val targetIndex = minOf(row * LibraryColumns + column, lastIndex)
             val name = results.entries[nextPageStart + targetIndex].game.name
             libraryPage = next
             selectedName = name
@@ -384,8 +386,13 @@ private fun LibraryShell(
 
         fun changeShelfPage(page: Int) {
             if (page !in 0 until shelfPages || page == shelfPage) return
-            val first = page * ShelfPageSize
-            val target = shelfCards.getOrNull(first + shelfIndex % ShelfPageSize) ?: shelfCards[first]
+            val first = page * shelfPageSize
+            val offset = when {
+                recent -> shelfIndex % shelfPageSize
+                page < shelfPage -> shelfPageSize - 1
+                else -> 0
+            }
+            val target = shelfCards[minOf(first + offset, shelfCards.lastIndex)]
             focusSaved(target)
             restoreFocus(target)
         }
@@ -461,7 +468,7 @@ private fun LibraryShell(
         fun back() {
             when {
                 pickerOpen -> closePicker()
-                section == ShellSection.Import && savedFocus.isNotEmpty() && savedFocus != SettingsCategory.Import.tag && savedFocus != ShellTags.SettingsBack -> {
+                section == ShellSection.Import && navFocus == null && savedFocus.isNotEmpty() && savedFocus != SettingsCategory.Import.tag -> {
                     savedFocus = SettingsCategory.Import.tag
                     restoreFocus(SettingsCategory.Import.tag)
                 }
@@ -471,7 +478,7 @@ private fun LibraryShell(
                     openSection(origin)
                     if (detailName == null) restoreFocus(ShellTags.EmptyImport)
                 }
-                section == ShellSection.Settings && savedFocus.isNotEmpty() && savedFocus != settingsCategory.tag && savedFocus != ShellTags.SettingsBack -> {
+                section == ShellSection.Settings && navFocus == null && savedFocus.isNotEmpty() && savedFocus != settingsCategory.tag -> {
                     savedFocus = settingsCategory.tag
                     restoreFocus(settingsCategory.tag)
                 }
@@ -509,16 +516,20 @@ private fun LibraryShell(
             ShellSection.Settings, ShellSection.Import, ShellSection.Sync -> ShellTags.NavSettings
         }
         val libraryFocusBusy = section == ShellSection.Library && playBusy
-        val importBusy = section == ShellSection.Import && busy
+        val importBusy = busy && (section == ShellSection.Import ||
+            (section == ShellSection.Settings && settingsCategory == SettingsCategory.Import))
         val savedRowExists = pageEntries.any { it.game.name == focusedGameName }
         LaunchedEffect(
             section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
             widthClass, pickerOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
             windowFocused,
+            pageEntries.map { it.game.name }.takeIf { section == ShellSection.Library },
             shelfCards.takeIf { showShelf }, shelfPage.takeIf { showShelf },
             maxWidth.takeIf { showShelf }, maxHeight.takeIf { showShelf },
         ) {
-            if (libraryFocusBusy || pickerOpen || returnFromGame != null || !windowFocused) return@LaunchedEffect
+            if (libraryFocusBusy || (importBusy && restoreTarget != null) || pickerOpen ||
+                returnFromGame != null || !windowFocused
+            ) return@LaunchedEffect
             val target = restoreTarget
             if (target != null) {
                 repeat(4) {
@@ -550,9 +561,8 @@ private fun LibraryShell(
                     savedFocus,
                     folderTags.firstOrNull().orEmpty(),
                     ShellTags.AddFolder,
-                    ShellTags.SettingsBack,
                 )
-                ShellSection.Sync -> listOf(savedFocus, ShellTags.SettingsBack, ShellTags.Sync)
+                ShellSection.Sync -> listOf(savedFocus, SettingsCategory.Sync.tag, ShellTags.Sync)
                 ShellSection.Settings -> listOf(savedFocus, settingsCategory.tag)
             }
             val targets = preferred.distinct()
@@ -563,18 +573,42 @@ private fun LibraryShell(
             request(tabTag)
         }
         Box(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+            if (pickerOpen || navFocus != null) return@onPreviewKeyEvent false
+            val down = event.type == KeyEventType.KeyDown
+            val index = if (section == ShellSection.Library && focusedGameName != null) {
+                pageEntries.indexOfFirst { it.game.name == focusedGameName }
+            } else -1
+            if (index >= 0 && (event.key == Key.DirectionUp || event.key == Key.DirectionDown)) {
+                val row = index / LibraryColumns + if (event.key == Key.DirectionUp) -1 else 1
+                val first = row * LibraryColumns
+                if (first !in pageEntries.indices) return@onPreviewKeyEvent false
+                val neighbor = minOf(first + index % LibraryColumns, pageEntries.lastIndex)
+                if (down) request(ShellTags.game(pageEntries[neighbor].game.name))
+                return@onPreviewKeyEvent true
+            }
             val step = when (event.key) {
                 Key.DirectionLeft -> -1
                 Key.DirectionRight -> 1
                 else -> return@onPreviewKeyEvent false
             }
-            if (pickerOpen || navFocus != null) return@onPreviewKeyEvent false
-            val libraryRowFocused = section == ShellSection.Library && ShellTags.gameName(libraryFocus) != null
             val shelfCardFocused = showShelf && savedShelfFocus in shelfCards
-            if (!libraryRowFocused && !shelfCardFocused) return@onPreviewKeyEvent false
-            if (event.type == KeyEventType.KeyDown) {
-                if (libraryRowFocused) changePage(currentPage + step)
-                else changeShelfPage(shelfPage + step)
+            if (index < 0 && !shelfCardFocused) return@onPreviewKeyEvent false
+            if (down) {
+                if (index >= 0) {
+                    val neighbor = index + step
+                    if (neighbor in pageEntries.indices && neighbor / LibraryColumns == index / LibraryColumns) {
+                        request(ShellTags.game(pageEntries[neighbor].game.name))
+                    } else {
+                        changePage(currentPage + step)
+                    }
+                } else {
+                    val neighbor = shelfIndex + step
+                    if (!recent && neighbor in shelfCards.indices && neighbor / shelfPageSize == shelfPage) {
+                        request(shelfCards[neighbor])
+                    } else {
+                        changeShelfPage(shelfPage + step)
+                    }
+                }
             }
             true
         }.onKeyEvent { event ->
@@ -585,8 +619,8 @@ private fun LibraryShell(
                     Key.ButtonR1 -> 1
                     else -> 0
                 }
-                if (pageStep != 0 && (showShelf || onLibraryList)) {
-                    val index = BrowseSections.indexOf(section)
+                if (pageStep != 0 && !pickerOpen) {
+                    val index = BrowseSections.indexOf(section.topLevelTab)
                     BrowseSections.getOrNull(index + pageStep)?.let(::openSection)
                     return@onKeyEvent true
                 }
@@ -601,7 +635,7 @@ private fun LibraryShell(
             back()
             true
         }) {
-            val shelfPageEntries = remember(shelfEntries, shelfPage) { shelfEntries.drop(shelfPage * ShelfPageSize).take(ShelfPageSize) }
+            val shelfPageEntries = remember(shelfEntries, shelfPage) { shelfEntries.drop(shelfPage * shelfPageSize).take(shelfPageSize) }
             val shelfMetadata by produceState(emptyMap<String, String>(), section, shelfPageEntries, recentTimes, showDetails) {
                 value = if (!showShelf) emptyMap() else withContext(Dispatchers.IO) {
                     val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
@@ -622,7 +656,7 @@ private fun LibraryShell(
                 }
             }
             val navigation: @Composable () -> Unit = {
-                ShellTabs(section, requesters, ::openSection, { navFocus = it },
+                ShellTabs(section, requesters, { if (it != section.topLevelTab) openSection(it) }, { navFocus = it },
                     appUpdate?.state is UpdateState.Available)
             }
             Box(if (pickerOpen) Modifier.semantics { hideFromAccessibility() } else Modifier) {
@@ -635,6 +669,7 @@ private fun LibraryShell(
                         scanning = workMessage == R.string.folder_scanning && busy,
                         margin = margin,
                         pageIndex = shelfPage,
+                        selectedTag = shelfCards.getOrNull(shelfIndex),
                         pages = shelfPages,
                         onPage = ::changeShelfPage,
                         cardRequesters = cardRequesters,
@@ -677,8 +712,6 @@ private fun LibraryShell(
                         onPage = ::changePage,
                         cardRequesters = cardRequesters,
                         navigation = navigation,
-                        covers = covers,
-                        selectedName = selectedName,
                         scanning = workMessage == R.string.folder_scanning && busy,
                         margin = margin,
                         requesters = requesters,
@@ -711,8 +744,11 @@ private fun LibraryShell(
                     ShellSection.Import, ShellSection.Sync, ShellSection.Settings -> {
                         val directImport = section == ShellSection.Import
                         SettingsPage(
-                            category = if (directImport) SettingsCategory.Import else settingsCategory,
-                            directImport = directImport,
+                            category = when (section) {
+                                ShellSection.Import -> SettingsCategory.Import
+                                ShellSection.Sync -> SettingsCategory.Sync
+                                else -> settingsCategory
+                            },
                             onCategory = { next ->
                                 if (directImport && next != SettingsCategory.Import) openSection(ShellSection.Settings)
                                 settingsCategory = next
@@ -721,7 +757,7 @@ private fun LibraryShell(
                             folderActions = folderActions, covers = covers, appUpdate = appUpdate,
                             cornerRadius = cornerRadius, onCornerRadiusChange = onCornerRadiusChange,
                             margin = margin, requesters = requesters,
-                            onFocused = ::focusSaved, onBack = ::back,
+                            navigation = navigation, onFocused = ::focusSaved,
                             request = { restoreFocus(it) },
                         )
                     }
@@ -746,7 +782,6 @@ private fun LibraryShell(
 @Composable
 private fun SettingsPage(
     category: SettingsCategory,
-    directImport: Boolean,
     onCategory: (SettingsCategory) -> Unit,
     busy: Boolean,
     folders: List<FolderScan>,
@@ -759,13 +794,13 @@ private fun SettingsPage(
     onCornerRadiusChange: (CornerRadiusOption) -> Unit,
     margin: Dp,
     requesters: Map<String, FocusRequester>,
+    navigation: @Composable () -> Unit,
     onFocused: (String) -> Unit,
-    onBack: () -> Unit,
     request: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     var pendingRemoval by remember { mutableStateOf<FolderScan?>(null) }
-    val entry = when (category) {
+    fun contentEntry(item: SettingsCategory): String? = when (item) {
         SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
         SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
         SettingsCategory.Appearance -> ShellTags.cornerRadius(cornerRadius)
@@ -773,14 +808,17 @@ private fun SettingsPage(
         SettingsCategory.About -> if (appUpdate == null) ShellTags.SettingsInfo else ShellTags.AppUpdate
     }
     ShellPage(
-        title = stringResource(if (directImport) R.string.shell_import else R.string.shell_settings),
+        title = "",
         modalOpen = pendingRemoval != null,
         margin = margin,
-        leadingAction = {
-            ShellHeaderBack(stringResource(R.string.back), onBack,
-                Modifier.libraryFocus(ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused))
+        leadingAction = navigation,
+        footer = {
+            ShellFooter(listOf(
+                "A" to R.string.shell_hint_select,
+                "B" to R.string.shell_hint_return_category,
+                "L1 / R1" to R.string.shell_hint_switch_page,
+            ))
         },
-        footer = { ShellFooter(listOf("A" to R.string.shell_hint_select, "B" to R.string.back)) },
     ) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
             Column(
@@ -788,9 +826,9 @@ private fun SettingsPage(
                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
             ) {
                 for (item in SettingsCategory.entries) {
-                    val enter = {
+                    val enter: () -> Unit = {
                         onCategory(item)
-                        if (item == category) entry?.let(request)
+                        contentEntry(item)?.let(request)
                     }
                     Row(
                         Modifier.weight(1f).fillMaxWidth()
@@ -799,6 +837,9 @@ private fun SettingsPage(
                                     if (it.type == KeyEventType.KeyDown) enter()
                                     true
                                 }
+                            }
+                            .focusProperties {
+                                if (item == SettingsCategory.Import) up = requesters.getValue(ShellTags.NavSettings)
                             }
                             .libraryFocus(item.tag, requesters.getValue(item.tag)) {
                                 onCategory(item)
@@ -857,7 +898,10 @@ private fun SettingsPage(
             actionLabel = stringResource(R.string.folder_remove),
             onConfirm = {
                 pendingRemoval = null
+                val index = folders.indexOfFirst { it.folder.uri == scan.folder.uri }
+                val neighbor = if (index >= 0) folders.getOrNull(index + 1) ?: folders.getOrNull(index - 1) else null
                 folderActions.remove(scan.folder.uri)
+                request(neighbor?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder)
             },
             onDismiss = {
                 pendingRemoval = null
