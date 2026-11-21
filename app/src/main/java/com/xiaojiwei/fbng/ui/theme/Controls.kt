@@ -16,13 +16,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 
 enum class FbngButtonKind {
-    /** Electric-blue fill. The focus ring is onPrimary, because primary-on-primary disappears. */
+    /** Primary action. */
     Filled,
 
     /** Neutral raised action with a quiet resting outline. */
     Outline,
 
     Neutral,
+
+    Destructive,
 
     Toolbar,
 
@@ -46,6 +48,7 @@ fun FbngButton(
         !enabled -> scheme.surfaceContainerHighest
         selected -> scheme.secondaryContainer
         kind == FbngButtonKind.Filled -> scheme.primary
+        kind == FbngButtonKind.Destructive -> scheme.error
         kind == FbngButtonKind.Toolbar -> scheme.background
         else -> scheme.surfaceVariant
     }
@@ -54,12 +57,12 @@ fun FbngButton(
         kind == FbngButtonKind.Outline -> scheme.outlineVariant.copy(alpha = 0.35f)
         else -> Color.Transparent
     }
-    val focused = if (kind == FbngButtonKind.Filled && !selected) scheme.onPrimary else scheme.primary
     val contentColor = when {
         !enabled && kind == FbngButtonKind.Island -> scheme.onSurfaceVariant.copy(alpha = 0.4f)
         !enabled -> scheme.onSurfaceVariant
         selected -> scheme.secondary
         kind == FbngButtonKind.Filled -> scheme.onPrimary
+        kind == FbngButtonKind.Destructive -> scheme.onError
         else -> scheme.onSurface
     }
     CompositionLocalProvider(LocalContentColor provides contentColor) {
@@ -71,7 +74,6 @@ fun FbngButton(
                     enabled = enabled,
                     role = role,
                     restingStroke = resting,
-                    focusedStroke = focused,
                 )
                 .heightIn(min = FbngDimens.buttonHeight)
                 .padding(contentPadding),

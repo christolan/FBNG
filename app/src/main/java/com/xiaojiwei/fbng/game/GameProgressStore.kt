@@ -54,7 +54,18 @@ internal class GameProgressStore(private val directory: File) {
 
     fun selectedSlot(): Int {
         initialize()
-        return selection.takeIf { it.isFile }?.readText()?.toIntOrNull()?.takeIf { it in 1..SLOT_COUNT } ?: 1
+        return readSelection()
+    }
+
+    private fun readSelection(): Int =
+        selection.takeIf { it.isFile }?.readText()?.toIntOrNull()?.takeIf { it in 1..SLOT_COUNT } ?: 1
+
+    fun slotWithProgress(): Int? {
+        val selected = readSelection()
+        if (slots.hasSlot(selected)) return selected
+        return (1..SLOT_COUNT).map(slots::slotInfo).filter { it.available }
+            .maxByOrNull { it.savedAtEpochMs }?.id
+            ?: 1.takeIf { !migration.isFile && SaveStateStore(directory).hasSlot(SaveStateStore.AUTO_SLOT) }
     }
 
     @Synchronized

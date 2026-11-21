@@ -13,41 +13,34 @@ internal object FbngDimens {
     val space32 = 32.dp
     val space48 = 48.dp
 
-    val compactMargin = space16
+    val compactMargin = space24
     val mediumMargin = space24
     val expandedMargin = space32
 
     val focusStroke = 2.dp
+    val focusGap = 2.dp
+    val panelInset = space8
+    val glassBlur = 18.dp
+    val rp6BarInset = 24.dp
 
     val buttonHeight = space48
-    val shellHeaderHeight = buttonHeight + space8
+    val shellHeaderHeight = 40.dp
     val shellHeaderTitleMinWidth = space48 + space32 + space8
     val shortShellHeight = space48 * 8
     val icon = space24
     val detailCoverWidth = space48 * 5
-    val progressSidebarMinWidth = space48 * 3
-    val progressCardMetadataHeight = space48 * 3
-    val progressPreviewMaxHeight = space48 * 3
     val libraryHeaderWide = space48 * 12
-    val libraryLetterFilterWidth = space48 * 3
-    val libraryStatusFilterWidth = space48 * 2 + space16
-    val libraryCardWithFileMinWidth = space48 * 6
+    val libraryLetterFilterWidth = space48 + space32
+    val libraryStatusFilterWidth = space48 + space32
     val libraryToolbarBreakpoint = space48 * 13
     val hudActionWidth = space48 + space24
     val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
-    val shelfCardMinWidth = space48 + space32 + space8
     val saveCardWidth = space48 * 4
     val saveCardMinWidth = space48 * 2 + space24
     val saveDialogWidth = space48 * 24
 
-    /** Compact icon-over-label navigation leaves the width for game pages. */
-    val railWidthMedium = space48 * 2
-
-    val railWidthExpanded = space48 * 2
-
     val libraryPickerWidth = space48 * 9
-    val libraryKeyboardWidth = space48 * 13
 }
 
 internal enum class CornerRadiusOption(val radius: Dp) {

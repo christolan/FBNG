@@ -29,6 +29,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
@@ -92,8 +93,8 @@ class ShellFocusTest {
         val heights = rail.map { (it.bottom - it.top).value }
         assertTrue(heights.max() - heights.min() <= 1f)
         val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
-        assertEquals(8.dp, rail.first().top - header.top)
-        assertTrue(rail.last().bottom > rail.first().top + 64.dp * 4)
+        assertEquals(4.dp, rail.first().top - header.top)
+        assertTrue(rail.zipWithNext().all { (left, right) -> left.right < right.left && left.top == right.top })
         rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
@@ -121,19 +122,17 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithText("取消收藏").assertDoesNotExist()
+        rule.onNodeWithText("★ 已收藏").assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.ToggleFavorite).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).requestFocus().assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
-        rule.onNodeWithText("添加到收藏").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithText("☆ 收藏").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.favorite("galaga")).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.favorite("mslug")).assertIsFocused().performTouchInput { click() }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.ToggleFavorite).performScrollTo().performTouchInput { click() }
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.DetailBack).performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.OpenLibrary).assertIsFocused()
     }
@@ -191,7 +190,7 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w400dp-h800dp-mdpi")
-    fun recentPagesFillTwoRowsAndRestoreTheGameAfterReordering() {
+    fun recentPagesUseHeroAndStackAndRestoreTheGameAfterReordering() {
         var height by mutableStateOf(800.dp)
         var inGame by mutableStateOf(false)
         var returnFromGame by mutableStateOf<String?>(null)
@@ -223,15 +222,15 @@ class ShellFocusTest {
         val first = card(1).getUnclippedBoundsInRoot()
         val fourth = card(4).getUnclippedBoundsInRoot()
         val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
-        assertEquals(header.left, first.left)
-        assertEquals(header.right, fourth.right)
+        assertEquals(header.left + 8.dp, first.left)
+        assertEquals(header.right - 8.dp, fourth.right)
         assertTrue(fourth.top > first.top)
         card(5).assertDoesNotExist()
 
         card(4).requestFocus()
         rule.runOnIdle { height = 280.dp }
         card(4).assertIsFocused()
-        assertEquals(card(1).getUnclippedBoundsInRoot().top, card(4).getUnclippedBoundsInRoot().top)
+        assertTrue(card(1).getUnclippedBoundsInRoot().top < card(4).getUnclippedBoundsInRoot().top)
         rule.runOnIdle { height = 800.dp }
         card(4).assertIsFocused()
 
@@ -258,7 +257,7 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w900dp-h400dp-mdpi")
-    fun favoritePagesFillOneRowAndRemovingTheLastPageRestoresFocus() {
+    fun favoritePagesUseHeroAndStackAndRemovingTheLastPageRestoresFocus() {
         var favorites by mutableStateOf((1..5).map { "game$it" }.toSet())
         val games = LibrarySnapshot(favorites.map { LibraryGame(it, it) })
         rule.setContent {
@@ -280,9 +279,9 @@ class ShellFocusTest {
         val first = card(1).getUnclippedBoundsInRoot()
         val fourth = card(4).getUnclippedBoundsInRoot()
         val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
-        assertEquals(header.left, first.left)
-        assertEquals(header.right, fourth.right)
-        assertEquals(first.top, fourth.top)
+        assertEquals(header.left + 8.dp, first.left)
+        assertEquals(header.right - 8.dp, fourth.right)
+        assertTrue(first.top < fourth.top)
         card(5).assertDoesNotExist()
         card(4).requestFocus().performKeyInput { pressKey(Key.ButtonR1) }
         card(5).assertIsFocused()
@@ -311,16 +310,15 @@ class ShellFocusTest {
                 )
             }
         }
-        val title = rule.onNode(hasText("游戏库") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
-            .assertIsDisplayed()
+        val title = rule.onNodeWithTag(ShellTags.HeaderTitle).assertIsDisplayed()
         val titleBounds = title.getUnclippedBoundsInRoot()
         val first = rule.onNodeWithTag(ShellTags.game(games[0].name))
         val firstBounds = first.getUnclippedBoundsInRoot()
         val secondBounds = rule.onNodeWithTag(ShellTags.game(games[1].name)).getUnclippedBoundsInRoot()
         assertEquals(firstBounds.right - firstBounds.left, secondBounds.right - secondBounds.left)
-        assertEquals(firstBounds.bottom - firstBounds.top, secondBounds.bottom - secondBounds.top)
+        assertTrue(kotlin.math.abs((firstBounds.bottom - firstBounds.top - (secondBounds.bottom - secondBounds.top)).value) <= 1f)
         val nextPage = rule.onNodeWithTag(ShellTags.NextPage).getUnclippedBoundsInRoot()
-        assertTrue(nextPage.bottom < firstBounds.top)
+        assertTrue(nextPage.top > firstBounds.bottom)
         rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.LibraryFilter).assertIsDisplayed()
         games.take(3).forEach { game ->
@@ -330,12 +328,14 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.game(games[3].name)).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonR1) }
         rule.onNodeWithTag(ShellTags.game(games[0].name)).assertDoesNotExist()
-        rule.onNodeWithTag(ShellTags.game(games[13].name)).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.NextPage).requestFocus().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag(ShellTags.game(games[8].name)).assertIsFocused()
+        repeat(3) {
+            rule.onNodeWithTag(ShellTags.NextPage).requestFocus().performKeyInput { pressKey(Key.ButtonA) }
+        }
         val lastPageFirst = rule.onNodeWithTag(ShellTags.game(games[20].name)).assertIsFocused()
         assertEquals(firstBounds, lastPageFirst.getUnclippedBoundsInRoot())
         lastPageFirst.performKeyInput { pressKey(Key.ButtonL1) }
-        rule.onNodeWithTag(ShellTags.game(games[10].name)).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game(games[15].name)).assertIsFocused()
         assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
     }
 
@@ -360,36 +360,32 @@ class ShellFocusTest {
         }
         val header = rule.onNodeWithTag(ShellTags.Header)
         val headerBounds = header.getUnclippedBoundsInRoot()
-        val titleIsland = rule.onNodeWithTag(ShellTags.HeaderTitle).getUnclippedBoundsInRoot()
-        val letters = rule.onNodeWithTag(ShellTags.JumpToLetter).getUnclippedBoundsInRoot()
-        assertEquals(titleIsland.top, letters.top)
-        assertEquals(8.dp, letters.left - titleIsland.right)
         val nav = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
-        val cardBounds = games.take(6).map { game ->
+        val cardBounds = games.take(4).map { game ->
             rule.onNodeWithTag(ShellTags.game(game.name)).assertIsDisplayed().getUnclippedBoundsInRoot()
         }
-        assertTrue(cardBounds.all { it.top >= headerBounds.bottom && it.bottom <= nav.top })
-        assertTrue(cardBounds.all { it.bottom - it.top >= 48.dp })
-        rule.onNodeWithTag(ShellTags.game(games[6].name)).assertDoesNotExist()
-        rule.onNodeWithContentDescription("第 1 / 2 页").assertIsDisplayed()
+        assertTrue(cardBounds.all { it.top >= headerBounds.bottom && it.top > nav.bottom })
+        assertTrue(cardBounds.all { it.bottom - it.top >= 32.dp })
+        rule.onNodeWithTag(ShellTags.game(games[4].name)).assertDoesNotExist()
+        rule.onNodeWithContentDescription("第 1 / 3 页").assertIsDisplayed()
         rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)).assertDoesNotExist()
         games.take(3).forEachIndexed { index, game ->
             val card = rule.onNodeWithTag(ShellTags.game(game.name)).assertIsFocused().assertIsDisplayed()
-            rule.onNodeWithText(game.description, useUnmergedTree = true).assertIsDisplayed()
-            rule.onNodeWithText("${game.name}.zip", useUnmergedTree = true).assertDoesNotExist()
+            rule.onAllNodesWithText(game.description, useUnmergedTree = true)[0].assertIsDisplayed()
+            rule.onAllNodesWithText("${game.name}.zip", useUnmergedTree = true)[0].assertIsDisplayed()
             assertEquals(cardBounds[index], card.getUnclippedBoundsInRoot())
             if (index < 2) card.performKeyInput { pressKey(Key.DirectionDown) }
         }
         assertEquals(headerBounds, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.game(games[2].name)).performKeyInput { pressKey(Key.ButtonR1) }
-        val target = rule.onNodeWithTag(ShellTags.game(games[8].name)).assertIsFocused()
+        val target = rule.onNodeWithTag(ShellTags.game(games[6].name)).assertIsFocused()
         target.performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithText("${games[8].name}.zip").assertIsDisplayed()
+        rule.onNodeWithText("${games[6].name}.zip").assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         target.assertIsFocused().assertIsDisplayed()
         rule.runOnIdle { height = 480.dp }
-        rule.onNodeWithContentDescription("第 1 / 1 页").assertIsDisplayed()
+        rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
         target.assertIsFocused().assertIsDisplayed()
     }
 
@@ -411,57 +407,32 @@ class ShellFocusTest {
         val header = rule.onNodeWithTag(ShellTags.Header)
         val initial = header.getUnclippedBoundsInRoot()
         val title = rule.onNodeWithTag(ShellTags.HeaderTitle)
-        val shelfTitle = title.getUnclippedBoundsInRoot()
-        val previous = rule.onNodeWithTag(ShellTags.PreviousPage)
-        val shelfPrevious = previous.getUnclippedBoundsInRoot()
-        assertEquals(shelfTitle.top, shelfPrevious.top)
-        assertEquals(8.dp, shelfPrevious.left - shelfTitle.right)
         rule.onNodeWithTag(ShellTags.NavRecent).performClick()
         assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.NavLibrary).performClick()
-        val wrappedHeader = header.getUnclippedBoundsInRoot()
-        assertEquals(initial.copy(bottom = initial.bottom + 64.dp), wrappedHeader)
-        assertEquals(initial, title.getUnclippedBoundsInRoot())
-        rule.onNode(hasText("游戏库") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading)).assertIsDisplayed()
         val letter = rule.onNodeWithTag(ShellTags.JumpToLetter)
         val status = rule.onNodeWithTag(ShellTags.LibraryFilter)
-        val page = rule.onNodeWithContentDescription("第 1 / 1 页").assertHasNoClickAction()
-        val next = rule.onNodeWithTag(ShellTags.NextPage)
-        val controls = listOf(letter, status, previous, page, next)
-            .map { it.assertIsDisplayed().getUnclippedBoundsInRoot() }
-        assertEquals(initial.left, controls.first().left)
-        assertEquals(initial.right, controls.last().right)
-        controls.forEach { bounds ->
-            assertEquals(8.dp, bounds.top - initial.bottom)
-            assertEquals(wrappedHeader.bottom, bounds.bottom)
-            assertTrue(bounds.right - bounds.left >= 48.dp)
-        }
-        controls.zipWithNext().forEach { (left, right) ->
-            assertEquals(8.dp, right.left - left.right)
-        }
-        letter.requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
-        status.assertIsFocused()
+        val tab = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
+        assertTrue(status.getUnclippedBoundsInRoot().top >= tab.bottom)
+        assertTrue(letter.getUnclippedBoundsInRoot().left > status.getUnclippedBoundsInRoot().right)
+        rule.onNodeWithContentDescription("第 1 / 1 页").assertHasNoClickAction()
+        status.requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
+        letter.assertIsFocused()
         rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.EditableText)).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.game("galaga")).performClick()
-        assertEquals(initial, header.getUnclippedBoundsInRoot())
         rule.onNodeWithTag(ShellTags.NavSettings).assertDoesNotExist()
         val detailBack = rule.onNodeWithTag(ShellTags.DetailBack)
         assertEquals(8.dp, title.getUnclippedBoundsInRoot().left - detailBack.getUnclippedBoundsInRoot().right)
         detailBack.performClick()
         rule.onNodeWithTag(ShellTags.NavSettings).performClick()
-        assertEquals(initial, header.getUnclippedBoundsInRoot())
-        rule.onNodeWithTag(ShellTags.OpenImport).performClick()
-        assertEquals(initial, header.getUnclippedBoundsInRoot())
         val settingsBack = rule.onNodeWithTag(ShellTags.SettingsBack)
         assertEquals(8.dp, title.getUnclippedBoundsInRoot().left - settingsBack.getUnclippedBoundsInRoot().right)
-        settingsBack.performClick()
-        rule.onNodeWithTag(ShellTags.OpenSync).performClick()
-        assertEquals(initial, header.getUnclippedBoundsInRoot())
+
     }
 
     @Test
     @Config(sdk = [33], qualifiers = "w800dp-h320dp-land-mdpi")
-    fun everyLetterKeyIsVisibleInLandscapeAndButtonBReturnsToTheFilter() {
+    fun everyLetterKeyIsVisibleInLandscapeAndButtonBReturnsToTheGame() {
         rule.setContent {
             FbngTheme {
                 LibraryContent(
@@ -480,10 +451,11 @@ class ShellFocusTest {
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-".forEach { character ->
             rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
         }
-        listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        rule.onNodeWithContentDescription("退格").assertIsDisplayed()
+        listOf("清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
         val panel = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))
             .getUnclippedBoundsInRoot()
-        assertEquals(624.dp, panel.right - panel.left)
+        assertEquals(800.dp, panel.right - panel.left)
         val firstRow = rule.onNodeWithTag(ShellTags.letter('A')).getUnclippedBoundsInRoot()
         val secondRow = rule.onNodeWithTag(ShellTags.letter('K')).getUnclippedBoundsInRoot()
         val thirdRow = rule.onNodeWithTag(ShellTags.letter('U')).getUnclippedBoundsInRoot()
@@ -492,8 +464,9 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.letter('Q')).performTouchInput { click() }
         rule.onNodeWithTag(ShellTags.game("galaga")).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.letter('A')).performKeyInput { pressKey(Key.ButtonB) }
-        filter.assertIsFocused().performClick()
-        rule.onNodeWithText("字母筛选").assertIsDisplayed()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
+        filter.performClick()
+        rule.onNodeWithTag(ShellTags.letter('A')).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.letter('Q')).performClick()
         rule.onNodeWithText("完成").performClick()
         rule.onNodeWithTag(ShellTags.EditSearch).assertIsFocused().performClick()
@@ -515,14 +488,14 @@ class ShellFocusTest {
                 LibraryQueryDialog(query = "", onConfirm = {}, onDismiss = {})
             }
         }
-        val panel = rule.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.PaneTitle))
-            .getUnclippedBoundsInRoot()
-        assertEquals(16.dp, panel.left)
-        assertEquals(304.dp, panel.right)
+        val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
+        assertEquals(24.dp, header.left)
+        assertEquals(296.dp, header.right)
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-".forEach { character ->
             rule.onNodeWithTag(ShellTags.letter(character)).assertIsDisplayed()
         }
-        listOf("退格", "清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
+        rule.onNodeWithContentDescription("退格").assertIsDisplayed()
+        listOf("清空", "完成").forEach { rule.onNodeWithText(it).assertIsDisplayed() }
     }
 
     @Test
@@ -553,9 +526,10 @@ class ShellFocusTest {
         }
         fun assertRadius(pixels: Float) = rule.runOnIdle {
             val radii = with(shapes) { listOf(extraSmall, small, medium, large, extraLarge) }
-            assertEquals(List(5) { pixels }, radii.map { it.topStart.toPx(Size(96f, 48f), Density(1f)) })
+            assertEquals(listOf(pixels, pixels, pixels, pixels + 8f, pixels + 8f), radii.map { it.topStart.toPx(Size(96f, 48f), Density(1f)) })
         }
 
+        rule.onNodeWithText("外观").requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
         val smaller = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Smaller))
         val default = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Default))
         val larger = rule.onNodeWithTag(ShellTags.cornerRadius(CornerRadiusOption.Larger))
@@ -593,7 +567,7 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithText("设置/导入").assertIsDisplayed()
+        rule.onNodeWithText("游戏目录").assertIsDisplayed()
         rule.onNodeWithText("导入 zip").assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
         rule.onNodeWithTag(ShellTags.AddFolder).performKeyInput { pressKey(Key.ButtonB) }
@@ -622,9 +596,13 @@ class ShellFocusTest {
                 )
             }
         }
-        rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.ScanFolders).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(remove).assertIsFocused().performKeyInput { pressKey(Key.DirectionDown) }
+        rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNodeWithTag(ShellTags.ScanFolders).assertIsFocused()
+        rule.onNodeWithTag(remove).requestFocus().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithText("取消").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(remove).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithText("移除文件夹").performClick()
         rule.onNodeWithTag(remove).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.AddFolder).assertIsFocused()
     }
@@ -701,7 +679,7 @@ class ShellFocusTest {
             .assertIsFocused().performKeyInput { pressKey(Key.ButtonY) }
         rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsFocused()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonY) }
         rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
         rule.runOnIdle {

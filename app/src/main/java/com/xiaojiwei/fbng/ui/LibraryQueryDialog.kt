@@ -1,17 +1,22 @@
 package com.xiaojiwei.fbng.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.semantics.contentDescription
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,7 +41,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.xiaojiwei.fbng.R
@@ -61,12 +65,10 @@ internal fun LibraryQueryDialog(
     fun target(id: String) = Modifier.focusRequester(requesters.getValue(id))
         .onFocusChanged { if (it.isFocused) focused = id }
     val title = stringResource(R.string.library_jump_to_letter)
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         DialogGamepadInput()
-        Surface(
-            modifier = Modifier.padding(horizontal = FbngDimens.compactMargin, vertical = FbngDimens.space8)
-                .widthIn(max = FbngDimens.libraryKeyboardWidth)
-                .fillMaxWidth()
+        Box(
+            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                 .semantics { paneTitle = title }
                 .onKeyEvent { event ->
                     if (event.type == KeyEventType.KeyUp && event.key == Key.ButtonB) {
@@ -74,72 +76,57 @@ internal fun LibraryQueryDialog(
                         true
                     } else false
                 },
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
         ) {
-            Column(Modifier.padding(FbngDimens.space12), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-                    verticalAlignment = Alignment.CenterVertically,
+            ShellPage(
+                title = title,
+                margin = FbngDimens.compactMargin,
+                leadingAction = { ShellHeaderBack(stringResource(R.string.back), onDismiss, Modifier) },
+                footer = { ShellFooter(listOf("A" to R.string.shell_hint_input, "B" to R.string.cancel)) },
+            ) {
+                Column(
+                    Modifier.fillMaxSize().fbngIsland().padding(FbngDimens.panelInset),
+                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                 ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            draft.ifEmpty { title },
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            stringResource(R.string.library_query_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    QueryEditButton(R.string.library_query_backspace, target("backspace"), draft.isNotEmpty()) {
-                        draft = draft.dropLast(1)
-                    }
-                    QueryEditButton(R.string.library_query_clear, target("clear"), draft.isNotEmpty()) { draft = "" }
-                    FbngButton(
-                        onClick = { onConfirm(draft) },
-                        modifier = target("done").height(FbngDimens.buttonHeight),
-                        contentPadding = PaddingValues(horizontal = FbngDimens.space16),
+                    Box(
+                        Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight)
+                            .background(MaterialTheme.colorScheme.background, MaterialTheme.shapes.medium)
+                            .padding(horizontal = FbngDimens.space12),
+                        contentAlignment = Alignment.CenterStart,
                     ) {
-                        Text(stringResource(R.string.library_query_done), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        Text(draft + "│", style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                }
-                BoxWithConstraints(Modifier.weight(1f, fill = false).fillMaxWidth()) {
-                    val gap = FbngDimens.space4
-                    val preferredSize = FbngDimens.buttonHeight
-                    val rows = keyboardRows(maxWidth, maxHeight, gap, preferredSize)
-                    val columns = keyboardColumns(rows)
-                    val height = ((maxHeight - gap * (rows - 1)) / rows).coerceIn(Dp.Hairline, preferredSize)
-                    LaunchedEffect(columns, rows, draft.isEmpty()) {
-                        val preferred = focused
-                        withFrameNanos { }
-                        if (!requesters.getValue(preferred).requestFocus()) requesters.getValue("A").requestFocus()
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-                        QueryCharacters.chunked(columns).forEach { row ->
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                                row.forEach { character ->
+                    Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                        val keys = QueryCharacters.map(Char::toString) + "backspace"
+                        for (row in keys.chunked(10)) {
+                            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                                for (id in row) {
+                                    val backspace = id == "backspace"
+                                    val label = if (backspace) stringResource(R.string.library_query_backspace) else id
                                     FbngButton(
-                                        onClick = { draft += character },
-                                        modifier = target(character.toString()).weight(1f).height(height)
-                                            .testTag(ShellTags.letter(character)),
-                                        kind = FbngButtonKind.Neutral,
+                                        onClick = { draft = if (backspace) draft.dropLast(1) else draft + id },
+                                        modifier = target(id).weight(1f).fillMaxHeight()
+                                            .then(if (backspace) Modifier.semantics { contentDescription = label } else Modifier.testTag(ShellTags.letter(id.single()))),
+                                        kind = FbngButtonKind.Outline,
                                         contentPadding = PaddingValues(),
                                     ) {
-                                        Text(character.toString(), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                                        Text(if (backspace) "⌫" else id, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                                     }
                                 }
-                                repeat(columns - row.length) { Spacer(Modifier.weight(1f)) }
                             }
                         }
                     }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        QueryEditButton(R.string.library_query_clear, target("clear"), true) { draft = "" }
+                        FbngButton({ onConfirm(draft) }, target("done").height(FbngDimens.shellHeaderHeight)) {
+                            Text(stringResource(R.string.library_query_done), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
                 }
+            }
+            LaunchedEffect(Unit) {
+                withFrameNanos { }
+                requesters.getValue(focused).requestFocus()
             }
         }
     }
@@ -149,32 +136,11 @@ internal fun LibraryQueryDialog(
 private fun QueryEditButton(label: Int, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     FbngButton(
         onClick = onClick,
-        modifier = modifier.height(FbngDimens.buttonHeight),
+        modifier = modifier.height(FbngDimens.shellHeaderHeight),
         enabled = enabled,
         kind = FbngButtonKind.Toolbar,
         contentPadding = PaddingValues(horizontal = FbngDimens.space16),
     ) {
         Text(stringResource(label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
     }
-}
-
-private fun keyboardColumns(rows: Int): Int = (QueryCharacters.length + rows - 1) / rows
-
-private fun keyboardRows(width: Dp, height: Dp, gap: Dp, preferredSize: Dp): Int {
-    // Prefer the fewest rows that fit full-size keys. In smaller windows,
-    // choose the arrangement that preserves the largest minimum key dimension.
-    var bestRows = 1
-    var bestSize = Dp.Hairline
-    for (rows in 1..QueryCharacters.length) {
-        val columns = keyboardColumns(rows)
-        val keyWidth = (width - gap * (columns - 1)) / columns
-        val keyHeight = (height - gap * (rows - 1)) / rows
-        val size = minOf(keyWidth, keyHeight)
-        if (size >= preferredSize) return rows
-        if (size > bestSize) {
-            bestRows = rows
-            bestSize = size
-        }
-    }
-    return bestRows
 }

@@ -183,12 +183,20 @@ private fun GameSessionScreen(
             catch (error: Exception) { reportFailure(error, R.string.save_fail) }
         }
     }
+    var pauseRequested by remember(session) { mutableStateOf(false) }
     fun openPausePage() {
-        if (pausePageOpen) return
+        if (pausePageOpen || pauseRequested) return
+        pauseRequested = true
         bridge.target = null
-        if (!session.paused) session.togglePause()
-        pausePageOpen = true
-        scope.launch { session.capturePauseCover() }
+        scope.launch {
+            try {
+                session.capturePauseCover()
+            } finally {
+                if (!session.paused) session.togglePause()
+                pausePageOpen = true
+                pauseRequested = false
+            }
+        }
     }
     fun resume() {
         if (!session.ready || session.busy || coreFailed || panelInputBlocked) return
@@ -224,7 +232,7 @@ private fun GameSessionScreen(
             insets.show(WindowInsetsCompat.Type.systemBars())
         }
     }
-    val receivesInput = foreground && session.ready && !pausePageOpen && !session.paused && !session.busy && !panelInputBlocked && !coreFailed
+    val receivesInput = foreground && session.ready && !pauseRequested && !pausePageOpen && !session.paused && !session.busy && !panelInputBlocked && !coreFailed
     SideEffect {
         bridge.target = session.view.takeIf { receivesInput }
         bridge.onPauseToggle = { if (foreground && !panelInputBlocked && !session.busy) back() }
@@ -263,7 +271,7 @@ private fun GameSessionScreen(
             if (pausePageOpen || coreFailed) GameProgressPage(
                 entry, cover, fold, favorite, store,
                 busy = session.busy, ready = session.ready && !coreFailed, message = message,
-                messageIsError = messageError, activeSlot = session.slotId,
+                messageIsError = messageError, activeSlot = session.slotId, pausedCover = session.pauseCover,
                 onPrimary = { resume() }, onToggleFavorite = onToggleFavorite, onBack = ::resume,
                 onQuit = ::quit, onDialogOpen = { panelInputBlocked = it; session.setDialogOpen(it) },
                 onCreateSnapshot = { session.createSnapshot() },

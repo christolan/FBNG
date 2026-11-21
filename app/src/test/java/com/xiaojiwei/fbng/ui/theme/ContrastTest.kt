@@ -9,19 +9,19 @@ import org.junit.Test
 
 /**
  * WCAG 2.x contrast for the pairs the UI actually paints.
- * Body text needs 4.5:1. Large text and non-text marks (the electric-blue control,
+ * Body text needs 4.5:1. Large text and non-text marks (the mint control,
  * the progress indicator, the outline) need 3:1.
  */
 class ContrastTest {
     @Test
-    fun electricBlueTokensMatchTheStyleGuide() {
-        assertEquals(0xFF101318L, FbngPalette.background)
-        assertEquals(0xFF171C24L, FbngPalette.surface)
+    fun mintTokensMatchTheRp6Design() {
+        assertEquals(0xFF101925L, FbngPalette.background)
+        assertEquals(0xFF15212EL, FbngPalette.surface)
         assertEquals(0xFFF4F7FBL, FbngPalette.onSurface)
         assertEquals(0xFFD5DCE6L, FbngPalette.onSurfaceVariant)
-        assertEquals(0xFF206AFBL, FbngPalette.primary)
-        assertEquals(0xFFFFFFFFL, FbngPalette.onPrimary)
-        assertEquals(0xFFA9C4FFL, FbngPalette.secondary)
+        assertEquals(0xFFB5F3E2L, FbngPalette.primary)
+        assertEquals(0xFF10251FL, FbngPalette.onPrimary)
+        assertEquals(0xFFB7D0D6L, FbngPalette.secondary)
     }
 
     @Test

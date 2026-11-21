@@ -12,9 +12,12 @@ internal class RecentGames(context: Context) {
         List(names.length()) { names.getString(it) }.distinct()
     }.getOrDefault(emptyList())
 
+    fun playedAt(name: String): Long = preferences.getLong("time:$name", 0)
+
     fun record(name: String): List<String> {
         val updated = listOf(name) + read().filterNot { it == name }
-        preferences.edit().putString("sets", JSONArray(updated).toString()).apply()
+        preferences.edit().putString("sets", JSONArray(updated).toString())
+            .putLong("time:$name", System.currentTimeMillis()).apply()
         return updated
     }
 }

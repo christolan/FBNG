@@ -224,6 +224,7 @@ fun FbngApp(bridge: GamepadBridge) {
                     initialSection = ShellSection.Favorites,
                     favoriteNames = favoriteNames,
                     recentNames = recentNames,
+                    recentTimes = recentNames.associateWith(recentGames::playedAt),
                     cornerRadius = cornerRadius,
                     onCornerRadiusChange = { option ->
                         appearance.writeCornerRadius(option)

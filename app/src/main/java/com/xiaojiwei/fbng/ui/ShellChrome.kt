@@ -1,7 +1,8 @@
 package com.xiaojiwei.fbng.ui
 
+import com.xiaojiwei.fbng.ui.theme.FbngBackdrop
+import androidx.compose.ui.unit.dp
 import android.net.Uri
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,11 +13,9 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,15 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -48,7 +42,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -61,9 +54,6 @@ import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
 
 internal enum class ShellSection {
     Favorites,
@@ -141,14 +131,20 @@ internal fun ShellPage(
     headerAction: @Composable ((Dp) -> Unit)? = null,
     leadingAction: @Composable (() -> Unit)? = null,
     contentGap: Dp = FbngDimens.space12,
+    verticalMargin: Dp = FbngDimens.space16,
+    footer: (@Composable () -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    Column(
-        Modifier.fillMaxSize().padding(margin),
-        verticalArrangement = Arrangement.spacedBy(contentGap),
-    ) {
-        ShellHeader(title, leadingAction, headerAction)
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+    Box(Modifier.fillMaxSize()) {
+        FbngBackdrop()
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = margin, vertical = verticalMargin),
+            verticalArrangement = Arrangement.spacedBy(contentGap),
+        ) {
+            ShellHeader(title, leadingAction, headerAction)
+            Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+            footer?.invoke()
+        }
     }
 }
 
@@ -168,10 +164,10 @@ private fun ShellHeader(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         leadingAction?.invoke()
-                        Box(
+                        if (title.isNotEmpty()) Box(
                             Modifier.weight(1f).widthIn(min = FbngDimens.shellHeaderTitleMinWidth)
                                 .height(FbngDimens.shellHeaderHeight).testTag(ShellTags.HeaderTitle)
-                                .fbngIsland().padding(horizontal = FbngDimens.space8),
+                                .padding(horizontal = FbngDimens.space4),
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             Text(
@@ -233,61 +229,11 @@ internal fun ShellHeaderButton(
         onClick = onClick,
         modifier = modifier.height(FbngDimens.shellHeaderHeight),
         enabled = enabled,
-        kind = FbngButtonKind.Island,
+        kind = FbngButtonKind.Toolbar,
         contentPadding = PaddingValues(horizontal = FbngDimens.space4),
         selected = selected,
         content = content,
     )
-}
-
-@Composable
-internal fun ShellPagination(
-    pageIndex: Int,
-    pages: Int,
-    buttonWidth: Dp,
-    busy: Boolean,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onPage: (Int) -> Unit,
-) {
-    val previous = stringResource(R.string.library_previous_page)
-    val next = stringResource(R.string.library_next_page)
-    ShellHeaderButton(
-        onClick = { onPage(pageIndex - 1) },
-        enabled = !busy && pageIndex > 0,
-        modifier = Modifier
-            .width(buttonWidth)
-            .libraryFocus(ShellTags.PreviousPage, requesters.getValue(ShellTags.PreviousPage), onFocused)
-            .semantics { contentDescription = previous },
-    ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
-
-    val number = if (pages == 0) 0 else pageIndex + 1
-    val pageDescription = stringResource(R.string.library_page_number, number, pages)
-    val pageStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-    val widestPage = stringResource(R.string.library_page_short, pages, pages)
-    val widthPixels = rememberTextMeasurer().measure(widestPage, pageStyle).size.width
-    val pageWidth = with(LocalDensity.current) { widthPixels.toDp() } + FbngDimens.space8
-    Box(
-        Modifier.widthIn(min = maxOf(FbngDimens.shellHeaderHeight, pageWidth))
-            .height(FbngDimens.shellHeaderHeight).fbngIsland()
-            .clearAndSetSemantics { contentDescription = pageDescription }
-            .padding(horizontal = FbngDimens.space4),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            stringResource(R.string.library_page_short, number, pages),
-            style = pageStyle,
-            maxLines = 1,
-        )
-    }
-    ShellHeaderButton(
-        onClick = { onPage(pageIndex + 1) },
-        enabled = !busy && pageIndex + 1 < pages,
-        modifier = Modifier
-            .width(buttonWidth)
-            .libraryFocus(ShellTags.NextPage, requesters.getValue(ShellTags.NextPage), onFocused)
-            .semantics { contentDescription = next },
-    ) { Text("›", style = MaterialTheme.typography.titleMedium) }
 }
 
 @Composable
@@ -300,327 +246,114 @@ internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modif
 }
 
 @Composable
-internal fun ShellScaffold(
+internal fun ShellTabs(
     section: ShellSection,
-    rail: Boolean,
-    expanded: Boolean,
-    compactBottomBar: Boolean,
     requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
-    onNavFocused: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    updateAvailable: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Column(modifier.fillMaxSize().background(scheme.background)) {
-        if (rail) {
-            Row(Modifier.weight(1f).fillMaxWidth()) {
-                ShellRail(
-                    section = section,
-                    expanded = expanded,
-                    requesters = requesters,
-                    onSection = onSection,
-                    onNavFocused = onNavFocused,
-                    updateAvailable = updateAvailable,
-                )
-                Box(Modifier.weight(1f).fillMaxHeight()) { content() }
-            }
-        } else {
-            Box(Modifier.weight(1f).fillMaxWidth()) { content() }
-        }
-        if (!rail) {
-            ShellBottomBar(
-                section = section,
-                compact = compactBottomBar,
-                requesters = requesters,
-                onSection = onSection,
-                onNavFocused = onNavFocused,
-                updateAvailable = updateAvailable,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ShellRail(
-    section: ShellSection,
-    expanded: Boolean,
-    requesters: Map<String, FocusRequester>,
-    onSection: (ShellSection) -> Unit,
-    onNavFocused: (String) -> Unit,
+    onFocused: (String) -> Unit,
     updateAvailable: Boolean,
 ) {
-    val width = if (expanded) FbngDimens.railWidthExpanded else FbngDimens.railWidthMedium
-    Column(
-        Modifier
-            .width(width)
-            .fillMaxHeight()
-            .padding(start = FbngDimens.space16, top = FbngDimens.space16, bottom = FbngDimens.space16)
-            .fbngIsland()
-            .padding(FbngDimens.space8),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-    ) {
-        Destinations.forEach { destination ->
-            RailItem(
-                destination = destination,
-                selected = destination.section == section,
-                requester = requesters.getValue(destination.tag),
-                onClick = { onSection(destination.section) },
-                onFocused = { onNavFocused(destination.tag) },
-                showUpdate = destination.section == ShellSection.Settings && updateAvailable,
-                modifier = Modifier.weight(1f),
-            )
+    val scheme = MaterialTheme.colorScheme
+    val showBrand = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 460.dp
+    Row(Modifier.testTag(ShellTags.HeaderTitle),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space24)) {
+        if (showBrand) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+            Text("F", color = scheme.primary, style = MaterialTheme.typography.headlineSmall)
+            Text("FBNG", style = MaterialTheme.typography.titleLarge)
+        }
+        Row(
+            Modifier.fbngIsland().padding(FbngDimens.space4),
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+        ) {
+            Destinations.forEach { destination ->
+                val selected = destination.section == section
+                val hasUpdate = destination.section == ShellSection.Settings && updateAvailable
+                val updateDescription = if (hasUpdate) stringResource(R.string.update_nav_available) else null
+                Box(
+                    Modifier.libraryFocus(destination.tag, requesters.getValue(destination.tag), onFocused)
+                        .semantics {
+                            this.selected = selected
+                            if (updateDescription != null) stateDescription = updateDescription
+                        }
+                        .fbngFocusTarget(
+                            onClick = { onSection(destination.section) },
+                            container = if (selected) scheme.surfaceContainerHighest else Color.Transparent,
+                            restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
+                            role = Role.Tab,
+                        )
+                        .height(32.dp).padding(horizontal = FbngDimens.space12),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(stringResource(destination.label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    if (hasUpdate) Badge(Modifier.align(Alignment.TopEnd), containerColor = scheme.primary)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun RailItem(
-    destination: ShellDestination,
-    selected: Boolean,
-    requester: FocusRequester,
-    onClick: () -> Unit,
-    onFocused: () -> Unit,
-    showUpdate: Boolean,
-    modifier: Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val tint = if (selected) scheme.onPrimary else scheme.onSurfaceVariant
-    val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .onFocusChanged { if (it.isFocused) onFocused() }
-            .testTag(destination.tag)
-            .semantics {
-                this.selected = selected
-                if (updateDescription != null) stateDescription = updateDescription
-            }
-            .focusRequester(requester)
-            .fbngFocusTarget(
-                onClick = onClick,
-                container = if (selected) scheme.primary else scheme.surfaceContainerHigh,
-                focusedStroke = if (selected) scheme.onPrimary else scheme.primary,
-                role = Role.Tab,
-            )
-            .padding(horizontal = FbngDimens.space8),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.CenterVertically),
-    ) {
-        NavigationGlyph(destination.section, tint, showUpdate)
-        Text(
-            stringResource(destination.label),
-            color = tint,
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun ShellBottomBar(
-    section: ShellSection,
-    compact: Boolean,
-    requesters: Map<String, FocusRequester>,
-    onSection: (ShellSection) -> Unit,
-    onNavFocused: (String) -> Unit,
-    updateAvailable: Boolean,
+internal fun ShellFooter(
+    hints: List<Pair<String, Int>>,
+    trailing: @Composable RowScope.() -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(start = FbngDimens.space16, end = FbngDimens.space16, bottom = FbngDimens.space16)
-            .fbngIsland()
-            .padding(horizontal = FbngDimens.space8, vertical = if (compact) Dp.Hairline else FbngDimens.space8),
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+        Modifier.fillMaxWidth().height(FbngDimens.space24),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        Destinations.forEach { destination ->
-            val selected = destination.section == section
-            val tint = if (selected) scheme.secondary else scheme.onSurfaceVariant
-            val showUpdate = destination.section == ShellSection.Settings && updateAvailable
-            val updateDescription = if (showUpdate) stringResource(R.string.update_nav_available) else null
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = FbngDimens.buttonHeight)
-                    .onFocusChanged { if (it.isFocused) onNavFocused(destination.tag) }
-                    .testTag(destination.tag)
-                    .semantics {
-                        this.selected = selected
-                        if (updateDescription != null) stateDescription = updateDescription
-                    }
-                    .focusRequester(requesters.getValue(destination.tag))
-                    .fbngFocusTarget(
-                        onClick = { onSection(destination.section) },
-                        container = if (selected) scheme.secondaryContainer else scheme.surfaceContainerHigh,
-                        role = Role.Tab,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (compact) {
-                    if (selected) {
-                        Box(Modifier.align(Alignment.BottomCenter).padding(bottom = FbngDimens.space4)
-                            .width(FbngDimens.space24).height(FbngDimens.space4)
-                            .background(scheme.primary, MaterialTheme.shapes.medium))
-                    }
-                    if (showUpdate) {
-                        Badge(Modifier.align(Alignment.TopEnd).padding(FbngDimens.space4), containerColor = scheme.primary)
-                    }
-                    BottomNavLabel(destination, tint)
-                } else {
-                    Column(Modifier.padding(vertical = FbngDimens.space4), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Box(Modifier.width(FbngDimens.space24).height(FbngDimens.space4)
-                            .background(if (selected) scheme.primary else Color.Transparent, MaterialTheme.shapes.medium))
-                        Spacer(Modifier.height(FbngDimens.space4))
-                        NavigationGlyph(destination.section, tint, showUpdate)
-                        BottomNavLabel(destination, tint)
-                    }
+        hints.forEach { (key, label) ->
+            Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.background(
+                        if (key == "A") scheme.primary else scheme.surfaceContainerHighest,
+                        MaterialTheme.shapes.extraSmall,
+                    ).padding(horizontal = FbngDimens.space8, vertical = 2.dp),
+                ) {
+                    Text(key, color = if (key == "A") scheme.onPrimary else scheme.onSurface, style = MaterialTheme.typography.labelSmall)
                 }
+                Text(stringResource(label), color = scheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
             }
         }
+        Spacer(Modifier.weight(1f))
+        trailing()
     }
 }
 
 @Composable
-private fun BottomNavLabel(destination: ShellDestination, tint: Color) {
-    Text(
-        stringResource(destination.label),
-        color = tint,
-        style = MaterialTheme.typography.labelLarge,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-    )
-}
-
-@Composable
-private fun NavigationGlyph(section: ShellSection, tint: Color, showUpdate: Boolean) {
-    Box {
-        ShellGlyph(section, tint, Modifier.size(FbngDimens.icon))
-        if (showUpdate) {
-            Badge(
-                modifier = Modifier.align(Alignment.TopEnd),
-                containerColor = MaterialTheme.colorScheme.primary,
-            )
-        }
+internal fun BrowseFooter(
+    page: Int,
+    pages: Int,
+    library: Boolean,
+    scanning: Boolean,
+    requesters: Map<String, FocusRequester>,
+    onFocused: (String) -> Unit,
+    onPage: (Int) -> Unit,
+) {
+    val hints = buildList {
+        add("A" to R.string.shell_hint_open)
+        if (pages > 1) add("L1 / R1" to R.string.shell_hint_page)
+        if (library) add("Y" to R.string.library_jump_to_letter)
     }
-}
-
-@Composable
-internal fun ShellGlyph(section: ShellSection, color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val stroke = Stroke(width = size.minDimension * 0.08f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
-        when (section) {
-            ShellSection.Favorites -> {
-                val radius = size.minDimension / 2f - stroke.width
-                val star = Path()
-                for (vertex in 0 until 10) {
-                    val angle = vertex * PI / 5 - PI / 2
-                    val distance = if (vertex % 2 == 0) radius else radius * 0.45f
-                    val x = center.x + cos(angle).toFloat() * distance
-                    val y = center.y + sin(angle).toFloat() * distance
-                    if (vertex == 0) star.moveTo(x, y) else star.lineTo(x, y)
-                }
-                star.close()
-                drawPath(star, color, style = stroke)
-            }
-            ShellSection.Recent -> {
-                drawCircle(color, radius = size.minDimension * 0.4f, style = stroke)
-                drawLine(color, center, Offset(center.x, size.height * 0.25f), stroke.width, StrokeCap.Round)
-                drawLine(color, center, Offset(size.width * 0.7f, center.y), stroke.width, StrokeCap.Round)
-            }
-            ShellSection.Library -> {
-                val gap = size.minDimension * 0.16f
-                val cell = (size.minDimension - gap) / 2f
-                val radius = CornerRadius(cell * 0.22f, cell * 0.22f)
-                for (row in 0..1) {
-                    for (col in 0..1) {
-                        drawRoundRect(
-                            color = color,
-                            topLeft = Offset(col * (cell + gap), row * (cell + gap)),
-                            size = Size(cell, cell),
-                            cornerRadius = radius,
-                            style = stroke,
-                        )
-                    }
-                }
-            }
-            ShellSection.Import -> {
-                val mid = size.width / 2f
-                drawLine(color, Offset(mid, size.height * 0.08f), Offset(mid, size.height * 0.55f), stroke.width, StrokeCap.Round)
-                drawLine(color, Offset(mid, size.height * 0.55f), Offset(size.width * 0.28f, size.height * 0.34f), stroke.width, StrokeCap.Round)
-                drawLine(color, Offset(mid, size.height * 0.55f), Offset(size.width * 0.72f, size.height * 0.34f), stroke.width, StrokeCap.Round)
-                drawLine(color, Offset(size.width * 0.18f, size.height * 0.62f), Offset(size.width * 0.18f, size.height * 0.88f), stroke.width, StrokeCap.Round)
-                drawLine(color, Offset(size.width * 0.82f, size.height * 0.62f), Offset(size.width * 0.82f, size.height * 0.88f), stroke.width, StrokeCap.Round)
-                drawLine(color, Offset(size.width * 0.18f, size.height * 0.88f), Offset(size.width * 0.82f, size.height * 0.88f), stroke.width, StrokeCap.Round)
-            }
-            ShellSection.Sync -> {
-                val inset = size.minDimension * 0.14f
-                val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
-                val topLeft = Offset(inset, inset)
-                val strokeWidth = size.minDimension * 0.1f
-                drawArc(
-                    color,
-                    startAngle = -40f,
-                    sweepAngle = 200f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                )
-                drawArc(
-                    color,
-                    startAngle = 140f,
-                    sweepAngle = 200f,
-                    useCenter = false,
-                    topLeft = topLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                )
-                drawLine(
-                    color,
-                    Offset(size.width * 0.72f, size.height * 0.18f),
-                    Offset(size.width * 0.86f, size.height * 0.18f),
-                    strokeWidth,
-                    StrokeCap.Round,
-                )
-                drawLine(
-                    color,
-                    Offset(size.width * 0.86f, size.height * 0.18f),
-                    Offset(size.width * 0.86f, size.height * 0.34f),
-                    strokeWidth,
-                    StrokeCap.Round,
-                )
-                drawLine(
-                    color,
-                    Offset(size.width * 0.14f, size.height * 0.66f),
-                    Offset(size.width * 0.14f, size.height * 0.82f),
-                    strokeWidth,
-                    StrokeCap.Round,
-                )
-                drawLine(
-                    color,
-                    Offset(size.width * 0.14f, size.height * 0.82f),
-                    Offset(size.width * 0.28f, size.height * 0.82f),
-                    strokeWidth,
-                    StrokeCap.Round,
-                )
-            }
-            ShellSection.Settings -> {
-                val knobs = floatArrayOf(0.68f, 0.36f, 0.56f)
-                val ys = floatArrayOf(0.25f, 0.50f, 0.75f)
-                for (index in ys.indices) {
-                    val y = size.height * ys[index]
-                    drawLine(
-                        color,
-                        Offset(size.width * 0.14f, y),
-                        Offset(size.width * 0.86f, y),
-                        stroke.width,
-                        StrokeCap.Round,
-                    )
-                    drawCircle(color, radius = stroke.width * 1.5f, center = Offset(size.width * knobs[index], y))
+    ShellFooter(hints) {
+        if (scanning) Text(stringResource(R.string.scanning), color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)
+        if (pages > 0) {
+            val scheme = MaterialTheme.colorScheme
+            for ((step, glyph, label) in listOf(Triple(-1, "‹", R.string.library_previous_page), Triple(0, "", 0), Triple(1, "›", R.string.library_next_page))) {
+                if (step == 0) {
+                    val description = stringResource(R.string.library_page_number, page + 1, pages)
+                    Text(stringResource(R.string.library_page_short, page + 1, pages),
+                        Modifier.clearAndSetSemantics { contentDescription = description },
+                        style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
+                } else if (pages > 1) {
+                    val description = stringResource(label)
+                    val tag = if (step < 0) ShellTags.PreviousPage else ShellTags.NextPage
+                    Box(
+                        Modifier.size(FbngDimens.space24).libraryFocus(tag, requesters.getValue(tag), onFocused).semantics { contentDescription = description }
+                            .fbngFocusTarget({ onPage(page + step) }, Color.Transparent, enabled = page + step in 0 until pages),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(glyph, style = MaterialTheme.typography.labelLarge) }
                 }
             }
         }

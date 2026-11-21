@@ -1,6 +1,21 @@
 package com.xiaojiwei.fbng.ui
 
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +30,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
@@ -26,30 +43,43 @@ internal fun GameConfirmationDialog(
     actionLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    dimBackground: Boolean = true,
+    immersive: Boolean = false,
 ) {
-    AlertDialog(
-        shape = MaterialTheme.shapes.medium,
-        modifier = Modifier.onKeyEvent { event ->
-            if (event.type == KeyEventType.KeyUp && event.key == Key.ButtonB) {
-                onDismiss()
-                true
-            } else false
-        },
-        onDismissRequest = onDismiss,
-        title = {
-            DialogGamepadInput()
-            Text(title)
-        },
-        text = { Text(body) },
-        confirmButton = { FbngButton(onClick = onConfirm) { Text(actionLabel) } },
-        dismissButton = {
-            val cancel = remember { FocusRequester() }
-            LaunchedEffect(cancel) { cancel.requestFocus() }
-            FbngButton(
-                onClick = onDismiss,
-                kind = FbngButtonKind.Neutral,
-                modifier = Modifier.focusRequester(cancel),
-            ) { Text(stringResource(R.string.cancel)) }
-        },
-    )
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogGamepadInput()
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            if (window != null) {
+                if (!dimBackground) window.setDimAmount(0f)
+                if (immersive) WindowCompat.getInsetsController(window, window.decorView)
+                    .hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        val cancel = remember { FocusRequester() }
+        LaunchedEffect(cancel) {
+            withFrameNanos { }
+            cancel.requestFocus()
+        }
+        Column(
+            Modifier.padding(FbngDimens.space24).widthIn(max = 460.dp).fillMaxWidth()
+                .onKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyUp && event.key == Key.ButtonB) {
+                        onDismiss()
+                        true
+                    } else false
+                }
+                .fbngIsland().padding(FbngDimens.space24),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+        ) {
+            Text(title, style = MaterialTheme.typography.headlineSmall)
+            Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8, Alignment.End)) {
+                FbngButton(onDismiss, Modifier.focusRequester(cancel), kind = FbngButtonKind.Outline) {
+                    Text(stringResource(R.string.cancel))
+                }
+                FbngButton(onConfirm, kind = FbngButtonKind.Destructive) { Text(actionLabel) }
+            }
+        }
+    }
 }

@@ -7,8 +7,9 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:enforceStatusBarContrast">false</item>
         <item name="android:enforceNavigationBarContrast">false</item>
-        <item name="android:windowBackground">#12140F</item>
-        <item name="android:colorBackground">#12140F</item>
+        <item name="android:windowBackground">#101925</item>
+        <item name="android:windowSplashScreenBackground">#101925</item>
+        <item name="android:colorBackground">#101925</item>
         <item name="android:textColorPrimary">#F3F0E6</item>
         <item name="android:textColorSecondary">#B7B2A6</item>
         <item name="android:statusBarColor">@android:color/transparent</item>

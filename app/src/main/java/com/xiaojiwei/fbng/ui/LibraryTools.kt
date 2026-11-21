@@ -60,24 +60,6 @@ internal fun LibraryFilters(
     val status = stringResource(filterLabel(playableOnly))
     val statusFilter = stringResource(R.string.library_filter_title)
     ShellHeaderButton(
-        onClick = onOpenLetters,
-        selected = query.isNotEmpty(),
-        modifier = Modifier
-            .width(if (wide) FbngDimens.libraryLetterFilterWidth else FbngDimens.buttonHeight)
-            .libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused)
-            .semantics {
-                contentDescription = searchLabel
-                if (query.isNotEmpty()) stateDescription = query
-            },
-    ) {
-        Text(
-            if (wide) query.ifEmpty { searchLabel } else stringResource(R.string.library_letters_short),
-            style = MaterialTheme.typography.labelLarge,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-    ShellHeaderButton(
         onClick = onOpenFilter,
         selected = playableOnly,
         modifier = Modifier
@@ -107,6 +89,24 @@ internal fun LibraryFilters(
                     Offset(size.width * .58f, size.height * .76f), stroke, StrokeCap.Round)
             }
         }
+    }
+    ShellHeaderButton(
+        onClick = onOpenLetters,
+        selected = query.isNotEmpty(),
+        modifier = Modifier
+            .width(if (wide) FbngDimens.libraryLetterFilterWidth else FbngDimens.buttonHeight)
+            .libraryFocus(ShellTags.JumpToLetter, requesters.getValue(ShellTags.JumpToLetter), onFocused)
+            .semantics {
+                contentDescription = searchLabel
+                if (query.isNotEmpty()) stateDescription = query
+            },
+    ) {
+        Text(
+            if (wide) query.ifEmpty { letters } else stringResource(R.string.library_letters_short),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

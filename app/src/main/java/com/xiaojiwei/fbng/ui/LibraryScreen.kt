@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,6 +31,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -59,6 +61,8 @@ import androidx.window.layout.WindowInfoTracker
 import androidx.window.layout.WindowLayoutInfo
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.game.GameProgressStore
+import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.LibraryResults
@@ -72,8 +76,21 @@ import com.xiaojiwei.fbng.ui.theme.FbngPanel
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import com.xiaojiwei.fbng.update.UpdateState
+import java.text.DateFormat
+import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private enum class LibraryPicker { Letters, Status }
+
+private enum class SettingsCategory(val label: Int, val tag: String) {
+    Import(R.string.shell_import, ShellTags.OpenImport),
+    Covers(R.string.covers_title, "settings-covers"),
+    Appearance(R.string.settings_appearance, "settings-appearance"),
+    Sync(R.string.shell_sync, ShellTags.OpenSync),
+    About(R.string.settings_about, "settings-about"),
+}
+
 
 @Composable
 internal fun LibraryContent(
@@ -91,6 +108,7 @@ internal fun LibraryContent(
     playBusy: Boolean = busy,
     favoriteNames: Set<String> = emptySet(),
     recentNames: List<String> = emptyList(),
+    recentTimes: Map<String, Long> = emptyMap(),
     onToggleFavorite: (String) -> Unit = {},
     covers: CoverUiState? = null,
     appUpdate: UpdateUiState? = null,
@@ -141,6 +159,7 @@ internal fun LibraryContent(
                 folderActions = folderActions,
                 favoriteNames = favoriteNames,
                 recentNames = recentNames,
+                recentTimes = recentTimes,
                 onToggleFavorite = onToggleFavorite,
                 covers = covers,
                 appUpdate = appUpdate,
@@ -169,6 +188,7 @@ private fun LibraryShell(
     folderActions: FolderActions,
     favoriteNames: Set<String>,
     recentNames: List<String>,
+    recentTimes: Map<String, Long>,
     onToggleFavorite: (String) -> Unit,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
@@ -177,16 +197,20 @@ private fun LibraryShell(
     returnFromGame: String?,
     onReturnRestored: () -> Unit,
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val windowFocused = LocalWindowInfo.current.isWindowFocused
     val gamepad = LocalGamepadInput.current
     var sectionName by rememberSaveable { mutableStateOf(initialSection.name) }
+    var settingsOrigin by rememberSaveable { mutableStateOf(ShellSection.Favorites) }
+    var settingsCategory by rememberSaveable { mutableStateOf(SettingsCategory.Import) }
     var savedFocus by rememberSaveable { mutableStateOf("") }
     var libraryFocus by rememberSaveable { mutableStateOf("") }
     var favoritesFocus by rememberSaveable { mutableStateOf("") }
     var recentFocus by rememberSaveable { mutableStateOf("") }
     var favoritesIndex by rememberSaveable { mutableStateOf(0) }
     var recentIndex by rememberSaveable { mutableStateOf(0) }
+    var pickerReturnFocus by rememberSaveable { mutableStateOf("") }
     var navFocus by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var detailName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -226,7 +250,7 @@ private fun LibraryShell(
             ShellTags.NavRecent,
             ShellTags.NavLibrary,
             ShellTags.NavSettings,
-        ).plus(CornerRadiusOption.entries.map(ShellTags::cornerRadius))
+        ).plus(CornerRadiusOption.entries.map(ShellTags::cornerRadius)).plus(SettingsCategory.entries.map { it.tag })
             .associateWith { FocusRequester() }
     }
     val folderTags = folders.map { ShellTags.removeFolder(it.folder.uri) }
@@ -264,7 +288,6 @@ private fun LibraryShell(
         val widthClass = shellWidth(widthDp)
         val fold = readFold()
         val rail = shellUsesNavigationRail(widthDp, fold)
-        val compactBottomBar = !rail && maxHeight < FbngDimens.shortShellHeight
         val margin = FbngDimens.compactMargin
         val kovshTitle = stringResource(R.string.game_title)
         val gameTitles = remember(localizedTitles, kovshTitle) { localizedTitles + ("kovsh" to kovshTitle) }
@@ -366,13 +389,7 @@ private fun LibraryShell(
         }
 
         fun closePicker(showResults: Boolean = false) {
-            libraryFocus = when (picker) {
-                LibraryPicker.Letters -> if (showResults) {
-                    // Let the focus effect choose from the newly confirmed results.
-                    ""
-                } else ShellTags.JumpToLetter
-                LibraryPicker.Status, null -> ShellTags.LibraryFilter
-            }
+            libraryFocus = if (showResults) "" else pickerReturnFocus
             picker = null
             if (showResults) {
                 restoreTarget = null
@@ -386,6 +403,8 @@ private fun LibraryShell(
                 if (picker == target) closePicker()
                 return
             }
+            pickerReturnFocus = selectedName?.let(ShellTags::game)
+                ?: libraryFocus.ifEmpty { if (target == LibraryPicker.Letters) ShellTags.JumpToLetter else ShellTags.LibraryFilter }
             focusManager.clearFocus(force = true)
             picker = target
         }
@@ -408,6 +427,7 @@ private fun LibraryShell(
         fun openSection(destination: ShellSection) {
             if (destination == section) return
             if (pickerOpen) closePicker()
+            if (destination == ShellSection.Settings && (showShelf || section == ShellSection.Library)) settingsOrigin = section
             navFocus = null
             savedFocus = when {
                 destination == ShellSection.Settings && section == ShellSection.Import -> ShellTags.OpenImport
@@ -420,12 +440,24 @@ private fun LibraryShell(
         fun back() {
             when {
                 pickerOpen -> closePicker()
+                section == ShellSection.Import && savedFocus.isNotEmpty() && savedFocus != SettingsCategory.Import.tag && savedFocus != ShellTags.SettingsBack -> {
+                    savedFocus = SettingsCategory.Import.tag
+                    restoreFocus(SettingsCategory.Import.tag)
+                }
                 section == ShellSection.Import && importOrigin != null -> {
                     val origin = requireNotNull(importOrigin)
                     importOrigin = null
                     openSection(origin)
+                    if (detailName == null) restoreFocus(ShellTags.EmptyImport)
                 }
-                section == ShellSection.Import || section == ShellSection.Sync -> openSection(ShellSection.Settings)
+                section == ShellSection.Settings && savedFocus.isNotEmpty() && savedFocus != settingsCategory.tag && savedFocus != ShellTags.SettingsBack -> {
+                    savedFocus = settingsCategory.tag
+                    restoreFocus(settingsCategory.tag)
+                }
+                section == ShellSection.Settings -> {
+                    openSection(settingsOrigin)
+                    restoreFocus(ShellTags.NavSettings)
+                }
                 section != ShellSection.Favorites -> openSection(ShellSection.Favorites)
             }
         }
@@ -452,10 +484,6 @@ private fun LibraryShell(
         }
 
         BackHandler(enabled = section != ShellSection.Favorites, onBack = ::back)
-        val tab = when (section) {
-            ShellSection.Import, ShellSection.Sync -> ShellSection.Settings
-            else -> section
-        }
         val tabTag = when (section) {
             ShellSection.Favorites -> ShellTags.NavFavorites
             ShellSection.Recent -> ShellTags.NavRecent
@@ -472,10 +500,9 @@ private fun LibraryShell(
             shelfCards.takeIf { showShelf }, shelfPage.takeIf { showShelf },
             maxWidth.takeIf { showShelf }, maxHeight.takeIf { showShelf },
         ) {
-            if (libraryFocusBusy || pickerOpen || returnFromGame != null) return@LaunchedEffect
+            if (libraryFocusBusy || pickerOpen || returnFromGame != null || !windowFocused) return@LaunchedEffect
             val target = restoreTarget
             if (target != null) {
-                if (!windowFocused) return@LaunchedEffect
                 repeat(4) {
                     withFrameNanos { }
                     if (request(target)) {
@@ -503,18 +530,12 @@ private fun LibraryShell(
                 }
                 ShellSection.Import -> listOf(
                     savedFocus,
+                    folderTags.firstOrNull().orEmpty(),
                     ShellTags.AddFolder,
                     ShellTags.SettingsBack,
                 )
                 ShellSection.Sync -> listOf(savedFocus, ShellTags.SettingsBack, ShellTags.Sync)
-                ShellSection.Settings -> listOfNotNull(
-                    savedFocus,
-                    ShellTags.AppUpdate.takeIf {
-                        appUpdate?.state is UpdateState.Available
-                    },
-                    ShellTags.OpenImport,
-                    ShellTags.OpenSync,
-                )
+                ShellSection.Settings -> listOf(savedFocus, settingsCategory.tag)
             }
             val targets = preferred.distinct()
             repeat(4) {
@@ -547,22 +568,34 @@ private fun LibraryShell(
             back()
             true
         }) {
-            ShellScaffold(
-                section = tab,
-                rail = rail,
-                expanded = widthClass == ShellWidth.Expanded,
-                compactBottomBar = compactBottomBar,
-                requesters = requesters,
-                onSection = ::openSection,
-                onNavFocused = { navFocus = it },
-                updateAvailable = appUpdate?.state is UpdateState.Available,
-                modifier = if (pickerOpen) {
-                    Modifier.semantics { hideFromAccessibility() }
-                } else Modifier,
-            ) {
+            val shelfPageEntries = remember(shelfEntries, shelfPage) { shelfEntries.drop(shelfPage * ShelfPageSize).take(ShelfPageSize) }
+            val shelfMetadata by produceState(emptyMap<String, String>(), section, shelfPageEntries, recentTimes, showDetails) {
+                value = if (!showShelf) emptyMap() else withContext(Dispatchers.IO) {
+                    val format = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+                    val storage = AppStorage(context.filesDir)
+                    shelfPageEntries.mapNotNull { entry ->
+                        val name = entry.game.name
+                        val caption = if (recent) {
+                            recentTimes[name]?.takeIf { it > 0 }?.let { format.format(Date(it)) }
+                        } else {
+                            val directory = storage.stateDir(name)
+                            if (!directory.isDirectory) null else runCatching {
+                                GameProgressStore(directory).slotWithProgress()
+                                    ?.let { context.getString(R.string.shelf_has_progress, it) }
+                            }.getOrNull()
+                        }
+                        caption?.let { name to it }
+                    }.toMap()
+                }
+            }
+            val navigation: @Composable () -> Unit = {
+                ShellTabs(section, requesters, ::openSection, { navFocus = it },
+                    appUpdate?.state is UpdateState.Available)
+            }
+            Box(if (pickerOpen) Modifier.semantics { hideFromAccessibility() } else Modifier) {
                 when (section) {
                     ShellSection.Favorites, ShellSection.Recent -> GameShelfPage(
-                        entries = shelfEntries.drop(shelfPage * ShelfPageSize).take(ShelfPageSize),
+                        entries = shelfPageEntries,
                         hasSavedGames = if (recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
                         recent = recent,
                         covers = covers,
@@ -573,7 +606,8 @@ private fun LibraryShell(
                         onPage = ::changeShelfPage,
                         cardRequesters = cardRequesters,
                         requesters = requesters,
-                        onPageControlFocused = { navFocus = null },
+                        navigation = navigation,
+                        metadata = shelfMetadata,
                         onFocused = { id ->
                             focusSaved(id)
                             shelfCards.indexOf(id).takeIf { it >= 0 }?.let { index ->
@@ -609,10 +643,11 @@ private fun LibraryShell(
                         },
                         onPage = ::changePage,
                         cardRequesters = cardRequesters,
-                        wide = rail,
-                        compactBottomBar = compactBottomBar,
+                        navigation = navigation,
+                        covers = covers,
+                        selectedName = selectedName,
+                        scanning = workMessage == R.string.folder_scanning && busy,
                         margin = margin,
-                        busy = playBusy,
                         requesters = requesters,
                         onFocused = ::focusSaved,
                         onSelected = { selectedName = it },
@@ -640,37 +675,23 @@ private fun LibraryShell(
                         },
                         query = searchQuery,
                     )
-                    ShellSection.Import -> ImportPage(
-                        busy = busy,
-                        margin = margin,
-                        requesters = requesters,
-                        onFocused = ::focusSaved,
-                        onBack = ::back,
-                        workMessage = workMessage,
-                        folders = folders,
-                        folderError = folderError,
-                        folderActions = folderActions,
-                    )
-                    ShellSection.Sync -> SyncPage(
-                        margin = margin,
-                        requesters = requesters,
-                        onFocused = ::focusSaved,
-                        onBack = ::back,
-                    )
-                    ShellSection.Settings -> SettingsPage(
-                        covers = covers,
-                        appUpdate = appUpdate,
-                        cornerRadius = cornerRadius,
-                        onCornerRadiusChange = onCornerRadiusChange,
-                        margin = margin,
-                        requesters = requesters,
-                        onFocused = ::focusSaved,
-                        onOpenImport = {
-                            importOrigin = null
-                            openSection(ShellSection.Import)
-                        },
-                        onOpenSync = { openSection(ShellSection.Sync) },
-                    )
+                    ShellSection.Import, ShellSection.Sync, ShellSection.Settings -> {
+                        val directImport = section == ShellSection.Import
+                        SettingsPage(
+                            category = if (directImport) SettingsCategory.Import else settingsCategory,
+                            directImport = directImport,
+                            onCategory = { next ->
+                                if (directImport && next != SettingsCategory.Import) openSection(ShellSection.Settings)
+                                settingsCategory = next
+                            },
+                            busy = busy, folders = folders, folderError = folderError, workMessage = workMessage,
+                            folderActions = folderActions, covers = covers, appUpdate = appUpdate,
+                            cornerRadius = cornerRadius, onCornerRadiusChange = onCornerRadiusChange,
+                            margin = margin, requesters = requesters,
+                            onFocused = ::focusSaved, onBack = ::back,
+                            request = { restoreFocus(it) },
+                        )
+                    }
                 }
             }
             if (pickerOpen) {
@@ -679,7 +700,7 @@ private fun LibraryShell(
                         playableOnly = it
                         libraryPage = 0
                         selectedName = null
-                        closePicker()
+                        closePicker(showResults = true)
                     }
                 } else {
                     letterPicker?.invoke()
@@ -690,147 +711,102 @@ private fun LibraryShell(
 }
 
 @Composable
-private fun ImportPage(
+private fun SettingsPage(
+    category: SettingsCategory,
+    directImport: Boolean,
+    onCategory: (SettingsCategory) -> Unit,
     busy: Boolean,
-    margin: Dp,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onBack: () -> Unit,
-    workMessage: Int,
     folders: List<FolderScan>,
     folderError: Int?,
+    workMessage: Int,
     folderActions: FolderActions,
-) {
-    SettingsSubpage(R.string.shell_import, margin, requesters, onFocused, onBack) {
-        FolderManagement(
-            folders = folders,
-            busy = busy,
-            workMessage = workMessage,
-            error = folderError,
-            requesters = requesters,
-            onFocused = onFocused,
-            actions = folderActions,
-        )
-    }
-}
-
-@Composable
-private fun SyncPage(
-    margin: Dp,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onBack: () -> Unit,
-) {
-    SettingsSubpage(R.string.shell_sync, margin, requesters, onFocused, onBack) {
-        FocusableMessage(
-            tag = ShellTags.Sync,
-            requester = requesters.getValue(ShellTags.Sync),
-            onFocused = onFocused,
-            container = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ) {
-            Text(
-                stringResource(R.string.sync_body),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsSubpage(
-    title: Int,
-    margin: Dp,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onBack: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    ShellPage(
-        title = stringResource(
-            R.string.shell_page_path, stringResource(R.string.shell_settings), stringResource(title),
-        ),
-        margin = margin,
-        leadingAction = {
-            ShellHeaderBack(
-                label = stringResource(R.string.settings_back),
-                onClick = onBack,
-                modifier = Modifier.libraryFocus(
-                    ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused,
-                ),
-            )
-        },
-    ) {
-        Column(Modifier.verticalScroll(rememberScrollState()), content = { content() })
-    }
-}
-
-@Composable
-private fun SettingsPage(
-    margin: Dp,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onOpenImport: () -> Unit,
-    onOpenSync: () -> Unit,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
     cornerRadius: CornerRadiusOption,
     onCornerRadiusChange: (CornerRadiusOption) -> Unit,
+    margin: Dp,
+    requesters: Map<String, FocusRequester>,
+    onFocused: (String) -> Unit,
+    onBack: () -> Unit,
+    request: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    ShellPage(title = stringResource(R.string.shell_settings), margin = margin) {
-        Column(
-            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(FbngDimens.space16),
-        ) {
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth >= FbngDimens.libraryHeaderWide) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                        SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport,
-                            requesters, onFocused, onOpenImport, Modifier.weight(1f))
-                        SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync,
-                            requesters, onFocused, onOpenSync, Modifier.weight(1f))
+    val entry = when (category) {
+        SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
+        SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
+        SettingsCategory.Appearance -> ShellTags.cornerRadius(cornerRadius)
+        SettingsCategory.Sync -> ShellTags.Sync
+        SettingsCategory.About -> if (appUpdate == null) ShellTags.SettingsInfo else ShellTags.AppUpdate
+    }
+    ShellPage(
+        title = stringResource(if (directImport) R.string.shell_import else R.string.shell_settings),
+        margin = margin,
+        leadingAction = {
+            ShellHeaderBack(stringResource(R.string.back), onBack,
+                Modifier.libraryFocus(ShellTags.SettingsBack, requesters.getValue(ShellTags.SettingsBack), onFocused))
+        },
+        footer = { ShellFooter(listOf("A" to R.string.shell_hint_select, "B" to R.string.back)) },
+    ) {
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+            Column(
+                Modifier.weight(2f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
+                verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+            ) {
+                for (item in SettingsCategory.entries) {
+                    val enter = {
+                        onCategory(item)
+                        if (item == category) entry?.let(request)
                     }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                        SettingsDestination(ShellSection.Import, R.string.shell_import, ShellTags.OpenImport,
-                            requesters, onFocused, onOpenImport)
-                        SettingsDestination(ShellSection.Sync, R.string.shell_sync, ShellTags.OpenSync,
-                            requesters, onFocused, onOpenSync)
+                    Row(
+                        Modifier.weight(1f).fillMaxWidth()
+                            .onKeyEvent {
+                                if (it.key != Key.DirectionRight) false else {
+                                    if (it.type == KeyEventType.KeyDown) enter()
+                                    true
+                                }
+                            }
+                            .libraryFocus(item.tag, requesters.getValue(item.tag)) {
+                                onCategory(item)
+                                onFocused(it)
+                            }
+                            .fbngFocusTarget(enter, scheme.surface,
+                                restingStroke = if (item == category) scheme.outlineVariant else androidx.compose.ui.graphics.Color.Transparent)
+                            .padding(horizontal = FbngDimens.space12),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                    ) {
+                        Text(stringResource(item.label), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                        Text("›", color = scheme.secondary)
                     }
                 }
             }
-            CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
-            if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
-            if (covers != null) CoverSettings(covers, requesters, onFocused)
-            FocusableMessage(
-                tag = ShellTags.SettingsInfo,
-                requester = requesters.getValue(ShellTags.SettingsInfo),
-                onFocused = onFocused,
-                container = scheme.surfaceContainerHigh,
+            Column(
+                Modifier.weight(5f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
+                verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
             ) {
-                Text(
-                    stringResource(R.string.legal_notice),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = scheme.onSurfaceVariant,
-                )
-            }
-            FocusableMessage(
-                tag = ShellTags.SettingsCore,
-                requester = requesters.getValue(ShellTags.SettingsCore),
-                onFocused = onFocused,
-                container = scheme.surfaceContainerHigh,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.footer_core,
-                        BuildConfig.FBNEO_COMMIT_SHORT,
-                        BuildConfig.FBNEO_BUILD_DATE,
-                        BuildConfig.LIBRETRODROID_VERSION,
-                    ),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = scheme.onSurface,
-                )
+                when (category) {
+                    SettingsCategory.Import -> FolderManagement(
+                        folders, busy, workMessage, folderError, requesters, onFocused, folderActions,
+                    )
+                    SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) }
+                    SettingsCategory.Appearance -> CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
+                    SettingsCategory.Sync -> FocusableMessage(
+                        ShellTags.Sync, requesters.getValue(ShellTags.Sync), onFocused, scheme.surface,
+                    ) { Text(stringResource(R.string.sync_body), style = MaterialTheme.typography.bodyLarge) }
+                    SettingsCategory.About -> Column(
+                        Modifier.verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                    ) {
+                        if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
+                        FocusableMessage(ShellTags.SettingsInfo, requesters.getValue(ShellTags.SettingsInfo), onFocused, scheme.surface) {
+                            Text(stringResource(R.string.legal_notice), style = MaterialTheme.typography.bodyLarge)
+                        }
+                        FocusableMessage(ShellTags.SettingsCore, requesters.getValue(ShellTags.SettingsCore), onFocused, scheme.surface) {
+                            Text(stringResource(R.string.footer_core, BuildConfig.FBNEO_COMMIT_SHORT,
+                                BuildConfig.FBNEO_BUILD_DATE, BuildConfig.LIBRETRODROID_VERSION), style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
             }
         }
     }
@@ -870,33 +846,6 @@ private fun CornerRadiusButtonGroup(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun SettingsDestination(
-    section: ShellSection,
-    label: Int,
-    tag: String,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused)
-            .fbngFocusTarget(
-                onClick = onClick,
-                container = scheme.surfaceContainerHigh,
-            ).padding(FbngDimens.space16),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
-    ) {
-        ShellGlyph(section, scheme.onSurface, Modifier.size(FbngDimens.icon))
-        Text(stringResource(label), style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.weight(1f))
-        Text("›", style = MaterialTheme.typography.titleLarge, color = scheme.onSurfaceVariant)
     }
 }
 

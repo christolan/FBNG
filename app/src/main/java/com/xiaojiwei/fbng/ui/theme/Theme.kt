@@ -68,7 +68,7 @@ internal fun FbngTheme(
 ) {
     val shapes = remember(cornerRadius) {
         val shape = RoundedCornerShape(cornerRadius.radius)
-        Shapes(extraSmall = shape, small = shape, medium = shape, large = shape, extraLarge = shape)
+        Shapes(extraSmall = shape, small = shape, medium = shape, large = RoundedCornerShape(cornerRadius.radius + FbngDimens.panelInset), extraLarge = RoundedCornerShape(cornerRadius.radius + FbngDimens.panelInset))
     }
     MaterialTheme(
         colorScheme = Scheme,

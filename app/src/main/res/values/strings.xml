@@ -17,8 +17,8 @@
     <string name="recent_empty_hint">开始游戏后会自动记录，最近玩的排在最前面。</string>
     <string name="recent_unavailable">暂未找到最近玩过的游戏</string>
     <string name="favorites_open_library">浏览游戏库</string>
-    <string name="favorites_empty">还没有收藏的游戏</string>
-    <string name="favorites_empty_hint">在游戏库中打开游戏详情，即可添加到收藏。</string>
+    <string name="favorites_empty">还没有收藏</string>
+    <string name="favorites_empty_hint">从游戏详情把喜欢的游戏加入收藏。</string>
     <string name="favorites_unavailable">暂未找到已收藏的游戏</string>
     <string name="favorites_unavailable_hint">请检查游戏库文件夹并重新扫描。找到游戏后会恢复显示。</string>
     <string name="favorite_add">添加到收藏</string>
@@ -128,7 +128,7 @@
     <string name="update_install_cancelled">已取消安装。可以重新安装更新。</string>
     <string name="update_install_failed">系统无法安装更新。请检查安装权限和剩余空间后重试。</string>
     <string name="folder_configure">配置游戏库目录</string>
-    <string name="folder_heading">游戏库文件夹</string>
+    <string name="folder_heading">游戏目录</string>
     <string name="folder_body">扫描文件夹和子文件夹中的 ZIP，识别 FBNeo 游戏和 BIOS。</string>
     <string name="folder_add">添加文件夹</string>
     <string name="folder_rescan">重新扫描</string>
@@ -185,7 +185,7 @@
     <string name="delete_save_ok">存档已删除。</string>
     <string name="delete_save_fail">删除存档失败：%1$s</string>
 
-    <string name="progress_slots">槽位</string>
+    <string name="progress_slots">进度</string>
     <string name="progress_snapshots">快照</string>
     <string name="progress_slot">槽位 %1$d</string>
     <string name="progress_snapshot">快照 %1$d</string>
@@ -232,4 +232,29 @@
     <string name="progress_slots_read_failed">无法读取槽位。请检查剩余空间后重试。</string>
     <string name="progress_snapshots_read_failed">无法读取快照。请检查存储空间后重试。</string>
     <string name="progress_next">下一步</string>
+    <string name="shell_hint_open">打开</string>
+    <string name="shell_hint_page">翻页</string>
+    <string name="shell_hint_select">选择</string>
+    <string name="shell_hint_input">输入</string>
+    <string name="shell_hint_confirm">确认</string>
+    <string name="settings_appearance">外观</string>
+    <string name="settings_about">关于</string>
+    <string name="library_missing_bios_short">缺少 BIOS</string>
+    <string name="shelf_has_progress">槽位 %1$d · 有进度</string>
+    <string name="progress_saved">有进度</string>
+    <string name="progress_active">本局槽位</string>
+    <string name="progress_paused">已暂停</string>
+    <string name="progress_start">开始游戏</string>
+    <string name="progress_resume">继续游戏</string>
+    <string name="progress_manage_folders">管理目录</string>
+    <string name="progress_overwrite">覆盖并应用</string>
+    <string name="covers_updated_count">已更新 %1$d 张</string>
+    <string name="folder_total">%1$d 个游戏 · %2$d 个 BIOS</string>
+    <string name="progress_apply_short">应用</string>
+    <string name="progress_delete_short">删除</string>
+    <string name="folder_remove_confirmation">此目录中的游戏将从本应用的游戏库移除，目录及其文件会保留。</string>
+    <string name="progress_empty_short">空槽位</string>
+    <string name="progress_favorite">☆ 收藏</string>
+    <string name="progress_favorited">★ 已收藏</string>
+    <string name="shell_hint_start">开始</string>
 </resources>

@@ -1,5 +1,11 @@
 package com.xiaojiwei.fbng.ui.theme
 
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -14,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
@@ -87,7 +94,19 @@ internal fun Modifier.fbngFocusTarget(
             this.role = role
             if (enabled) onClick { onClick(); true } else disabled()
         }
-        .border(FbngDimens.focusStroke, stroke, shape)
+        .drawWithContent {
+            drawContent()
+            if (focused && enabled) {
+                val line = FbngDimens.focusStroke.toPx()
+                val gap = FbngDimens.focusGap.toPx()
+                val outer = gap + line / 2
+                val radius = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
+                drawRoundRect(stroke, Offset(-outer, -outer),
+                    Size(size.width + 2 * outer, size.height + 2 * outer),
+                    CornerRadius(radius + outer), style = Stroke(line))
+            }
+        }
+        .border(Dp.Hairline, if (enabled) restingStroke else Color.Transparent, shape)
         .clip(shape)
         .indication(interaction, ripple(color = scheme.primary))
         .background(container)

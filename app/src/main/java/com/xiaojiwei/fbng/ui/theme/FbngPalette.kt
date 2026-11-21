@@ -1,27 +1,25 @@
 package com.xiaojiwei.fbng.ui.theme
 
 /**
- * Charcoal surfaces and one electric-blue accent for the console shell.
- * Body text is the near-white pair. [secondary] is the lighter blue used as text,
- * because [primary] is the button fill and only clears about 4:1 on the background.
+ * Blue-black surfaces with mint accents for the RP6 shell.
  */
 internal object FbngPalette {
-    const val background = 0xFF101318L
+    const val background = 0xFF101925L
     const val onBackground = 0xFFF4F7FBL
-    const val surface = 0xFF171C24L
+    const val surface = 0xFF15212EL
     const val onSurface = 0xFFF4F7FBL
     const val surfaceVariant = 0xFF222A36L
     const val onSurfaceVariant = 0xFFD5DCE6L
     const val surfaceBright = 0xFF313A4AL
-    const val surfaceDim = 0xFF101318L
+    const val surfaceDim = 0xFF101925L
     const val surfaceContainerLowest = 0xFF0C0F14L
     const val surfaceContainerLow = 0xFF141820L
-    const val surfaceContainer = 0xFF171C24L
-    const val surfaceContainerHigh = 0xFF1E2530L
-    const val surfaceContainerHighest = 0xFF293140L
+    const val surfaceContainer = 0xFF15212EL
+    const val surfaceContainerHigh = 0xFF202F3DL
+    const val surfaceContainerHighest = 0xFF2C404EL
 
-    const val primary = 0xFF206AFBL
-    const val onPrimary = 0xFFFFFFFFL
+    const val primary = 0xFFB5F3E2L
+    const val onPrimary = 0xFF10251FL
     const val primaryContainer = 0xFF16306AL
     const val onPrimaryContainer = 0xFFE6EDFFL
     const val inversePrimary = 0xFF1846C2L
@@ -30,9 +28,9 @@ internal object FbngPalette {
     const val onPrimaryFixed = 0xFF07122EL
     const val onPrimaryFixedVariant = 0xFF16327AL
 
-    const val secondary = 0xFFA9C4FFL
+    const val secondary = 0xFFB7D0D6L
     const val onSecondary = 0xFF0C1B3AL
-    const val secondaryContainer = 0xFF15233AL
+    const val secondaryContainer = 0xFF2A3A46L
     const val onSecondaryContainer = 0xFFE7EEFFL
     const val secondaryFixed = 0xFFE4ECFFL
     const val secondaryFixedDim = 0xFFC5D6FFL
@@ -54,9 +52,9 @@ internal object FbngPalette {
     const val onErrorContainer = 0xFFFFDAD4L
 
     const val outline = 0xFFC5CEDAL
-    const val outlineVariant = 0xFF8E98A8L
+    const val outlineVariant = 0xFF6D828FL
     const val scrim = 0xFF000000L
     const val inverseSurface = 0xFFF4F7FBL
-    const val inverseOnSurface = 0xFF171C24L
-    const val surfaceTint = 0xFF206AFBL
+    const val inverseOnSurface = 0xFF15212EL
+    const val surfaceTint = 0xFFB5F3E2L
 }

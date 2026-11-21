@@ -27,7 +27,8 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
     private var canAutoSave = false
     private var quitSaved = false
     private var dialogOpen = false
-    private var pauseCover: ByteArray? = null
+    var pauseCover by mutableStateOf<ByteArray?>(null)
+        private set
     private var coverGeneration = 0
 
     init {
@@ -46,7 +47,7 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
     }
 
     suspend fun capturePauseCover() {
-        if (!foreground || !paused || busy) return
+        if (!foreground || !ready || busy) return
         val generation = coverGeneration
         val source = GameCover.source(view) ?: return
         val cover = GameCover.capturePreview(source)

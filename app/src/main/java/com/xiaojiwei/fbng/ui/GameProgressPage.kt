@@ -6,8 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -34,6 +32,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.artwork.CoverImage
@@ -71,6 +71,7 @@ internal fun GameProgressPage(
     onBack: () -> Unit,
     messageIsError: Boolean = false,
     activeSlot: Int? = null,
+    pausedCover: ByteArray? = null,
     onCreateSnapshot: (suspend () -> Int)? = null,
     onApplySnapshot: (suspend (Int) -> SavedSlot)? = null,
     onDeleteCurrent: (suspend () -> Unit)? = null,
@@ -98,6 +99,7 @@ internal fun GameProgressPage(
     var localError by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf<ProgressConfirmation?>(null) }
     var targetSnapshot by remember { mutableStateOf<Pair<Int, SavedSlot>?>(null) }
+    var dialogTrigger by remember { mutableStateOf<String?>(null) }
     var targetSlot by remember { mutableStateOf(1) }
     var initialSelection by remember(store) { mutableStateOf(false) }
     val paused = activeSlot != null
@@ -211,7 +213,8 @@ internal fun GameProgressPage(
         if (blocked) return
         pending = null
         targetSnapshot = null
-        restore(focused)
+        restore(dialogTrigger ?: focused)
+        dialogTrigger = null
     }
     fun back() {
         if (blocked) return
@@ -220,6 +223,7 @@ internal fun GameProgressPage(
     BackHandler(onBack = ::back)
     fun prepareApply(id: Int) = operate {
         val state = withContext(Dispatchers.IO) { store.readSnapshot(id) }
+        dialogTrigger = "apply-snapshot"
         if (activeSlot != null) pending = ProgressConfirmation(ProgressAction.Apply, id, activeSlot, state)
         else { targetSlot = selectedSlot; targetSnapshot = id to state }
     }
@@ -258,192 +262,222 @@ internal fun GameProgressPage(
                 else -> with(density) { Modifier.padding(top = (hinge.hingeEndPx - origin.y).toDp().coerceIn(Dp.Hairline, maxHeight)) }
             }
             Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }.then(pane)) {
-                ShellPage(title = entry.title, margin = FbngDimens.compactMargin, leadingAction = {
-                    ShellHeaderBack(stringResource(if (paused) R.string.resume else R.string.back), ::back, target(ShellTags.DetailBack), enabled = !blocked)
-                }) {
-                    BoxWithConstraints(Modifier.fillMaxSize()) {
-                        val sidebarWidth = (maxWidth / 4).coerceIn(
-                            FbngDimens.progressSidebarMinWidth, FbngDimens.detailCoverWidth,
-                        ).coerceAtMost(maxWidth * 0.45f)
-                        val showCover = maxHeight >= FbngDimens.shortShellHeight
-                        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space16)) {
-                            Column(
-                                Modifier.width(sidebarWidth).fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                val feedback = if (messageIsError) message else localMessage.ifEmpty { message }
+                val favorites: @Composable () -> Unit = {
+                    FbngButton(onToggleFavorite, target(ShellTags.ToggleFavorite).height(FbngDimens.shellHeaderHeight),
+                        enabled = !blocked, kind = FbngButtonKind.Outline) {
+                        Text(stringResource(if (favorite) R.string.progress_favorited else R.string.progress_favorite))
+                    }
+                }
+                ShellPage(
+                    title = entry.title,
+                    margin = FbngDimens.compactMargin,
+                    verticalMargin = if (paused) FbngDimens.space16 + FbngDimens.rp6BarInset else FbngDimens.space16,
+                    leadingAction = {
+                        ShellHeaderBack(stringResource(if (paused) R.string.resume else R.string.back),
+                            ::back, target(ShellTags.DetailBack), enabled = !blocked)
+                    },
+                    headerAction = {
+                        if (paused) Box(Modifier.height(FbngDimens.shellHeaderHeight), contentAlignment = Alignment.CenterEnd) {
+                            Text(stringResource(R.string.progress_paused), style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
+                        } else favorites()
+                    },
+                    footer = {
+                        val hints = if (pending != null) listOf("A" to R.string.shell_hint_confirm, "B" to R.string.cancel) else buildList {
+                            add("A" to if (!paused && entry.game.canLaunch) R.string.shell_hint_start else R.string.shell_hint_select)
+                            add("B" to if (paused) R.string.progress_resume else R.string.back)
+                            if (snapshotsOpen && (snapshotPage?.pages ?: 0) > 1) add("L1 / R1" to R.string.shell_hint_page)
+                        }
+                        ShellFooter(hints) {
+                            Text(feedback, Modifier.widthIn(max = 350.dp),
+                                color = if (localError || messageIsError) scheme.error else scheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    },
+                ) {
+                    if (pending == null) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+                        Column(
+                            Modifier.weight(7f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
+                            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                        ) {
+                            val frame by produceState<ImageBitmap?>(null, pausedCover) {
+                                value = pausedCover?.let { bytes ->
+                                    withContext(Dispatchers.IO) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
+                                }
+                            }
+                            if (paused) {
+                                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                                    val bitmap = frame
+                                    val ratio = bitmap?.let { it.width.toFloat() / it.height } ?: FbngDimens.coverAspectRatio
+                                    val artwork = Modifier.fillMaxWidth().height(minOf(maxHeight, maxWidth / ratio))
+                                        .clip(MaterialTheme.shapes.medium)
+                                    if (bitmap == null) GameCover(entry.title, cover, artwork, contentScale = ContentScale.Crop)
+                                    else Image(bitmap, null, artwork.background(Color.Black), contentScale = ContentScale.Fit)
+                                }
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { favorites() }
+                            } else {
+                                GameCover(entry.title, cover, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium),
+                                    contentScale = ContentScale.Crop)
+                                Text(entry.game.fileNames.joinToString(" · "),
+                                    Modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
+                                    style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+
+                        val displayedPage = snapshotPage
+                        val listLoaded = if (snapshotsOpen) snapshotsLoaded else slotsLoaded
+                        val listError = if (snapshotsOpen) snapshotsError else slotsError
+                        val items = if (snapshotsOpen) displayedPage?.items.orEmpty() else slots.orEmpty()
+                        val snapshot = items.firstOrNull { snapshotsOpen && it.id == selectedSnapshot }
+                        Column(
+                            Modifier.weight(12f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
+                            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                        ) {
+                            FlowRow(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
                             ) {
-                                FbngButton(
-                                    onClick = { onPrimary(currentSlot) },
-                                    modifier = target(primary).fillMaxWidth(),
-                                    enabled = primaryEnabled,
-                                    contentPadding = PaddingValues(horizontal = FbngDimens.space8),
-                                ) {
-                                    Text(stringResource(if (paused) R.string.resume else if (entry.game.canLaunch) R.string.play else R.string.folder_configure))
-                                }
-                                val slotHint = when {
-                                    paused -> R.string.progress_current
-                                    !slotsLoaded -> null
-                                    slots.orEmpty().any { it.id == currentSlot && it.available } -> R.string.progress_selected
-                                    else -> R.string.progress_empty_selected
-                                }
-                                if (slotHint != null) {
-                                    Text(stringResource(slotHint, currentSlot), color = scheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                }
-                                if (onQuit != null) {
-                                    FbngButton(onQuit, target(ShellTags.Quit).fillMaxWidth(), enabled = !blocked, kind = FbngButtonKind.Neutral) {
-                                        Text(stringResource(if (ready) R.string.progress_save_quit else R.string.quit))
+                                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
+                                    FbngButton({ snapshotsOpen = false }, target("slots-tab"), enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral) {
+                                        Text(stringResource(R.string.progress_slots))
+                                    }
+                                    FbngButton({ snapshotsOpen = true }, target("snapshots-tab"), enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral) {
+                                        Text(stringResource(R.string.progress_snapshots))
                                     }
                                 }
-                                Column(
-                                    Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                                ) {
-                                    val feedback = if (messageIsError) message else localMessage.ifEmpty { message }
-                                    if (feedback.isNotEmpty()) {
-                                        Text(feedback, color = if (localError || messageIsError) scheme.error else scheme.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
-                                    }
-                                    FbngButton(onToggleFavorite, target(ShellTags.ToggleFavorite).fillMaxWidth(), enabled = !blocked, kind = FbngButtonKind.Neutral) {
-                                        Text(stringResource(if (favorite) R.string.favorite_remove else R.string.favorite_add))
-                                    }
-                                    if (!paused) {
-                                        val game = entry.game
-                                        if (game.fileNames.isNotEmpty() || game.missing.isNotEmpty()) FbngPanel {
-                                            for (dependency in game.missing) Text(stringResource(if (dependency.isBios) R.string.library_missing_bios else R.string.library_missing_parent, dependency.name), color = scheme.error, style = MaterialTheme.typography.bodyLarge)
-                                            if (game.fileNames.isNotEmpty()) Text(game.fileNames.joinToString(" · "), style = MaterialTheme.typography.bodyLarge)
-                                        }
-                                    }
-                                    if (showCover && cover != null) {
-                                        GameCover(entry.title, cover, Modifier.fillMaxWidth().aspectRatio(FbngDimens.coverAspectRatio).clip(MaterialTheme.shapes.medium))
+                                if (snapshotsOpen && displayedPage != null && displayedPage.pages > 1) {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+                                        SnapshotPageButton(false, { changePage(-1) }, target("snapshot-prev"), canOperateSnapshots && page > 0)
+                                        Text(stringResource(R.string.progress_page, page + 1, displayedPage.pages), style = MaterialTheme.typography.bodyLarge)
+                                        SnapshotPageButton(true, { changePage(1) }, target("snapshot-next"), canOperateSnapshots && page + 1 < displayedPage.pages)
                                     }
                                 }
                             }
-
-                            val displayedPage = snapshotPage
-                            val listLoaded = if (snapshotsOpen) snapshotsLoaded else slotsLoaded
-                            val listError = if (snapshotsOpen) snapshotsError else slotsError
-                            val items = if (snapshotsOpen) displayedPage?.items.orEmpty() else slots.orEmpty()
-                            val snapshot = items.firstOrNull { snapshotsOpen && it.id == selectedSnapshot }
-                            Column(
-                                Modifier.weight(1f).fillMaxHeight(),
-                                verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                            ) {
-                                FlowRow(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-                                ) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
-                                        FbngButton({ snapshotsOpen = false }, target("slots-tab"), enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral) {
-                                            Text(stringResource(R.string.progress_slots))
+                            Box(Modifier.weight(1f).fillMaxWidth()) {
+                                when {
+                                    !listLoaded -> FbngPanel {
+                                        val status = when {
+                                            !listError -> R.string.progress_loading
+                                            snapshotsOpen -> R.string.progress_snapshots_read_failed
+                                            else -> R.string.progress_slots_read_failed
                                         }
-                                        FbngButton({ snapshotsOpen = true }, target("snapshots-tab"), enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral) {
-                                            Text(stringResource(R.string.progress_snapshots) + (displayedPage?.let { " ${it.total}" } ?: ""))
-                                        }
-                                    }
-                                    if (snapshotsOpen && displayedPage != null && displayedPage.pages > 1) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
-                                            SnapshotPageButton(false, { changePage(-1) }, target("snapshot-prev"), canOperateSnapshots && page > 0)
-                                            Text(stringResource(R.string.progress_page, page + 1, displayedPage.pages), style = MaterialTheme.typography.bodyLarge)
-                                            SnapshotPageButton(true, { changePage(1) }, target("snapshot-next"), canOperateSnapshots && page + 1 < displayedPage.pages)
-                                        }
-                                    }
-                                }
-                                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                                    val previewHeight = (maxHeight - FbngDimens.progressCardMetadataHeight)
-                                        .coerceIn(Dp.Hairline, FbngDimens.progressPreviewMaxHeight)
-                                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-                                        when {
-                                            !listLoaded -> FbngPanel {
-                                                val status = when {
-                                                    !listError -> R.string.progress_loading
-                                                    snapshotsOpen -> R.string.progress_snapshots_read_failed
-                                                    else -> R.string.progress_slots_read_failed
-                                                }
-                                                Text(stringResource(status), style = MaterialTheme.typography.bodyLarge, color = if (listError) scheme.error else scheme.onSurfaceVariant)
-                                                if (listError) {
-                                                    val retry = if (snapshotsOpen) "retry-snapshots" else "retry-slots"
-                                                    FbngButton({
-                                                        if (snapshotsOpen) {
-                                                            snapshotsError = false
-                                                            snapshotsRevision++
-                                                        } else {
-                                                            slotsError = false
-                                                            slotsRevision++
-                                                        }
-                                                    }, target(retry), enabled = !blocked) { Text(stringResource(R.string.progress_retry)) }
-                                                }
-                                            }
-                                            items.isEmpty() -> Text(
-                                                stringResource(R.string.progress_no_snapshots),
-                                                Modifier.padding(FbngDimens.space8),
-                                                style = MaterialTheme.typography.bodyLarge,
-                                            )
-                                            else -> Row(
-                                                Modifier.fillMaxWidth().padding(FbngDimens.space4),
-                                                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                                            ) {
-                                                for (item in items) key(snapshotsOpen, item.id) {
-                                                    val tag = if (snapshotsOpen) snapshotTag(item.id) else "progress-slot-${item.id}"
-                                                    val selected = if (snapshotsOpen) item.id == selectedSnapshot else item.id == currentSlot
-                                                    val caption = when {
-                                                        snapshotsOpen -> item.sourceSlot?.let { stringResource(R.string.progress_snapshot_source, it) }
-                                                            ?: stringResource(R.string.progress_legacy)
-                                                        paused && !selected -> stringResource(R.string.progress_locked)
-                                                        else -> ""
-                                                    }
-                                                    ProgressCard(
-                                                        store, item, snapshot = snapshotsOpen, selected = selected,
-                                                        revision = if (snapshotsOpen) snapshotsRevision else slotsRevision,
-                                                        previewHeight = previewHeight,
-                                                        modifier = target(tag).weight(1f),
-                                                        enabled = if (snapshotsOpen) canOperateSnapshots else canOperateSlots && !paused,
-                                                        caption = caption,
-                                                        onClick = { if (snapshotsOpen) selectedSnapshot = item.id else selectedSlot = item.id },
-                                                    )
-                                                }
-                                                repeat(GameProgressStore.SLOT_COUNT - items.size) { Spacer(Modifier.weight(1f)) }
-                                            }
-                                        }
-                                    }
-                                }
-                                if (listLoaded) FlowRow(
-                                    Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8, Alignment.End),
-                                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
-                                ) {
-                                    if (!snapshotsOpen) {
-                                        FbngButton(
-                                            { pending = ProgressConfirmation(ProgressAction.DeleteSlot, currentSlot) },
-                                            target("delete-progress"),
-                                            enabled = canOperateSlots && (paused || items.any { it.id == currentSlot && it.available }),
-                                            kind = FbngButtonKind.Neutral,
-                                        ) { Text(stringResource(R.string.progress_delete)) }
-                                    } else {
-                                        if (onCreateSnapshot != null) {
+                                        Text(stringResource(status), style = MaterialTheme.typography.bodyLarge, color = if (listError) scheme.error else scheme.onSurfaceVariant)
+                                        if (listError) {
+                                            val retry = if (snapshotsOpen) "retry-snapshots" else "retry-slots"
                                             FbngButton({
-                                                operate {
-                                                    onCreateSnapshot()
-                                                    page = 0
-                                                    snapshotFocusIndex = 0
+                                                if (snapshotsOpen) {
+                                                    snapshotsError = false
                                                     snapshotsRevision++
-                                                    localMessage = resources.getString(R.string.progress_created)
+                                                } else {
+                                                    slotsError = false
+                                                    slotsRevision++
                                                 }
-                                            }, target("create-snapshot"), enabled = canOperateSnapshots, kind = FbngButtonKind.Neutral) {
-                                                Text(stringResource(R.string.progress_create_snapshot))
-                                            }
+                                            }, target(retry), enabled = !blocked) { Text(stringResource(R.string.progress_retry)) }
                                         }
-                                        if (snapshot != null) {
-                                            FbngButton(
-                                                { prepareApply(snapshot.id) }, target("apply-snapshot"),
-                                                enabled = canOperateSnapshots && (paused || slotsLoaded),
-                                                kind = FbngButtonKind.Neutral,
-                                            ) {
-                                                Text(if (paused) stringResource(R.string.progress_apply_slot, currentSlot) else stringResource(R.string.progress_apply))
+                                    }
+                                    items.isEmpty() -> Text(
+                                        stringResource(R.string.progress_no_snapshots),
+                                        Modifier.padding(FbngDimens.space8),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    else -> Column(
+                                        Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                                    ) {
+                                        for (item in items) key(snapshotsOpen, item.id) {
+                                            val tag = if (snapshotsOpen) snapshotTag(item.id) else "progress-slot-${item.id}"
+                                            val selected = if (snapshotsOpen) item.id == selectedSnapshot else item.id == currentSlot
+                                            val caption = when {
+                                                snapshotsOpen -> item.sourceSlot?.let { stringResource(R.string.progress_snapshot_source, it) }
+                                                    ?: stringResource(R.string.progress_legacy)
+                                                paused && selected -> stringResource(R.string.progress_active)
+                                                item.available -> stringResource(R.string.progress_saved)
+                                                else -> stringResource(R.string.progress_empty_short)
                                             }
-                                            FbngButton(
-                                                { pending = ProgressConfirmation(ProgressAction.DeleteSnapshot, snapshot.id) },
-                                                target("delete-snapshot"), enabled = canOperateSnapshots, kind = FbngButtonKind.Neutral,
-                                            ) { Text(stringResource(R.string.progress_delete_snapshot)) }
+                                            ProgressCard(
+                                                item, snapshot = snapshotsOpen, selected = selected,
+                                                modifier = Modifier.weight(1f).fillMaxWidth().libraryFocus(tag, requester(tag)) {
+                                                    focused = it
+                                                    if (snapshotsOpen) selectedSnapshot = item.id
+                                                },
+                                                enabled = if (snapshotsOpen) canOperateSnapshots else canOperateSlots && (!paused || selected),
+                                                caption = caption,
+                                                onClick = { if (snapshotsOpen) selectedSnapshot = item.id else selectedSlot = item.id },
+                                            )
                                         }
+                                        repeat(GameProgressStore.SLOT_COUNT - items.size) { Spacer(Modifier.weight(1f)) }
+                                    }
+                                }
+                            }
+                            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                                val stackActions = maxWidth < 385.dp
+                                val actionHeight = FbngDimens.shellHeaderHeight
+                                Box(Modifier.fillMaxWidth().height(if (stackActions) actionHeight * 2 + FbngDimens.space8 else actionHeight)) {
+                                    Row(Modifier.align(Alignment.TopStart),
+                                      horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8), verticalAlignment = Alignment.CenterVertically) {
+                                      val padding = PaddingValues(horizontal = FbngDimens.space8, vertical = FbngDimens.space4)
+                                      if (!entry.game.canLaunch && !paused && !snapshotsOpen) {
+                                          Text(entry.game.missing.joinToString(" · ") {
+                                              resources.getString(if (it.isBios) R.string.library_missing_bios else R.string.library_missing_parent, it.name)
+                                          }, Modifier.widthIn(max = 225.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                              color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)
+                                      } else if (!snapshotsOpen) {
+                                          FbngButton(
+                                              {
+                                                  dialogTrigger = "delete-progress"
+                                                  pending = ProgressConfirmation(ProgressAction.DeleteSlot, currentSlot)
+                                              },
+                                              target("delete-progress").height(actionHeight),
+                                              enabled = canOperateSlots && (paused || items.any { it.id == currentSlot && it.available }),
+                                              kind = FbngButtonKind.Outline, contentPadding = padding,
+                                          ) { Text(stringResource(R.string.progress_delete)) }
+                                      } else {
+                                          if (onCreateSnapshot != null) {
+                                              FbngButton({
+                                                  operate {
+                                                      onCreateSnapshot()
+                                                      page = 0
+                                                      snapshotFocusIndex = 0
+                                                      snapshotsRevision++
+                                                      localMessage = resources.getString(R.string.progress_created)
+                                                  }
+                                              }, target("create-snapshot").height(actionHeight), enabled = canOperateSnapshots, kind = FbngButtonKind.Outline, contentPadding = padding) {
+                                                  Text(stringResource(R.string.progress_create_snapshot))
+                                              }
+                                          }
+                                          if (snapshot != null) {
+                                              FbngButton(
+                                                  { prepareApply(snapshot.id) }, target("apply-snapshot").height(actionHeight),
+                                                  enabled = canOperateSnapshots && (paused || slotsLoaded),
+                                                  kind = FbngButtonKind.Outline, contentPadding = padding,
+                                              ) { Text(stringResource(R.string.progress_apply_short)) }
+                                              FbngButton(
+                                                  {
+                                                      dialogTrigger = "delete-snapshot"
+                                                      pending = ProgressConfirmation(ProgressAction.DeleteSnapshot, snapshot.id)
+                                                  },
+                                                  target("delete-snapshot").height(actionHeight), enabled = canOperateSnapshots, kind = FbngButtonKind.Outline, contentPadding = padding,
+                                              ) { Text(stringResource(R.string.progress_delete_short)) }
+                                          }
+                                      }
+                                    }
+                                    Row(Modifier.align(Alignment.BottomEnd), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                                      if (onQuit != null) {
+                                          FbngButton(onQuit, target(ShellTags.Quit).height(actionHeight), enabled = !blocked, kind = FbngButtonKind.Outline,
+                                              contentPadding = PaddingValues(horizontal = FbngDimens.space8)) {
+                                              Text(stringResource(if (ready) R.string.progress_save_quit else R.string.quit))
+                                          }
+                                      }
+                                      FbngButton({ onPrimary(currentSlot) }, target(primary).height(actionHeight), enabled = primaryEnabled,
+                                          contentPadding = PaddingValues(horizontal = FbngDimens.space12)) {
+                                          Text(stringResource(when {
+                                              paused -> R.string.progress_resume
+                                              entry.game.canLaunch -> R.string.progress_start
+                                              else -> R.string.progress_manage_folders
+                                          }))
+                                      }
                                     }
                                 }
                             }
@@ -492,11 +526,17 @@ internal fun GameProgressPage(
             actionLabel = when (confirmation.action) {
                 ProgressAction.DeleteSlot -> stringResource(if (paused) R.string.progress_delete_running else R.string.progress_delete)
                 ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot)
-                ProgressAction.Apply -> stringResource(R.string.progress_apply_slot, confirmation.target)
-            }, onDismiss = ::dismiss,
+                ProgressAction.Apply -> stringResource(R.string.progress_overwrite)
+            }, onDismiss = ::dismiss, dimBackground = false, immersive = paused,
             onConfirm = {
                 pending = null
-                operate(primary.takeIf { confirmation.action != ProgressAction.DeleteSnapshot }) {
+                dialogTrigger = null
+                val focusAfter = when (confirmation.action) {
+                    ProgressAction.DeleteSlot -> primary
+                    ProgressAction.DeleteSnapshot -> null
+                    ProgressAction.Apply -> if (paused) primary else "progress-slot-${confirmation.target}"
+                }
+                operate(focusAfter) {
                     when (confirmation.action) {
                         ProgressAction.DeleteSlot -> {
                             if (paused) requireNotNull(onDeleteCurrent).invoke() else withContext(NonCancellable + Dispatchers.IO) { store.deleteSlot(confirmation.id) }
@@ -538,51 +578,34 @@ private fun SnapshotPageButton(next: Boolean, onClick: () -> Unit, modifier: Mod
 
 @Composable
 private fun ProgressCard(
-    store: GameProgressStore,
     slot: SaveSlotInfo,
     snapshot: Boolean,
     selected: Boolean,
-    revision: Int,
-    previewHeight: Dp,
     modifier: Modifier,
     enabled: Boolean,
     caption: String,
     onClick: () -> Unit,
 ) {
     val time = remember(slot.savedAtEpochMs) {
-        if (slot.savedAtEpochMs > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(slot.savedAtEpochMs)) else ""
+        if (slot.savedAtEpochMs > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+            .format(Date(slot.savedAtEpochMs)) else ""
     }
     val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier.fbngFocusTarget(onClick, if (selected) scheme.surfaceContainerHighest else scheme.surfaceContainerHigh, enabled = enabled)
-            .heightIn(min = FbngDimens.buttonHeight).padding(FbngDimens.space8),
-        verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+    Row(
+        modifier.fbngFocusTarget(onClick, scheme.surface, enabled = enabled,
+            restingStroke = if (selected) scheme.secondary.copy(alpha = .3f) else Color.Transparent)
+            .padding(horizontal = FbngDimens.space12),
+        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(if (snapshot) R.string.progress_snapshot else R.string.progress_slot, slot.id) + if (selected) " ✓" else "", style = MaterialTheme.typography.titleMedium)
-        if (slot.available && time.isNotEmpty()) Text(time, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-        if (!slot.available) Text(stringResource(R.string.slot_no_save), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
-        if (caption.isNotEmpty()) Text(caption, style = MaterialTheme.typography.bodyLarge, color = scheme.secondary)
-        if (slot.available && previewHeight >= FbngDimens.buttonHeight) {
-            val image by produceState<ImageBitmap?>(null, store, snapshot, slot.id, slot.savedAtEpochMs, revision) {
-                value = withContext(Dispatchers.IO) {
-                    try {
-                        (if (snapshot) store.snapshotCover(slot.id) else store.slotCover(slot.id))?.let { bytes ->
-                            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-                        }
-                    } catch (error: Exception) {
-                        if (error is CancellationException) throw error
-                        null
-                    }
-                }
-            }
-            Box(
-                Modifier.fillMaxWidth().height(previewHeight).clip(MaterialTheme.shapes.medium).background(scheme.background),
-                contentAlignment = Alignment.Center,
-            ) {
-                val bitmap = image
-                if (bitmap != null) Image(bitmap, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-                else Text(stringResource(R.string.slot_no_cover), style = MaterialTheme.typography.bodyLarge)
-            }
-        }
+        if (!snapshot) Box(
+            Modifier.size(FbngDimens.space24).background(scheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall),
+            contentAlignment = Alignment.Center,
+        ) { Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge) }
+        Text(if (snapshot) time.ifEmpty { stringResource(R.string.progress_snapshot, slot.id) } else caption,
+            Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(if (snapshot) caption else time, style = MaterialTheme.typography.labelMedium,
+            color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
