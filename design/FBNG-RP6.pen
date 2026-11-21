@@ -1,0 +1,261 @@
+{
+  "version": "2.25",
+  "children": [
+    {
+      "type": "frame",
+      "id": "QquTO",
+      "x": 0,
+      "y": 0,
+      "name": "01 收藏",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/01.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "KxZjH",
+      "x": 2080,
+      "y": 0,
+      "name": "02 最近",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/02.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "pQ80z",
+      "x": 4160,
+      "y": 0,
+      "name": "03 游戏库",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/03.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "vUcXo",
+      "x": 0,
+      "y": 1200,
+      "name": "04 后台扫描中",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/04.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "S0yUfB",
+      "x": 2080,
+      "y": 1200,
+      "name": "05 字母筛选",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/05.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "wpEfn",
+      "x": 4160,
+      "y": 1200,
+      "name": "06 收藏空态",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/06.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "ABMfi",
+      "x": 0,
+      "y": 2560,
+      "name": "07 开局与三槽位",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/07.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "SxirQ",
+      "x": 2080,
+      "y": 2560,
+      "name": "08 缺少启动依赖",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/08.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "YVowJ",
+      "x": 4160,
+      "y": 2560,
+      "name": "09 沉浸游玩 · 以 4:3 核心输出为例",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/09.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "V48Gg8",
+      "x": 0,
+      "y": 3760,
+      "name": "10 暂停 · 进度",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/10.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "NYby4",
+      "x": 2080,
+      "y": 3760,
+      "name": "11 暂停 · 快照",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/11.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "kwQRv",
+      "x": 4160,
+      "y": 3760,
+      "name": "12 暂停 · 应用快照确认",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/12.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "nDTHd",
+      "x": 0,
+      "y": 4960,
+      "name": "13 暂停 · 删除槽位确认",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/13.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "ChgW8",
+      "x": 0,
+      "y": 6380,
+      "name": "14 设置 · 游戏封面",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/14.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "IIrQW",
+      "x": 2080,
+      "y": 6380,
+      "name": "15 导入 · 游戏目录",
+      "clip": true,
+      "width": 1920,
+      "height": 1080,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "assets/15.png",
+        "mode": "contain"
+      },
+      "layout": "none"
+    }
+  ],
+  "fileToken": "3270ebd4-c64d-418d-a64a-51cfc2df2c0d"
+}

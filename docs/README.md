@@ -10,6 +10,7 @@ FBNG（FBNeo Next Generation）是自用 Android 街机前端。RP6 掌机是项
 | [架构与数据](architecture.md) | 代码入口、扫描与启动流程、存储位置、封面下载和应用更新 |
 | [固定的 FBNeo 核心与资源](fbneo-core.md) | 核心与 DAT 的来源、版本、校验、加载方式和许可 |
 | [构建、测试与发布](build-release.md) | SDK 与 JDK、Debug、签名 Release、验签、GitHub Actions 和应用更新约定 |
+| [设计原则](design-principle.md) | UI 与 UX 原则，必须严格遵守 |
 
 ## 封面图源调研
 
