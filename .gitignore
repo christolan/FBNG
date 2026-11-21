@@ -1,6 +1,7 @@
 .gradle/
 build/
 local.properties
+.env
 *.iml
 .idea/
 .cxx/
@@ -18,3 +19,4 @@ captures/
 output/
 *.hprof
 .DS_Store
+.workbuddy/

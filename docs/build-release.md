@@ -2,35 +2,66 @@
 
 ## 本地环境
 
-- 使用仓库的 Gradle Wrapper。Gradle daemon 使用 Java 25，应用的 Java 源码和字节码兼容级别为 21。CI 的启动 JDK 配置为 Temurin 21。版本见 [daemon JVM 配置](../gradle/gradle-daemon-jvm.properties)和 [Gradle Wrapper 配置](../gradle/wrapper/gradle-wrapper.properties)。
+- 使用仓库的 Gradle Wrapper。Gradle daemon 使用 Java 25，应用的 Java 源码和字节码兼容级别为 21。CI 的启动 JDK 配置为 Temurin 21。版本见 [daemon JVM 配置](../gradle/gradle-daemon-jvm.properties)和 [Gradle Wrapper 配置](../gradle/wrapper/gradle-wrapper.properties)。终端构建前让 `JAVA_HOME` 指向 Java 25，例如 `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`。
 - 安装 Android SDK `platforms;android-37.2`、Build-Tools 36.0.0、NDK `28.2.13676358` 和 CMake 3.22.1。通过 `local.properties` 的 `sdk.dir` 或环境变量 `ANDROID_HOME` 指定 SDK。
 - 当前 APK 仅含 `arm64-v8a`，`minSdk` 为 33，`targetSdk` 为 36，`compileSdk` 为 37.2。应用版本和 ABI 由 [app/build.gradle.kts](../app/build.gradle.kts) 定义。
 
 ## Debug 与测试
 
-在仓库根目录执行。
+在仓库根目录执行，并且先按下一节准备 `.env` 或环境变量；两样都没有时下面所有命令在配置阶段就会报错。
 
 ```bash
 ./gradlew :app:assembleDebug
 ./gradlew :app:testDebugUnitTest
 ```
 
-Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`，由仓库里的测试证书签名。Debug 和 Release 打包后都会检查原生库的 ELF 和 APK 16 KB 对齐。核心来源和校验见[固定的 FBNeo 核心与资源](fbneo-core.md)。
+Debug APK 位于 `app/build/outputs/apk/debug/app-debug.apk`，只用发布证书签名：Debug 与 Release 因此可以相互覆盖安装并保留应用数据。Debug 和 Release 打包后都会检查原生库的 ELF 和 APK 16 KB 对齐。核心来源和校验见[固定的 FBNeo 核心与资源](fbneo-core.md)。
 
 [测试源码](../app/src/test/java/com/xiaojiwei/fbng/)使用 JUnit、Robolectric 和 Compose 测试库，覆盖 DAT、归档识别、目录扫描、核心加载路径、游戏库检索、存档、更新元数据、焦点、布局和对比度。
 
+## 准备签名材料
+
+Debug 和 Release 都用同一张发布证书签名，才能相互覆盖安装并保留数据（包名一致、`versionCode` 不低于已安装的包）。构建过程既没有备用证书也不输出未签名包，所以每台要编译的机器都必须先准备签名材料。
+
+1. 从已有开发机器或 Actions Secrets 取得 PKCS#12 发布密钥库，放到仓库外，例如 `~/.config/fbng/fbng-release.p12`，权限设为 `600`。不要把密钥库放进仓库。
+
+2. 在仓库根目录创建 `.env`。它已被 `.gitignore` 忽略，Gradle 每次配置都会读取，Android Studio 同步也不需要额外设置。四项缺一不可，`FBNG_RELEASE_STORE_FILE` 用绝对路径：
+
+   ```bash
+   FBNG_RELEASE_STORE_FILE=/Users/<you>/.config/fbng/fbng-release.p12
+   FBNG_RELEASE_STORE_PASSWORD=<store password>
+   FBNG_RELEASE_KEY_ALIAS=<key alias>
+   FBNG_RELEASE_KEY_PASSWORD=<key password>
+   ```
+
+   值可以加引号，`export ` 前缀和 `#` 注释行也接受。真实环境变量优先于 `.env`，CI 就是用 Actions Secrets 注入的。
+
+   `JAVA_HOME` 不写进 `.env`：`gradlew` 在 Gradle 启动前就要找到 JDK，而 `.env` 是 Gradle 启动之后才读的。Android Studio 用自己的 Gradle JDK，不需要这一步。
+
+3. 确认 Debug 和 Release 的证书相同。终端构建需要 `JAVA_HOME`，验签还要 `PATH` 里有 Java。
+
+   ```bash
+   ./gradlew :app:assembleDebug :app:assembleRelease
+   tools="${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/36.0.0"
+   "$tools/apksigner" verify --print-certs app/build/outputs/apk/debug/app-debug.apk | grep SHA-256
+   "$tools/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk | grep SHA-256
+   ```
+
+   两行输出的证书 SHA-256 必须相同。缺少 `.env` 也缺少环境变量时，Gradle 在配置阶段报错，不会产出任何 APK。
+
+已经有设备装着测试证书的 Debug 包时，换成发布证书的包要先卸载一次，这次会丢数据；之后 Debug 和 Release 可以双向往来，数据保留。
+
 ## 本地构建签名 Release APK
 
-本地 Release 使用仓库外的发布密钥库。没有配置发布密钥时，Gradle 会生成未签名的 Release APK。
+本地 Release 使用仓库外的发布密钥库。缺少发布签名材料时 Gradle 直接报错，不会生成未签名的包。
 
 1. 按上文准备 SDK。Gradle daemon 使用 Java 25，本机可使用 Android Studio 自带的 Java 25。
-2. 把 PKCS#12 发布密钥库和 `release-signing.env` 放在仓库外的 `~/.config/fbng/`，文件权限设为 `600`。环境文件导出 `JAVA_HOME`、`FBNG_RELEASE_STORE_FILE`、`FBNG_RELEASE_STORE_PASSWORD`、`FBNG_RELEASE_KEY_ALIAS` 和 `FBNG_RELEASE_KEY_PASSWORD`。`FBNG_RELEASE_STORE_FILE` 指向密钥库的绝对路径。
-3. 在仓库根目录加载配置、构建并验签。若 SDK 装在其他位置，按实际路径设置 `ANDROID_HOME`。产物为 `app/build/outputs/apk/release/app-release.apk`。
+2. 签名材料来自上一节准备的 `.env`：PKCS#12 发布密钥库放在仓库外，`FBNG_RELEASE_*` 四个值写在仓库根目录的 `.env` 里。
+3. 在仓库根目录构建并验签。若 SDK 装在其他位置，按实际路径设置 `ANDROID_HOME`。产物为 `app/build/outputs/apk/release/app-release.apk`。
 
    ```bash
    (
      set -e
-     source "$HOME/.config/fbng/release-signing.env"
      ./gradlew :app:assembleRelease --no-daemon --no-configuration-cache
 
      tools="${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/36.0.0"

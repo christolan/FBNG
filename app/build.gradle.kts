@@ -1,3 +1,5 @@
+import com.android.build.api.artifact.SingleArtifact
+import com.android.build.api.variant.ApplicationVariant
 import java.io.File
 import java.security.MessageDigest
 import java.util.Properties
@@ -16,20 +18,39 @@ val fbneoPin = Properties().apply {
 fun pin(key: String): String =
     fbneoPin.getProperty(key) ?: error("core/fbneo.pin.properties is missing $key")
 
-val fbngDebugKey = Properties().apply {
-    rootProject.file("keystore/fbng-debug.properties").inputStream().use(::load)
+// Every build is signed with the release key. CI passes the four values as environment
+// variables; locally they come from a git-ignored .env in the repository root, which
+// Gradle reads during configuration so Android Studio syncs without shell variables.
+// A missing value stops Gradle during configuration: there is no fallback key and no
+// unsigned output, because a debug APK and a release APK signed with different
+// certificates cannot replace each other without uninstalling and losing app data.
+val envFileValues: Map<String, String> = rootProject.file(".env")
+    .takeIf { it.isFile }
+    ?.readLines()
+    ?.mapNotNull { raw ->
+        val line = raw.trim().removePrefix("export ").trim()
+        if (line.isEmpty() || line.startsWith("#")) return@mapNotNull null
+        val separator = line.indexOf('=')
+        if (separator <= 0) return@mapNotNull null
+        line.substring(0, separator).trim() to line.substring(separator + 1).trim().trim('"', '\'')
+    }
+    ?.toMap()
+    .orEmpty()
+
+fun signingValue(name: String): String {
+    val value = System.getenv(name)?.takeIf { it.isNotBlank() }
+        ?: envFileValues[name]?.takeIf { it.isNotBlank() }
+    return value ?: throw GradleException(
+        "FBNG signs every build with the release key, but $name is empty. " +
+            "Create .env in the repository root with the four FBNG_RELEASE_* values " +
+            "(it is git-ignored), or export them. See docs/build-release.md.",
+    )
 }
 
-fun debugKey(name: String): String =
-    fbngDebugKey.getProperty(name) ?: error("keystore/fbng-debug.properties is missing $name")
-
-// Release signing material stays in Actions secrets. CI decodes the PKCS12
-// keystore to FBNG_RELEASE_STORE_FILE and passes the other three values.
-// A blank path keeps local release builds unsigned; debug still uses the test key.
-val releaseStoreFile = System.getenv("FBNG_RELEASE_STORE_FILE")?.takeIf { it.isNotBlank() }
-val releaseStorePassword = System.getenv("FBNG_RELEASE_STORE_PASSWORD")
-val releaseKeyAlias = System.getenv("FBNG_RELEASE_KEY_ALIAS")
-val releaseKeyPassword = System.getenv("FBNG_RELEASE_KEY_PASSWORD")
+val releaseStoreFile = signingValue("FBNG_RELEASE_STORE_FILE")
+val releaseStorePassword = signingValue("FBNG_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = signingValue("FBNG_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = signingValue("FBNG_RELEASE_KEY_PASSWORD")
 val fbneoCoreZipEntry = "lib/arm64-v8a/libfbneo_libretro_android.so"
 
 val fbneoZipSha256 = pin("fbneo.zipSha256")
@@ -141,50 +162,28 @@ android {
     }
 
     signingConfigs {
-        getByName("debug") {
-            // One committed test key so every debug APK, local or CI, overwrites the last install.
-            // v1 writes the META-INF signature files ColorOS looks for. v2 and v3 are required to sideload.
-            storeFile = rootProject.file("keystore/${debugKey("storeFile")}")
-            storePassword = debugKey("storePassword")
-            keyAlias = debugKey("keyAlias")
-            keyPassword = debugKey("keyPassword")
+        create("release") {
+            storeFile = file(releaseStoreFile)
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+            storeType = "PKCS12"
+            // v1 writes the META-INF signature files ColorOS looks for. v2 and v3 are
+            // required to sideload.
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
-        }
-        val storePath = releaseStoreFile
-        val storePasswordValue = releaseStorePassword.orEmpty()
-        val aliasValue = releaseKeyAlias.orEmpty()
-        val keyPasswordValue = releaseKeyPassword.orEmpty()
-        if (!storePath.isNullOrEmpty()) {
-            if (storePasswordValue.isEmpty() || aliasValue.isEmpty() || keyPasswordValue.isEmpty()) {
-                throw GradleException(
-                    "FBNG_RELEASE_STORE_FILE is set, but FBNG_RELEASE_STORE_PASSWORD, " +
-                        "FBNG_RELEASE_KEY_ALIAS, or FBNG_RELEASE_KEY_PASSWORD is empty.",
-                )
-            }
-            create("release") {
-                storeFile = file(storePath)
-                storePassword = storePasswordValue
-                keyAlias = aliasValue
-                keyPassword = keyPasswordValue
-                storeType = "PKCS12"
-                enableV1Signing = true
-                enableV2Signing = true
-                enableV3Signing = true
-            }
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("debug")
+            // The same certificate as release, so one replaces the other in place.
+            signingConfig = signingConfigs.getByName("release")
         }
         release {
             isMinifyEnabled = false
-            if (releaseStoreFile != null) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -291,19 +290,20 @@ val androidSdkDir: File = run {
     }
 }
 
-fun registerApkCheck(variant: String) =
-    tasks.register("verify${variant.replaceFirstChar { it.uppercase() }}Apk") {
-        val apkDir = layout.buildDirectory.dir("outputs/apk/$variant")
+fun registerApkCheck(variant: ApplicationVariant) =
+    tasks.register("verify${variant.name.replaceFirstChar { it.uppercase() }}Apk") {
+        val apkDir = variant.artifacts.get(SingleArtifact.APK)
+        val apkLoader = variant.artifacts.getBuiltArtifactsLoader()
         val sdkDir = androidSdkDir
+        inputs.dir(apkDir)
         doLast {
-            val dir = apkDir.get().asFile
-            val apks = dir.walkTopDown().filter { it.isFile && it.extension == "apk" }.toList()
-            val signed = apks.filterNot { it.name.endsWith("-unsigned.apk") }
-            val apk = when {
-                signed.size == 1 -> signed.single()
-                signed.isEmpty() && apks.size == 1 -> apks.single()
-                else -> throw GradleException("Expected one APK under $dir, found ${apks.map { it.name }}")
-            }
+            val directory = apkDir.get()
+            val artifacts = apkLoader.load(directory)
+                ?: throw GradleException("Missing APK metadata in ${directory.asFile}")
+            val apkArtifact = artifacts.elements.singleOrNull()
+                ?: throw GradleException("Expected one APK in ${directory.asFile}, found ${artifacts.elements.size}")
+            val apk = File(apkArtifact.outputFile)
+            logger.lifecycle("Verifying APK: $apk")
             ZipFile(apk).use { zip ->
                 val libs = zip.entries().asSequence()
                     .filter { !it.isDirectory && it.name.startsWith("lib/arm64-v8a/") && it.name.endsWith(".so") }
@@ -356,15 +356,15 @@ fun registerApkCheck(variant: String) =
         }
     }
 
-val verifyDebugApk = registerApkCheck("debug")
-val verifyReleaseApk = registerApkCheck("release")
-
-tasks.configureEach {
-    if (name == "assembleDebug") {
-        finalizedBy(verifyDebugApk)
-    }
-    if (name == "assembleRelease") {
-        finalizedBy(verifyReleaseApk)
+androidComponents {
+    onVariants { variant ->
+        val verifyApk = registerApkCheck(variant)
+        val assembleTaskName = "assemble${variant.name.replaceFirstChar { it.uppercase() }}"
+        tasks.configureEach {
+            if (name == assembleTaskName) {
+                finalizedBy(verifyApk)
+            }
+        }
     }
 }
 
