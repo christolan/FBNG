@@ -1,19 +1,15 @@
 package com.xiaojiwei.fbng.ui
 
 import android.net.Uri
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextOverflow
-import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.ui.theme.FbngButton
@@ -46,9 +44,9 @@ internal fun FolderManagement(
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
     actions: FolderActions,
+    onRemove: (FolderScan) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var pendingRemoval by remember { mutableStateOf<FolderScan?>(null) }
     fun control(tag: String) = Modifier.libraryFocus(tag, requesters.getValue(tag), onFocused)
 
     Column(
@@ -67,17 +65,27 @@ internal fun FolderManagement(
                     scan.incomplete -> R.string.folder_incomplete
                     else -> null
                 }
-                Column(
-                    Modifier.focusProperties {
-                        if (scan == folders.last()) down = requesters.getValue(ShellTags.AddFolder)
-                    }.then(control(tag)).fillMaxWidth().fbngFocusTarget(
-                        { if (!busy) pendingRemoval = scan }, scheme.surface,
-                    ).padding(FbngDimens.space12),
+                val removeLabel = stringResource(R.string.folder_remove_label, scan.folder.name)
+                Row(
+                    Modifier.fillMaxWidth().background(scheme.surface, MaterialTheme.shapes.medium)
+                        .padding(horizontal = FbngDimens.space12, vertical = FbngDimens.space4),
+                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(scan.folder.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (details != null) Text(stringResource(details), style = MaterialTheme.typography.labelMedium, color = scheme.error)
-                    if (scan.unreadable > 0) Text(stringResource(R.string.folder_unreadable_zip, scan.unreadable),
-                        style = MaterialTheme.typography.labelMedium, color = scheme.error)
+                    Column(Modifier.weight(1f)) {
+                        Text(scan.folder.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (details != null) Text(stringResource(details), style = MaterialTheme.typography.labelMedium, color = scheme.error)
+                        if (scan.unreadable > 0) Text(stringResource(R.string.folder_unreadable_zip, scan.unreadable),
+                            style = MaterialTheme.typography.labelMedium, color = scheme.error)
+                    }
+                    FbngButton(
+                        onClick = { onRemove(scan) },
+                        modifier = Modifier.focusProperties {
+                            if (scan == folders.last()) down = requesters.getValue(ShellTags.AddFolder)
+                        }.then(control(tag)).semantics { contentDescription = removeLabel },
+                        enabled = !busy,
+                        kind = FbngButtonKind.Outline,
+                    ) { Text(stringResource(R.string.folder_remove_short)) }
                 }
             }
         }
@@ -118,14 +126,5 @@ internal fun FolderManagement(
                 color = if (error != null) scheme.error else scheme.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-    }
-    pendingRemoval?.let { scan ->
-        GameConfirmationDialog(
-            title = stringResource(R.string.folder_remove_label, scan.folder.name),
-            body = stringResource(R.string.folder_remove_confirmation),
-            actionLabel = stringResource(R.string.folder_remove),
-            onConfirm = { pendingRemoval = null; actions.remove(scan.folder.uri) },
-            onDismiss = { pendingRemoval = null },
-        )
     }
 }

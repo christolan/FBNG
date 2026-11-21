@@ -104,9 +104,11 @@ internal fun GameScreen(
     var selected by rememberSaveable(game.rom.absolutePath) { mutableStateOf(initialSlot ?: 1) }
     var generation by rememberSaveable(game.rom.absolutePath) { mutableStateOf(0) }
     if (selecting) {
-        GameLaunchPage(entry, cover, rememberFoldSnapshot(), favorite, busy = false, launchError = false,
-            onPlay = { selected = it ?: 1; generation++; selecting = false },
-            onToggleFavorite = onToggleFavorite, onConfigureFolders = onQuit, onBack = onQuit)
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            GameLaunchPage(entry, cover, rememberFoldSnapshot(), favorite, busy = false, launchError = false,
+                onPlay = { selected = it ?: 1; generation++; selecting = false },
+                onToggleFavorite = onToggleFavorite, onConfigureFolders = onQuit, onBack = onQuit)
+        }
     } else key(generation) {
         GameSessionScreen(game, entry, selected, cover, favorite, bridge, onToggleFavorite, onQuit,
             onStarted = onStarted, onDeleted = { selecting = true })

@@ -88,12 +88,14 @@ class ShellFocusTest {
                 )
             }
         }
-        val rail = listOf(ShellTags.NavFavorites, ShellTags.NavRecent, ShellTags.NavLibrary, ShellTags.NavSettings)
+        val rail = listOf(ShellTags.NavFavorites, ShellTags.NavRecent, ShellTags.NavLibrary)
             .map { rule.onNodeWithTag(it).getUnclippedBoundsInRoot() }
         val heights = rail.map { (it.bottom - it.top).value }
         assertTrue(heights.max() - heights.min() <= 1f)
         val header = rule.onNodeWithTag(ShellTags.Header).getUnclippedBoundsInRoot()
-        assertEquals(4.dp, rail.first().top - header.top)
+        assertEquals(8.dp, rail.first().top - header.top)
+        val settings = rule.onNodeWithTag(ShellTags.NavSettings).getUnclippedBoundsInRoot()
+        assertTrue(settings.left - rail.last().right >= 16.dp)
         assertTrue(rail.zipWithNext().all { (left, right) -> left.right < right.left && left.top == right.top })
         rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.DirectionDown) }
@@ -234,11 +236,11 @@ class ShellFocusTest {
         rule.runOnIdle { height = 800.dp }
         card(4).assertIsFocused()
 
-        card(1).requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
-        card(2).assertIsFocused().performKeyInput { pressKey(Key.ButtonR1) }
+        card(1).requestFocus().performKeyInput { pressKey(Key.DirectionDown) }
+        card(2).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
         assertEquals(first, card(5).getUnclippedBoundsInRoot())
-        card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonL1) }
+        card(6).assertIsFocused().performKeyInput { pressKey(Key.DirectionLeft) }
         card(2).assertIsFocused()
         rule.onNodeWithTag(ShellTags.NextPage).performTouchInput { click() }
         card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
@@ -283,7 +285,7 @@ class ShellFocusTest {
         assertEquals(header.right - 8.dp, fourth.right)
         assertTrue(first.top < fourth.top)
         card(5).assertDoesNotExist()
-        card(4).requestFocus().performKeyInput { pressKey(Key.ButtonR1) }
+        card(4).requestFocus().performKeyInput { pressKey(Key.DirectionRight) }
         card(5).assertIsFocused()
         rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
         card(5).performTouchInput { click() }
@@ -326,7 +328,7 @@ class ShellFocusTest {
                 .performKeyInput { pressKey(Key.DirectionDown) }
         }
         rule.onNodeWithTag(ShellTags.game(games[3].name)).assertIsFocused()
-            .performKeyInput { pressKey(Key.ButtonR1) }
+            .performKeyInput { pressKey(Key.DirectionRight) }
         rule.onNodeWithTag(ShellTags.game(games[0].name)).assertDoesNotExist()
         rule.onNodeWithTag(ShellTags.game(games[8].name)).assertIsFocused()
         repeat(3) {
@@ -334,9 +336,14 @@ class ShellFocusTest {
         }
         val lastPageFirst = rule.onNodeWithTag(ShellTags.game(games[20].name)).assertIsFocused()
         assertEquals(firstBounds, lastPageFirst.getUnclippedBoundsInRoot())
-        lastPageFirst.performKeyInput { pressKey(Key.ButtonL1) }
-        rule.onNodeWithTag(ShellTags.game(games[15].name)).assertIsFocused()
+        lastPageFirst.performKeyInput { pressKey(Key.DirectionLeft) }
+        val restoredRow = rule.onNodeWithTag(ShellTags.game(games[15].name)).assertIsFocused()
         assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
+        restoredRow.performKeyInput { pressKey(Key.ButtonL1) }
+        rule.onNodeWithTag(ShellTags.NavRecent).assertIsSelected()
+        rule.onNodeWithTag(ShellTags.OpenLibrary).assertIsFocused().performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag(ShellTags.NavLibrary).assertIsSelected()
+        restoredRow.assertIsFocused()
     }
 
     @Test
@@ -377,7 +384,7 @@ class ShellFocusTest {
             if (index < 2) card.performKeyInput { pressKey(Key.DirectionDown) }
         }
         assertEquals(headerBounds, header.getUnclippedBoundsInRoot())
-        rule.onNodeWithTag(ShellTags.game(games[2].name)).performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag(ShellTags.game(games[2].name)).performKeyInput { pressKey(Key.DirectionRight) }
         val target = rule.onNodeWithTag(ShellTags.game(games[6].name)).assertIsFocused()
         target.performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()

@@ -61,7 +61,7 @@ internal fun GameShelfPage(
         title = "",
         margin = margin,
         leadingAction = navigation,
-        footer = { BrowseFooter(pageIndex, pages, false, scanning, requesters, {}, onPage) },
+        footer = { BrowseFooter(pageIndex, pages, false, scanning, requesters, onFocused, onPage) },
     ) {
         Column(
             Modifier.fillMaxSize(),
@@ -120,22 +120,24 @@ internal fun GameShelfPage(
                                         onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
                                     }
                                     val target = cell.focusProperties {
-                                        if (index < 2) up = requesters.getValue(if (recent) ShellTags.NavRecent else ShellTags.NavFavorites)
-                                        if (index == 0 && entries.size > 1) right = firstSide
-                                        if (index > 0) left = hero
+                                        if (index == 0) {
+                                            up = requesters.getValue(if (recent) ShellTags.NavRecent else ShellTags.NavFavorites)
+                                            if (entries.size > 1) down = firstSide
+                                        }
+                                        if (index == 1) up = hero
                                     }.libraryFocus(tag, requester, onFocused)
                                         .fbngFocusTarget({ onChoose(entry) }, if (index == 0) androidx.compose.ui.graphics.Color.Transparent else scheme.surface)
                                     val image = covers?.images?.get(entry.game.name)
                                     val caption = metadata[entry.game.name]
                                     if (index == 0) {
                                         Column(target, verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                                            GameCover(entry.title, image, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
+                                            GameCover(image, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
                                             ShelfLabel(entry, caption, true, Modifier.fillMaxWidth().padding(FbngDimens.space8))
                                         }
                                     } else {
                                         Row(target.padding(FbngDimens.space12), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
                                             verticalAlignment = Alignment.CenterVertically) {
-                                            GameCover(entry.title, image, Modifier.width(78.dp).fillMaxHeight().clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
+                                            if (image != null) GameCover(image, Modifier.width(78.dp).fillMaxHeight().clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
                                             ShelfLabel(entry, caption, false, Modifier.weight(1f))
                                         }
                                     }

@@ -38,12 +38,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
@@ -435,6 +437,25 @@ private fun LibraryShell(
                 else -> ""
             }
             sectionName = destination.name
+            val browseTarget = when (destination) {
+                ShellSection.Favorites -> {
+                    favoritesFocus.takeIf { it in favoriteCards }
+                        ?: favoriteCards.getOrNull(favoritesIndex.coerceAtMost(favoriteCards.lastIndex))
+                        ?: ShellTags.OpenLibrary
+                }
+                ShellSection.Recent -> {
+                    recentFocus.takeIf { it in recentCards }
+                        ?: recentCards.getOrNull(recentIndex.coerceAtMost(recentCards.lastIndex))
+                        ?: ShellTags.OpenLibrary
+                }
+                ShellSection.Library -> {
+                    libraryFocus.takeIf { savedGameIndex >= 0 }
+                        ?: pageEntries.firstOrNull()?.let { ShellTags.game(it.game.name) }
+                        ?: if (entries.isEmpty()) ShellTags.EmptyImport else ShellTags.EditSearch
+                }
+                else -> null
+            }
+            if (browseTarget != null) restoreFocus(browseTarget)
         }
 
         fun back() {
@@ -454,10 +475,7 @@ private fun LibraryShell(
                     savedFocus = settingsCategory.tag
                     restoreFocus(settingsCategory.tag)
                 }
-                section == ShellSection.Settings -> {
-                    openSection(settingsOrigin)
-                    restoreFocus(ShellTags.NavSettings)
-                }
+                section == ShellSection.Settings -> openSection(settingsOrigin)
                 section != ShellSection.Favorites -> openSection(ShellSection.Favorites)
             }
         }
@@ -544,7 +562,22 @@ private fun LibraryShell(
             }
             request(tabTag)
         }
-        Box(Modifier.fillMaxSize().onKeyEvent { event ->
+        Box(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+            val step = when (event.key) {
+                Key.DirectionLeft -> -1
+                Key.DirectionRight -> 1
+                else -> return@onPreviewKeyEvent false
+            }
+            if (pickerOpen || navFocus != null) return@onPreviewKeyEvent false
+            val libraryRowFocused = section == ShellSection.Library && ShellTags.gameName(libraryFocus) != null
+            val shelfCardFocused = showShelf && savedShelfFocus in shelfCards
+            if (!libraryRowFocused && !shelfCardFocused) return@onPreviewKeyEvent false
+            if (event.type == KeyEventType.KeyDown) {
+                if (libraryRowFocused) changePage(currentPage + step)
+                else changeShelfPage(shelfPage + step)
+            }
+            true
+        }.onKeyEvent { event ->
             if (event.type == KeyEventType.KeyUp) {
                 val onLibraryList = section == ShellSection.Library && !pickerOpen
                 val pageStep = when (event.key) {
@@ -553,8 +586,8 @@ private fun LibraryShell(
                     else -> 0
                 }
                 if (pageStep != 0 && (showShelf || onLibraryList)) {
-                    if (showShelf) changeShelfPage(shelfPage + pageStep)
-                    else changePage(currentPage + pageStep)
+                    val index = BrowseSections.indexOf(section)
+                    BrowseSections.getOrNull(index + pageStep)?.let(::openSection)
                     return@onKeyEvent true
                 }
                 if (onLibraryList && event.key == Key.ButtonY) {
@@ -731,6 +764,7 @@ private fun SettingsPage(
     request: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    var pendingRemoval by remember { mutableStateOf<FolderScan?>(null) }
     val entry = when (category) {
         SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
         SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
@@ -740,6 +774,7 @@ private fun SettingsPage(
     }
     ShellPage(
         title = stringResource(if (directImport) R.string.shell_import else R.string.shell_settings),
+        modalOpen = pendingRemoval != null,
         margin = margin,
         leadingAction = {
             ShellHeaderBack(stringResource(R.string.back), onBack,
@@ -769,8 +804,12 @@ private fun SettingsPage(
                                 onCategory(item)
                                 onFocused(it)
                             }
-                            .fbngFocusTarget(enter, scheme.surface,
-                                restingStroke = if (item == category) scheme.outlineVariant else androidx.compose.ui.graphics.Color.Transparent)
+                            .semantics { selected = item == category }
+                            .fbngFocusTarget(
+                                enter,
+                                if (item == category) scheme.primary.copy(alpha = .22f) else scheme.surface,
+                                restingStroke = if (item == category) scheme.primary.copy(alpha = .65f) else Color.Transparent,
+                            )
                             .padding(horizontal = FbngDimens.space12),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
@@ -787,6 +826,7 @@ private fun SettingsPage(
                 when (category) {
                     SettingsCategory.Import -> FolderManagement(
                         folders, busy, workMessage, folderError, requesters, onFocused, folderActions,
+                        onRemove = { pendingRemoval = it },
                     )
                     SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) }
                     SettingsCategory.Appearance -> CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
@@ -809,6 +849,21 @@ private fun SettingsPage(
                 }
             }
         }
+    }
+    pendingRemoval?.let { scan ->
+        GameConfirmationDialog(
+            title = stringResource(R.string.folder_remove_label, scan.folder.name),
+            body = stringResource(R.string.folder_remove_confirmation),
+            actionLabel = stringResource(R.string.folder_remove),
+            onConfirm = {
+                pendingRemoval = null
+                folderActions.remove(scan.folder.uri)
+            },
+            onDismiss = {
+                pendingRemoval = null
+                request(ShellTags.removeFolder(scan.folder.uri))
+            },
+        )
     }
 }
 

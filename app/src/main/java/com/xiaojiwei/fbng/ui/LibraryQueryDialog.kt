@@ -58,7 +58,7 @@ internal fun LibraryQueryDialog(
 ) {
     var draft by rememberSaveable(query) { mutableStateOf(query) }
     val requesters = remember {
-        (QueryCharacters.map(Char::toString) + listOf("backspace", "clear", "done"))
+        (QueryCharacters.map(Char::toString) + listOf("backspace", "clear", "done", "back"))
             .associateWith { FocusRequester() }
     }
     var focused by rememberSaveable { mutableStateOf("A") }
@@ -80,8 +80,17 @@ internal fun LibraryQueryDialog(
             ShellPage(
                 title = title,
                 margin = FbngDimens.compactMargin,
-                leadingAction = { ShellHeaderBack(stringResource(R.string.back), onDismiss, Modifier) },
-                footer = { ShellFooter(listOf("A" to R.string.shell_hint_input, "B" to R.string.cancel)) },
+                leadingAction = { ShellHeaderBack(stringResource(R.string.back), onDismiss, target("back")) },
+                footer = {
+                    val action = when (focused) {
+                        "back" -> R.string.back
+                        "backspace" -> R.string.library_query_backspace
+                        "clear" -> R.string.library_query_clear
+                        "done" -> R.string.library_query_done
+                        else -> R.string.shell_hint_input
+                    }
+                    ShellFooter(listOf("A" to action, "B" to R.string.cancel))
+                },
             ) {
                 Column(
                     Modifier.fillMaxSize().fbngIsland().padding(FbngDimens.panelInset),

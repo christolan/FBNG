@@ -177,7 +177,7 @@ internal fun GameMenuPage(
                     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                         val sideCover = cover != null && maxWidth >= FbngDimens.libraryToolbarBreakpoint
                         val artwork: @Composable (Modifier) -> Unit = { modifier ->
-                            GameCover(entry.title, cover, modifier.aspectRatio(FbngDimens.coverAspectRatio)
+                            GameCover(cover, modifier.aspectRatio(FbngDimens.coverAspectRatio)
                                 .clip(MaterialTheme.shapes.medium))
                         }
                         Row(

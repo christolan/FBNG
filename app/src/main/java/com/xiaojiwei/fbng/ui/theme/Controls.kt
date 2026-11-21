@@ -46,21 +46,22 @@ fun FbngButton(
     val container = when {
         kind == FbngButtonKind.Island -> scheme.surfaceContainerHigh
         !enabled -> scheme.surfaceContainerHighest
-        selected -> scheme.secondaryContainer
+        selected -> scheme.primary.copy(alpha = .22f)
         kind == FbngButtonKind.Filled -> scheme.primary
         kind == FbngButtonKind.Destructive -> scheme.error
         kind == FbngButtonKind.Toolbar -> scheme.background
         else -> scheme.surfaceVariant
     }
     val resting = when {
-        kind == FbngButtonKind.Toolbar -> if (selected) scheme.secondary else scheme.outlineVariant
+        selected -> scheme.primary.copy(alpha = .65f)
+        kind == FbngButtonKind.Toolbar -> scheme.outlineVariant
         kind == FbngButtonKind.Outline -> scheme.outlineVariant.copy(alpha = 0.35f)
         else -> Color.Transparent
     }
     val contentColor = when {
         !enabled && kind == FbngButtonKind.Island -> scheme.onSurfaceVariant.copy(alpha = 0.4f)
         !enabled -> scheme.onSurfaceVariant
-        selected -> scheme.secondary
+        selected -> scheme.onSurface
         kind == FbngButtonKind.Filled -> scheme.onPrimary
         kind == FbngButtonKind.Destructive -> scheme.onError
         else -> scheme.onSurface

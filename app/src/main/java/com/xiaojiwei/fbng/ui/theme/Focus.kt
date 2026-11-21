@@ -29,6 +29,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
@@ -52,7 +53,8 @@ internal fun Modifier.fbngFocusTarget(
     focusedStroke: Color? = null,
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
+    val hasFocus by interaction.collectIsFocusedAsState()
+    val focused = hasFocus && LocalWindowInfo.current.isWindowFocused
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.medium
     val stroke = when {

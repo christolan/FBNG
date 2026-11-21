@@ -139,10 +139,12 @@ class SaveSlotsDialogTest {
             }
         }
         rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-slots")).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithTag(ShellTags.Pause).assertIsFocused().assertIsEnabled()
+        val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsFocused().assertIsEnabled()
+        val resumeBounds = resume.getUnclippedBoundsInRoot()
         rule.onNodeWithTag("snapshots-tab").performClick()
         rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithTag(ShellTags.Pause).assertIsEnabled().performClick()
+        assertEquals(resumeBounds, resume.getUnclippedBoundsInRoot())
+        resume.assertIsEnabled().performClick()
         rule.runOnIdle { assertEquals(2, resumedSlot) }
     }
 
@@ -170,11 +172,12 @@ class SaveSlotsDialogTest {
         }
         val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
         val resumeBounds = resume.getUnclippedBoundsInRoot()
-        rule.onNodeWithTag("snapshots-tab").performClick()
+        resume.performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag("snapshots-tab").assertIsFocused()
         awaitSnapshotFocus("snapshot-6", request = true)
-        rule.onNodeWithTag("snapshot-6").performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag("snapshot-6").performKeyInput { pressKey(Key.DirectionRight) }
         awaitSnapshotFocus("snapshot-3")
-        rule.onNodeWithTag("snapshot-3").performKeyInput { pressKey(Key.ButtonR1) }
+        rule.onNodeWithTag("snapshot-3").performKeyInput { pressKey(Key.DirectionRight) }
         awaitSnapshotFocus("snapshot-1")
         assertEquals(resumeBounds, resume.getUnclippedBoundsInRoot())
         for (tag in listOf("create-snapshot", "apply-snapshot", "delete-snapshot", "snapshot-prev")) {

@@ -43,7 +43,6 @@ internal fun GameConfirmationDialog(
     actionLabel: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
-    dimBackground: Boolean = true,
     immersive: Boolean = false,
 ) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -51,7 +50,7 @@ internal fun GameConfirmationDialog(
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             if (window != null) {
-                if (!dimBackground) window.setDimAmount(0f)
+                window.setDimAmount(.42f)
                 if (immersive) WindowCompat.getInsetsController(window, window.decorView)
                     .hide(WindowInsetsCompat.Type.systemBars())
             }

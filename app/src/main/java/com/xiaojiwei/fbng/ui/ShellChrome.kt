@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -121,8 +121,9 @@ private val Destinations = listOf(
     ShellDestination(ShellSection.Favorites, R.string.favorites_title, ShellTags.NavFavorites),
     ShellDestination(ShellSection.Recent, R.string.recent_title, ShellTags.NavRecent),
     ShellDestination(ShellSection.Library, R.string.shell_library, ShellTags.NavLibrary),
-    ShellDestination(ShellSection.Settings, R.string.shell_settings, ShellTags.NavSettings),
 )
+
+internal val BrowseSections = Destinations.map(ShellDestination::section)
 
 @Composable
 internal fun ShellPage(
@@ -133,9 +134,11 @@ internal fun ShellPage(
     contentGap: Dp = FbngDimens.space12,
     verticalMargin: Dp = FbngDimens.space16,
     footer: (@Composable () -> Unit)? = null,
+    modalOpen: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize()) {
+    val backdrop = if (modalOpen) Modifier.blur(FbngDimens.glassBlur) else Modifier
+    Box(Modifier.fillMaxSize().then(backdrop)) {
         FbngBackdrop()
         Column(
             Modifier.fillMaxSize().padding(horizontal = margin, vertical = verticalMargin),
@@ -256,38 +259,45 @@ internal fun ShellTabs(
     val scheme = MaterialTheme.colorScheme
     val showBrand = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() } >= 460.dp
     Row(Modifier.testTag(ShellTags.HeaderTitle),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space24)) {
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
         if (showBrand) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
             Text("F", color = scheme.primary, style = MaterialTheme.typography.headlineSmall)
             Text("FBNG", style = MaterialTheme.typography.titleLarge)
         }
         Row(
-            Modifier.fbngIsland().padding(FbngDimens.space4),
+            Modifier.fbngIsland().padding(FbngDimens.panelInset),
             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
         ) {
             Destinations.forEach { destination ->
                 val selected = destination.section == section
-                val hasUpdate = destination.section == ShellSection.Settings && updateAvailable
-                val updateDescription = if (hasUpdate) stringResource(R.string.update_nav_available) else null
                 Box(
                     Modifier.libraryFocus(destination.tag, requesters.getValue(destination.tag), onFocused)
                         .semantics {
                             this.selected = selected
-                            if (updateDescription != null) stateDescription = updateDescription
                         }
                         .fbngFocusTarget(
                             onClick = { onSection(destination.section) },
-                            container = if (selected) scheme.surfaceContainerHighest else Color.Transparent,
+                            container = if (selected) scheme.primary.copy(alpha = .22f) else Color.Transparent,
                             restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
                             role = Role.Tab,
                         )
-                        .height(32.dp).padding(horizontal = FbngDimens.space12),
+                        .height(FbngDimens.space24).padding(horizontal = FbngDimens.space12),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(stringResource(destination.label), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                    if (hasUpdate) Badge(Modifier.align(Alignment.TopEnd), containerColor = scheme.primary)
                 }
             }
+        }
+        val updateDescription = if (updateAvailable) stringResource(R.string.update_nav_available) else null
+        FbngButton(
+            onClick = { onSection(ShellSection.Settings) },
+            modifier = Modifier.height(FbngDimens.shellHeaderHeight).libraryFocus(ShellTags.NavSettings, requesters.getValue(ShellTags.NavSettings), onFocused)
+                .semantics { if (updateDescription != null) stateDescription = updateDescription },
+            kind = FbngButtonKind.Outline,
+            contentPadding = PaddingValues(horizontal = FbngDimens.space12),
+        ) {
+            Text(stringResource(R.string.shell_settings), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            if (updateAvailable) Badge(containerColor = scheme.primary)
         }
     }
 }
@@ -303,21 +313,30 @@ internal fun ShellFooter(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
     ) {
-        hints.forEach { (key, label) ->
-            Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.background(
-                        if (key == "A") scheme.primary else scheme.surfaceContainerHighest,
-                        MaterialTheme.shapes.extraSmall,
-                    ).padding(horizontal = FbngDimens.space8, vertical = 2.dp),
-                ) {
-                    Text(key, color = if (key == "A") scheme.onPrimary else scheme.onSurface, style = MaterialTheme.typography.labelSmall)
+        Row(
+            Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+        ) {
+            hints.forEach { (key, label) ->
+                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.background(
+                            if (key == "A") scheme.primary else scheme.surfaceContainerHighest,
+                            MaterialTheme.shapes.extraSmall,
+                        ).padding(horizontal = FbngDimens.space8, vertical = 2.dp),
+                    ) {
+                        Text(key, color = if (key == "A") scheme.onPrimary else scheme.onSurface, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                    }
+                    Text(stringResource(label), color = scheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium, maxLines = 1)
                 }
-                Text(stringResource(label), color = scheme.onSurfaceVariant, style = MaterialTheme.typography.labelMedium)
             }
         }
-        Spacer(Modifier.weight(1f))
-        trailing()
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+            content = trailing,
+        )
     }
 }
 
@@ -333,8 +352,9 @@ internal fun BrowseFooter(
 ) {
     val hints = buildList {
         add("A" to R.string.shell_hint_open)
-        if (pages > 1) add("L1 / R1" to R.string.shell_hint_page)
+        if (pages > 1) add("← / →" to R.string.shell_hint_page)
         if (library) add("Y" to R.string.library_jump_to_letter)
+        add("L1 / R1" to R.string.shell_hint_switch_page)
     }
     ShellFooter(hints) {
         if (scanning) Text(stringResource(R.string.scanning), color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)

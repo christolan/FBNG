@@ -133,6 +133,7 @@
     <string name="folder_add">添加文件夹</string>
     <string name="folder_rescan">重新扫描</string>
     <string name="folder_remove">移除文件夹</string>
+    <string name="folder_remove_short">移除</string>
     <string name="folder_remove_label">移除文件夹 %1$s</string>
     <string name="folder_scanning">正在扫描 ROM 和 BIOS…</string>
     <string name="folder_add_failed">无法保存读取权限。请重新选择文件夹并授权。</string>
@@ -219,7 +220,7 @@
     <string name="progress_apply_body">将覆盖目标槽位的进度。原快照仍然保留，应用后不会自动开始游戏。</string>
     <string name="progress_apply_running_body">将覆盖本局槽位的已保存进度，并替换当前运行进度。当前未保存的进度会丢失。原快照仍然保留，成功后保持暂停。</string>
     <string name="progress_applied">快照已应用，可以开始游戏。</string>
-    <string name="progress_applied_running">快照已应用，当前运行进度已替换。选择「恢复」继续。</string>
+    <string name="progress_applied_running">快照已应用，游戏保持暂停。</string>
     <string name="progress_delete_snapshot">删除快照</string>
     <string name="progress_delete_snapshot_title">删除快照 %1$d？</string>
     <string name="progress_delete_snapshot_body">只删除这份历史快照，不影响槽位和当前游戏进度。</string>
@@ -234,9 +235,12 @@
     <string name="progress_next">下一步</string>
     <string name="shell_hint_open">打开</string>
     <string name="shell_hint_page">翻页</string>
+    <string name="shell_hint_switch_page">切换页面</string>
+    <string name="shell_hint_switch_tab">切换标签</string>
+    <string name="shell_hint_favorite">添加收藏</string>
+    <string name="shell_hint_unfavorite">取消收藏</string>
     <string name="shell_hint_select">选择</string>
     <string name="shell_hint_input">输入</string>
-    <string name="shell_hint_confirm">确认</string>
     <string name="settings_appearance">外观</string>
     <string name="settings_about">关于</string>
     <string name="library_missing_bios_short">缺少 BIOS</string>
@@ -256,5 +260,4 @@
     <string name="progress_empty_short">空槽位</string>
     <string name="progress_favorite">☆ 收藏</string>
     <string name="progress_favorited">★ 已收藏</string>
-    <string name="shell_hint_start">开始</string>
 </resources>

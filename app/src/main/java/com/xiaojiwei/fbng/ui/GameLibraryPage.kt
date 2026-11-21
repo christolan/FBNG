@@ -159,7 +159,7 @@ internal fun GameLibraryPage(
                     Modifier.weight(3f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
                     verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                 ) {
-                    GameCover(selected.title, covers?.images?.get(selected.game.name),
+                    GameCover(covers?.images?.get(selected.game.name),
                         Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium), contentScale = ContentScale.Crop)
                     GameCardText(selected, Modifier.fillMaxWidth())
                 }
@@ -193,7 +193,7 @@ internal fun GameBrowseRow(entry: LibraryEntry, modifier: Modifier) {
 internal fun GameCardText(entry: LibraryEntry, modifier: Modifier) {
     Column(modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
-        Text(entry.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(entry.title, style = MaterialTheme.typography.headlineSmall, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(entry.game.fileNames.firstOrNull() ?: "${entry.game.name}.zip",
             style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1, overflow = TextOverflow.Ellipsis)

@@ -28,11 +28,14 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.Color
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
@@ -195,6 +198,7 @@ internal fun GameProgressPage(
         if (blocked) return
         val originalFocus = focused
         working = true
+        localMessage = ""
         localError = false
         scope.launch {
             try { action() } catch (error: Exception) {
@@ -239,11 +243,29 @@ internal fun GameProgressPage(
     val scheme = MaterialTheme.colorScheme
     Surface(
         color = scheme.background, contentColor = scheme.onBackground,
-        modifier = Modifier.fillMaxSize().onKeyEvent { event ->
+        modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
+            if (dialogOpen || !snapshotsOpen || snapshotPage?.items.orEmpty().none { snapshotTag(it.id) == focused }) {
+                return@onPreviewKeyEvent false
+            }
+            val step = when (event.key) {
+                Key.DirectionLeft -> -1
+                Key.DirectionRight -> 1
+                else -> return@onPreviewKeyEvent false
+            }
+            if (event.type == KeyEventType.KeyDown) changePage(step)
+            true
+        }.onKeyEvent { event ->
             when {
                 event.key == Key.ButtonB && event.type == KeyEventType.KeyUp -> { back(); true }
-                !dialogOpen && snapshotsOpen && event.type == KeyEventType.KeyUp && event.key == Key.ButtonL1 -> { changePage(-1); true }
-                !dialogOpen && snapshotsOpen && event.type == KeyEventType.KeyUp && event.key == Key.ButtonR1 -> { changePage(1); true }
+                !dialogOpen && !blocked && event.type == KeyEventType.KeyUp &&
+                    (event.key == Key.ButtonL1 || event.key == Key.ButtonR1) -> {
+                    val next = event.key == Key.ButtonR1
+                    if (snapshotsOpen != next) {
+                        snapshotsOpen = next
+                        restore(if (next) "snapshots-tab" else "slots-tab")
+                    }
+                    true
+                }
                 else -> false
             }
         },
@@ -265,17 +287,18 @@ internal fun GameProgressPage(
                 val feedback = if (messageIsError) message else localMessage.ifEmpty { message }
                 val favorites: @Composable () -> Unit = {
                     FbngButton(onToggleFavorite, target(ShellTags.ToggleFavorite).height(FbngDimens.shellHeaderHeight),
-                        enabled = !blocked, kind = FbngButtonKind.Outline) {
+                        enabled = !blocked && !dialogOpen, kind = FbngButtonKind.Outline) {
                         Text(stringResource(if (favorite) R.string.progress_favorited else R.string.progress_favorite))
                     }
                 }
                 ShellPage(
                     title = entry.title,
                     margin = FbngDimens.compactMargin,
+                    modalOpen = dialogOpen,
                     verticalMargin = if (paused) FbngDimens.space16 + FbngDimens.rp6BarInset else FbngDimens.space16,
                     leadingAction = {
                         ShellHeaderBack(stringResource(if (paused) R.string.resume else R.string.back),
-                            ::back, target(ShellTags.DetailBack), enabled = !blocked)
+                            ::back, target(ShellTags.DetailBack), enabled = !blocked && !dialogOpen)
                     },
                     headerAction = {
                         if (paused) Box(Modifier.height(FbngDimens.shellHeaderHeight), contentAlignment = Alignment.CenterEnd) {
@@ -283,10 +306,30 @@ internal fun GameProgressPage(
                         } else favorites()
                     },
                     footer = {
-                        val hints = if (pending != null) listOf("A" to R.string.shell_hint_confirm, "B" to R.string.cancel) else buildList {
-                            add("A" to if (!paused && entry.game.canLaunch) R.string.shell_hint_start else R.string.shell_hint_select)
+                        val hints = buildList {
+                            val action = when (focused) {
+                                primary -> when {
+                                    paused -> R.string.progress_resume
+                                    entry.game.canLaunch -> R.string.progress_start
+                                    else -> R.string.progress_manage_folders
+                                }
+                                ShellTags.DetailBack -> if (paused) R.string.progress_resume else R.string.back
+                                ShellTags.ToggleFavorite -> if (favorite) R.string.shell_hint_unfavorite else R.string.shell_hint_favorite
+                                ShellTags.Quit -> if (ready) R.string.progress_save_quit else R.string.quit
+                                "slots-tab" -> R.string.progress_slots
+                                "snapshots-tab" -> R.string.progress_snapshots
+                                "delete-progress" -> R.string.progress_delete
+                                "create-snapshot" -> R.string.progress_create_snapshot
+                                "apply-snapshot" -> R.string.progress_apply_short
+                                "delete-snapshot" -> R.string.progress_delete_snapshot
+                                "retry-snapshots", "retry-slots" -> R.string.progress_retry
+                                "snapshot-prev", "snapshot-next" -> R.string.shell_hint_page
+                                else -> R.string.shell_hint_select
+                            }
+                            add("A" to action)
+                            add("L1 / R1" to R.string.shell_hint_switch_tab)
                             add("B" to if (paused) R.string.progress_resume else R.string.back)
-                            if (snapshotsOpen && (snapshotPage?.pages ?: 0) > 1) add("L1 / R1" to R.string.shell_hint_page)
+                            if (snapshotsOpen && (snapshotPage?.pages ?: 0) > 1) add("← / →" to R.string.shell_hint_page)
                         }
                         ShellFooter(hints) {
                             Text(feedback, Modifier.widthIn(max = 350.dp),
@@ -295,7 +338,7 @@ internal fun GameProgressPage(
                         }
                     },
                 ) {
-                    if (pending == null) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
                         Column(
                             Modifier.weight(7f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
                             verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
@@ -311,12 +354,12 @@ internal fun GameProgressPage(
                                     val ratio = bitmap?.let { it.width.toFloat() / it.height } ?: FbngDimens.coverAspectRatio
                                     val artwork = Modifier.fillMaxWidth().height(minOf(maxHeight, maxWidth / ratio))
                                         .clip(MaterialTheme.shapes.medium)
-                                    if (bitmap == null) GameCover(entry.title, cover, artwork, contentScale = ContentScale.Crop)
+                                    if (bitmap == null) GameCover(cover, artwork, contentScale = ContentScale.Crop)
                                     else Image(bitmap, null, artwork.background(Color.Black), contentScale = ContentScale.Fit)
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { favorites() }
                             } else {
-                                GameCover(entry.title, cover, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium),
+                                GameCover(cover, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium),
                                     contentScale = ContentScale.Crop)
                                 Text(entry.game.fileNames.joinToString(" · "),
                                     Modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
@@ -340,10 +383,12 @@ internal fun GameProgressPage(
                                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
                             ) {
                                 Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
-                                    FbngButton({ snapshotsOpen = false }, target("slots-tab"), enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral) {
+                                    FbngButton({ snapshotsOpen = false }, target("slots-tab").semantics { selected = !snapshotsOpen },
+                                        enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab) {
                                         Text(stringResource(R.string.progress_slots))
                                     }
-                                    FbngButton({ snapshotsOpen = true }, target("snapshots-tab"), enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral) {
+                                    FbngButton({ snapshotsOpen = true }, target("snapshots-tab").semantics { selected = snapshotsOpen },
+                                        enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab) {
                                         Text(stringResource(R.string.progress_snapshots))
                                     }
                                 }
@@ -498,7 +543,11 @@ internal fun GameProgressPage(
                     Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
                         slots.orEmpty().forEach { slot ->
                             FbngButton({ targetSlot = slot.id }, Modifier.weight(1f), selected = targetSlot == slot.id, kind = FbngButtonKind.Neutral) {
-                                Text(stringResource(R.string.progress_slot, slot.id) + if (slot.available) "" else " · " + stringResource(R.string.slot_no_save))
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(stringResource(R.string.progress_slot, slot.id), maxLines = 1)
+                                    Text(stringResource(if (slot.available) R.string.progress_saved else R.string.progress_empty_short),
+                                        style = MaterialTheme.typography.labelMedium, maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -506,7 +555,9 @@ internal fun GameProgressPage(
             },
             dismissButton = { FbngButton(::dismiss, Modifier.then(Modifier.libraryFocus("target-cancel", cancel) {}), kind = FbngButtonKind.Neutral) { Text(stringResource(R.string.cancel)) } },
             confirmButton = { FbngButton({ targetSnapshot = null; pending = ProgressConfirmation(ProgressAction.Apply, id, targetSlot, state) }) { Text(stringResource(R.string.progress_next)) } },
-            modifier = Modifier.onKeyEvent { if (it.key == Key.ButtonB && it.type == KeyEventType.KeyUp) { dismiss(); true } else false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+            modifier = Modifier.padding(horizontal = FbngDimens.space24).widthIn(max = 460.dp).fillMaxWidth()
+                .onKeyEvent { if (it.key == Key.ButtonB && it.type == KeyEventType.KeyUp) { dismiss(); true } else false },
         )
     }
     pending?.let { confirmation ->
@@ -527,7 +578,7 @@ internal fun GameProgressPage(
                 ProgressAction.DeleteSlot -> stringResource(if (paused) R.string.progress_delete_running else R.string.progress_delete)
                 ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot)
                 ProgressAction.Apply -> stringResource(R.string.progress_overwrite)
-            }, onDismiss = ::dismiss, dimBackground = false, immersive = paused,
+            }, onDismiss = ::dismiss, immersive = paused,
             onConfirm = {
                 pending = null
                 dialogTrigger = null
@@ -592,16 +643,23 @@ private fun ProgressCard(
     }
     val scheme = MaterialTheme.colorScheme
     Row(
-        modifier.fbngFocusTarget(onClick, scheme.surface, enabled = enabled,
-            restingStroke = if (selected) scheme.secondary.copy(alpha = .3f) else Color.Transparent)
+        modifier.semantics { this.selected = selected }.fbngFocusTarget(
+            onClick,
+            if (selected) scheme.primary.copy(alpha = .22f) else scheme.surface,
+            enabled = enabled,
+            restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
+        )
             .padding(horizontal = FbngDimens.space12),
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (!snapshot) Box(
-            Modifier.size(FbngDimens.space24).background(scheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall),
+            Modifier.size(FbngDimens.space24).background(
+                if (selected) scheme.primary else scheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall,
+            ),
             contentAlignment = Alignment.Center,
-        ) { Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge) }
+        ) { Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge,
+            color = if (selected) scheme.onPrimary else scheme.onSurface) }
         Text(if (snapshot) time.ifEmpty { stringResource(R.string.progress_snapshot, slot.id) } else caption,
             Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
