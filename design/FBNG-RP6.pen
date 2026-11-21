@@ -313,11 +313,11 @@
         },
         {
           "type": "frame",
-          "id": "EkARC",
+          "id": "dQZy1",
           "x": 60,
           "y": 208,
-          "name": "当前游戏",
-          "width": 960,
+          "name": "合金弹头 3 · 封面卡片",
+          "width": 432,
           "height": 694,
           "fill": {
             "type": "gradient",
@@ -350,13 +350,13 @@
           "children": [
             {
               "type": "frame",
-              "id": "CiqSH",
+              "id": "W2NgA",
               "x": 21,
               "y": 21,
               "name": "封面 · METAL SLUG 3",
               "clip": true,
-              "width": 918,
-              "height": 492,
+              "width": 390,
+              "height": 516,
               "fill": [
                 {
                   "type": "gradient",
@@ -407,7 +407,7 @@
               "children": [
                 {
                   "type": "path",
-                  "id": "wAaqB",
+                  "id": "quUrr",
                   "x": 0,
                   "y": 0,
                   "name": "封面斜纹",
@@ -418,14 +418,14 @@
                     459,
                     246
                   ],
-                  "width": 918,
-                  "height": 492,
+                  "width": 390,
+                  "height": 516,
                   "stroke": "#9ED3CD25",
                   "strokeWidth": 4.6
                 },
                 {
                   "type": "path",
-                  "id": "l9vj32",
+                  "id": "baPvi",
                   "x": 0,
                   "y": 0,
                   "name": "封面同心环",
@@ -436,112 +436,93 @@
                     459,
                     246
                   ],
-                  "width": 918,
-                  "height": 492,
+                  "width": 390,
+                  "height": 516,
                   "stroke": "#E8FFAD41",
                   "strokeWidth": 3
                 },
                 {
                   "type": "text",
-                  "id": "vDeEn",
-                  "x": 32,
-                  "y": 157.85999999999999,
+                  "id": "AIM5w",
+                  "x": 28,
+                  "y": 190,
                   "name": "封面主标题",
                   "fill": "#EBF8D9",
                   "textGrowth": "fixed-width-height",
-                  "width": 882,
-                  "height": 126.54,
+                  "width": 334,
+                  "height": 88,
                   "content": "METAL",
                   "lineHeight": 1,
                   "textAlignVertical": "middle",
                   "fontFamily": "Inter",
-                  "fontSize": 114,
+                  "fontSize": 76,
                   "fontWeight": "900",
-                  "letterSpacing": -4.218,
+                  "letterSpacing": -1.8,
                   "fontStyle": "italic"
                 },
                 {
                   "type": "text",
-                  "id": "IjWZc",
-                  "x": 32,
-                  "y": 251.33999999999997,
+                  "id": "IVFsW",
+                  "x": 28,
+                  "y": 272,
                   "name": "封面副标题",
                   "fill": "#EBF8D9",
                   "textGrowth": "fixed-width-height",
-                  "width": 882,
-                  "height": 88.92,
+                  "width": 334,
+                  "height": 64,
                   "content": "SLUG 3",
                   "lineHeight": 1,
                   "textAlignVertical": "middle",
                   "fontFamily": "Inter",
-                  "fontSize": 70.67999999999999,
+                  "fontSize": 47,
                   "fontWeight": "900",
-                  "letterSpacing": -4.218,
+                  "letterSpacing": -1.8,
                   "fontStyle": "italic"
                 }
               ]
             },
             {
               "type": "text",
-              "id": "ONBlG",
-              "x": 40,
-              "y": 530,
-              "name": "主游戏名称",
+              "id": "QOa96",
+              "x": 38,
+              "y": 547,
+              "name": "游戏名称",
               "fill": "#E8F5F9",
               "textGrowth": "fixed-width-height",
-              "width": 770,
-              "height": 80,
+              "width": 356,
+              "height": 71,
               "content": "合金弹头 3",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
-              "fontSize": 54,
+              "fontSize": 44,
               "fontWeight": "700"
             },
             {
               "type": "text",
-              "id": "QwQxn",
-              "x": 40,
-              "y": 604,
+              "id": "b5l1T",
+              "x": 38,
+              "y": 614,
               "name": "游戏进度",
               "fill": "#AFC3CF",
               "textGrowth": "fixed-width-height",
-              "width": 750,
-              "height": 62,
+              "width": 356,
+              "height": 50,
               "content": "槽位 2 · 有进度",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
               "fontSize": 28,
               "fontWeight": "700"
-            },
-            {
-              "type": "path",
-              "id": "usoCT",
-              "x": 900,
-              "y": 590,
-              "name": "进入箭头",
-              "geometry": "M2 2l4 4-4 4",
-              "viewBox": [
-                0,
-                0,
-                8,
-                12
-              ],
-              "width": 16,
-              "height": 24,
-              "stroke": "#9FBFC7",
-              "strokeWidth": 4.8,
-              "strokeLinejoin": "round"
             }
           ]
         },
         {
           "type": "rectangle",
           "cornerRadius": 50.6,
-          "id": "KaL5f",
+          "id": "DuxsN",
           "x": 55.4,
           "y": 203.4,
           "name": "手柄焦点",
-          "width": 969.2,
+          "width": 441.2,
           "height": 703.2,
           "stroke": "#B6F5DF",
           "strokeWidth": 4.6,
@@ -549,11 +530,11 @@
         },
         {
           "type": "frame",
-          "id": "o9GqW",
-          "x": 1048,
+          "id": "B57L5",
+          "x": 516,
           "y": 208,
-          "name": "其他游戏",
-          "width": 812,
+          "name": "拳皇 98 · 封面卡片",
+          "width": 432,
           "height": 694,
           "fill": {
             "type": "gradient",
@@ -586,549 +567,528 @@
           "children": [
             {
               "type": "frame",
-              "id": "LRohL",
+              "id": "H0i9TV",
               "x": 21,
               "y": 21,
-              "name": "拳皇 98",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
+              "name": "封面 · KOF ’98",
+              "clip": true,
+              "width": 390,
+              "height": 516,
+              "fill": [
                 {
-                  "type": "frame",
-                  "id": "By25Z",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · KOF ’98",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 224,
+                  "size": {
+                    "height": 1
+                  },
+                  "colors": [
                     {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#171A1E",
-                          "position": 0
-                        },
-                        {
-                          "color": "#8C572E",
-                          "position": 1
-                        }
-                      ]
+                      "color": "#171A1E",
+                      "position": 0
                     },
                     {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#F8BD59EF",
-                          "position": 0
-                        },
-                        {
-                          "color": "#F8BD5900",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "Ho1OS",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "ghGb6",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "l5hEMf",
-                      "x": 20,
-                      "y": 41.7342,
-                      "name": "封面主标题",
-                      "fill": "#F4F8D7",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 39.360600000000005,
-                      "content": "KOF",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 35.46,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.31202,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "JwHOz",
-                      "x": 20,
-                      "y": 70.81139999999999,
-                      "name": "封面副标题",
-                      "fill": "#F4F8D7",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 27.658800000000003,
-                      "content": "’98",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 21.9852,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.31202,
-                      "fontStyle": "italic"
+                      "color": "#8C572E",
+                      "position": 1
                     }
                   ]
                 },
                 {
-                  "type": "text",
-                  "id": "yCtFN",
-                  "x": 236,
-                  "y": 68,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "拳皇 98",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
+                  "type": "gradient",
+                  "gradientType": "radial",
+                  "enabled": true,
+                  "rotation": 0,
+                  "size": {
+                    "width": 0.67,
+                    "height": 0.99
+                  },
+                  "colors": [
+                    {
+                      "color": "#F8BD59EF",
+                      "position": 0
+                    },
+                    {
+                      "color": "#F8BD5900",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "x": 0.77,
+                    "y": 0.39
+                  }
+                }
+              ],
+              "cornerRadius": 25,
+              "layout": "none",
+              "children": [
                 {
                   "type": "path",
-                  "id": "Whk98",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
+                  "id": "v81e5",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面斜纹",
+                  "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
                   "viewBox": [
                     0,
                     0,
-                    8,
-                    12
+                    90,
+                    69
                   ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#9ED3CD25",
+                  "strokeWidth": 2.5
+                },
+                {
+                  "type": "path",
+                  "id": "f3ntF",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面同心环",
+                  "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    90,
+                    69
+                  ],
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#E8FFAD41",
+                  "strokeWidth": 2
+                },
+                {
+                  "type": "text",
+                  "id": "gnx4O",
+                  "x": 28,
+                  "y": 190,
+                  "name": "封面主标题",
+                  "fill": "#F4F8D7",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 88,
+                  "content": "KOF",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 76,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
+                },
+                {
+                  "type": "text",
+                  "id": "X4vjgP",
+                  "x": 28,
+                  "y": 272,
+                  "name": "封面副标题",
+                  "fill": "#F4F8D7",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 64,
+                  "content": "’98",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 47,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
                 }
               ]
             },
             {
+              "type": "text",
+              "id": "jkrh8",
+              "x": 38,
+              "y": 547,
+              "name": "游戏名称",
+              "fill": "#E8F5F9",
+              "textGrowth": "fixed-width-height",
+              "width": 356,
+              "height": 71,
+              "content": "拳皇 98",
+              "textAlignVertical": "middle",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 44,
+              "fontWeight": "700"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "aYsFf",
+          "x": 972,
+          "y": 208,
+          "name": "三国战纪 · 封面卡片",
+          "width": 432,
+          "height": 694,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 226,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#2A394BC4",
+                "position": 0
+              },
+              {
+                "color": "#172630B3",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 46,
+          "stroke": "#435968",
+          "strokeWidth": 2.2,
+          "strokeAlignment": "inner",
+          "effect": {
+            "type": "background_blur",
+            "radius": 42
+          },
+          "layout": "none",
+          "children": [
+            {
               "type": "frame",
-              "id": "MIIGc",
+              "id": "BzExY",
               "x": 21,
-              "y": 244,
-              "name": "三国战纪",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
+              "y": 21,
+              "name": "封面 · KNIGHTS OF VALOUR",
+              "clip": true,
+              "width": 390,
+              "height": 516,
+              "fill": [
                 {
-                  "type": "frame",
-                  "id": "I0U6g",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · KNIGHTS OF VALOUR",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 224,
+                  "size": {
+                    "height": 1
+                  },
+                  "colors": [
                     {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#0D1D2A",
-                          "position": 0
-                        },
-                        {
-                          "color": "#3B5086",
-                          "position": 1
-                        }
-                      ]
+                      "color": "#0D1D2A",
+                      "position": 0
                     },
                     {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#88A9F8E8",
-                          "position": 0
-                        },
-                        {
-                          "color": "#88A9F800",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "NG7Bx",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "bGcuC",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "nNUuZ",
-                      "x": 20,
-                      "y": 45.35821200000001,
-                      "name": "封面主标题",
-                      "fill": "#EBF8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 33.850116,
-                      "content": "KNIGHTS",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 30.4956,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1283372,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "FUIRq",
-                      "x": 20,
-                      "y": 70.36460400000001,
-                      "name": "封面副标题",
-                      "fill": "#EBF8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 23.786568,
-                      "content": "OF VALOUR",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 18.907272,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1283372,
-                      "fontStyle": "italic"
+                      "color": "#3B5086",
+                      "position": 1
                     }
                   ]
                 },
                 {
-                  "type": "text",
-                  "id": "QJJP7",
-                  "x": 236,
-                  "y": 68,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "三国战纪",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
+                  "type": "gradient",
+                  "gradientType": "radial",
+                  "enabled": true,
+                  "rotation": 0,
+                  "size": {
+                    "width": 0.67,
+                    "height": 0.99
+                  },
+                  "colors": [
+                    {
+                      "color": "#88A9F8E8",
+                      "position": 0
+                    },
+                    {
+                      "color": "#88A9F800",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "x": 0.77,
+                    "y": 0.39
+                  }
+                }
+              ],
+              "cornerRadius": 25,
+              "layout": "none",
+              "children": [
                 {
                   "type": "path",
-                  "id": "JoNoY",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
+                  "id": "qrsPh",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面斜纹",
+                  "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
                   "viewBox": [
                     0,
                     0,
-                    8,
-                    12
+                    90,
+                    69
                   ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#9ED3CD25",
+                  "strokeWidth": 2.5
+                },
+                {
+                  "type": "path",
+                  "id": "cELne",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面同心环",
+                  "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    90,
+                    69
+                  ],
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#E8FFAD41",
+                  "strokeWidth": 2
+                },
+                {
+                  "type": "text",
+                  "id": "PwzLz",
+                  "x": 28,
+                  "y": 190,
+                  "name": "封面主标题",
+                  "fill": "#EBF8DF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 88,
+                  "content": "KNIGHTS",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 63,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
+                },
+                {
+                  "type": "text",
+                  "id": "y3hfQY",
+                  "x": 28,
+                  "y": 272,
+                  "name": "封面副标题",
+                  "fill": "#EBF8DF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 64,
+                  "content": "OF VALOUR",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 39,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
                 }
               ]
             },
             {
+              "type": "text",
+              "id": "n7wevL",
+              "x": 38,
+              "y": 547,
+              "name": "游戏名称",
+              "fill": "#E8F5F9",
+              "textGrowth": "fixed-width-height",
+              "width": 356,
+              "height": 71,
+              "content": "三国战纪",
+              "textAlignVertical": "middle",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 44,
+              "fontWeight": "700"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "va9Ur",
+          "x": 1428,
+          "y": 208,
+          "name": "怒首领蜂 · 封面卡片",
+          "width": 432,
+          "height": 694,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 226,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#2A394BC4",
+                "position": 0
+              },
+              {
+                "color": "#172630B3",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 46,
+          "stroke": "#435968",
+          "strokeWidth": 2.2,
+          "strokeAlignment": "inner",
+          "effect": {
+            "type": "background_blur",
+            "radius": 42
+          },
+          "layout": "none",
+          "children": [
+            {
               "type": "frame",
-              "id": "k6y5xM",
+              "id": "CG1Rh",
               "x": 21,
-              "y": 467,
-              "name": "怒首领蜂",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
+              "y": 21,
+              "name": "封面 · DODON PACHI",
+              "clip": true,
+              "width": 390,
+              "height": 516,
+              "fill": [
                 {
-                  "type": "frame",
-                  "id": "Xk7Ii",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · DODON PACHI",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
+                  "type": "gradient",
+                  "gradientType": "linear",
+                  "enabled": true,
+                  "rotation": 224,
+                  "size": {
+                    "height": 1
+                  },
+                  "colors": [
                     {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#121A2C",
-                          "position": 0
-                        },
-                        {
-                          "color": "#584267",
-                          "position": 1
-                        }
-                      ]
+                      "color": "#121A2C",
+                      "position": 0
                     },
                     {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#C394C4E8",
-                          "position": 0
-                        },
-                        {
-                          "color": "#C394C400",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "QqwPt",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "wX8L2",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "EMLGU",
-                      "x": 20,
-                      "y": 44.840496,
-                      "name": "封面主标题",
-                      "fill": "#F2F8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 34.637328000000004,
-                      "content": "DODON",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 31.204800000000002,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1545776,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "tN6qb",
-                      "x": 20,
-                      "y": 70.428432,
-                      "name": "封面副标题",
-                      "fill": "#F2F8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 24.339744000000003,
-                      "content": "PACHI",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 19.346976,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1545776,
-                      "fontStyle": "italic"
+                      "color": "#584267",
+                      "position": 1
                     }
                   ]
                 },
                 {
-                  "type": "text",
-                  "id": "F8SB2R",
-                  "x": 236,
-                  "y": 68,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "怒首领蜂",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
+                  "type": "gradient",
+                  "gradientType": "radial",
+                  "enabled": true,
+                  "rotation": 0,
+                  "size": {
+                    "width": 0.67,
+                    "height": 0.99
+                  },
+                  "colors": [
+                    {
+                      "color": "#C394C4E8",
+                      "position": 0
+                    },
+                    {
+                      "color": "#C394C400",
+                      "position": 1
+                    }
+                  ],
+                  "center": {
+                    "x": 0.77,
+                    "y": 0.39
+                  }
+                }
+              ],
+              "cornerRadius": 25,
+              "layout": "none",
+              "children": [
                 {
                   "type": "path",
-                  "id": "GGlBE",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
+                  "id": "PSuJs",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面斜纹",
+                  "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
                   "viewBox": [
                     0,
                     0,
-                    8,
-                    12
+                    90,
+                    69
                   ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#9ED3CD25",
+                  "strokeWidth": 2.5
+                },
+                {
+                  "type": "path",
+                  "id": "I1Lnr",
+                  "x": 0,
+                  "y": 0,
+                  "name": "封面同心环",
+                  "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    90,
+                    69
+                  ],
+                  "width": 390,
+                  "height": 516,
+                  "stroke": "#E8FFAD41",
+                  "strokeWidth": 2
+                },
+                {
+                  "type": "text",
+                  "id": "BV1Rd",
+                  "x": 28,
+                  "y": 190,
+                  "name": "封面主标题",
+                  "fill": "#F2F8DF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 88,
+                  "content": "DODON",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 76,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
+                },
+                {
+                  "type": "text",
+                  "id": "ZBTnW",
+                  "x": 28,
+                  "y": 272,
+                  "name": "封面副标题",
+                  "fill": "#F2F8DF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 334,
+                  "height": 64,
+                  "content": "PACHI",
+                  "lineHeight": 1,
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Inter",
+                  "fontSize": 47,
+                  "fontWeight": "900",
+                  "letterSpacing": -1.8,
+                  "fontStyle": "italic"
                 }
               ]
+            },
+            {
+              "type": "text",
+              "id": "K9lee",
+              "x": 38,
+              "y": 547,
+              "name": "游戏名称",
+              "fill": "#E8F5F9",
+              "textGrowth": "fixed-width-height",
+              "width": 356,
+              "height": 71,
+              "content": "怒首领蜂",
+              "textAlignVertical": "middle",
+              "fontFamily": "Noto Sans SC",
+              "fontSize": 44,
+              "fontWeight": "700"
             }
           ]
         },
@@ -1209,9 +1169,9 @@
               "name": "操作 · 翻页",
               "fill": "#C6D6E0",
               "textGrowth": "fixed-width-height",
-              "width": 76,
+              "width": 184,
               "height": 64,
-              "content": "翻页",
+              "content": "选卡 / 翻页",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
               "fontSize": 30,
@@ -1240,7 +1200,7 @@
               "type": "ref",
               "ref": "JGGFc",
               "name": "L1 / R1",
-              "x": 354,
+              "x": 458,
               "y": 12,
               "width": 106,
               "height": 50,
@@ -1259,7 +1219,7 @@
             {
               "type": "text",
               "id": "dXxL1",
-              "x": 470,
+              "x": 574,
               "y": 4,
               "name": "操作 · 切换页面",
               "fill": "#C6D6E0",
@@ -1588,11 +1548,11 @@
         },
         {
           "type": "frame",
-          "id": "M0yTP",
+          "id": "uWi3p",
           "x": 60,
           "y": 208,
-          "name": "当前游戏",
-          "width": 960,
+          "name": "游戏列表",
+          "width": 1098,
           "height": 694,
           "fill": {
             "type": "gradient",
@@ -1625,13 +1585,355 @@
           "children": [
             {
               "type": "frame",
-              "id": "kTybT",
+              "id": "Dpmrs",
+              "x": 12,
+              "y": 12,
+              "name": "拳皇 98 · 列表项",
+              "width": 1074,
+              "height": 128,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "eFFpF",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 1062,
+                  "height": 116,
+                  "fill": "#0F1B2980",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "ij1a3",
+                  "x": 34,
+                  "y": 6,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 690,
+                  "height": 116,
+                  "content": "拳皇 98",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "MMykE",
+                  "x": 752,
+                  "y": 6,
+                  "name": "游玩时间",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 286,
+                  "height": 116,
+                  "content": "今天 · 13:42",
+                  "textAlign": "right",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "cornerRadius": 32.6,
+              "id": "BV63l",
+              "x": 13.4,
+              "y": 13.4,
+              "name": "手柄焦点",
+              "width": 1071.2,
+              "height": 125.2,
+              "stroke": "#B6F5DF",
+              "strokeWidth": 4.6,
+              "strokeAlignment": "outer"
+            },
+            {
+              "type": "frame",
+              "id": "WjoZA",
+              "x": 12,
+              "y": 147.5,
+              "name": "合金弹头 3 · 列表项",
+              "width": 1074,
+              "height": 128,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "noUAv",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 1062,
+                  "height": 116,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "h37p5",
+                  "x": 34,
+                  "y": 6,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 690,
+                  "height": 116,
+                  "content": "合金弹头 3",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "MY5P2",
+                  "x": 752,
+                  "y": 6,
+                  "name": "游玩时间",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 286,
+                  "height": 116,
+                  "content": "昨天 · 20:14",
+                  "textAlign": "right",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "L5nkcy",
+              "x": 12,
+              "y": 283,
+              "name": "怒首领蜂 · 列表项",
+              "width": 1074,
+              "height": 128,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "iEWoN",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 1062,
+                  "height": 116,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "tloqH",
+                  "x": 34,
+                  "y": 6,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 690,
+                  "height": 116,
+                  "content": "怒首领蜂",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "IVhaT",
+                  "x": 752,
+                  "y": 6,
+                  "name": "游玩时间",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 286,
+                  "height": 116,
+                  "content": "11 月 18 日",
+                  "textAlign": "right",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "T4T5Z",
+              "x": 12,
+              "y": 418.5,
+              "name": "三国战纪 · 列表项",
+              "width": 1074,
+              "height": 128,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "ZMfHD",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 1062,
+                  "height": 116,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "BXA7D",
+                  "x": 34,
+                  "y": 6,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 690,
+                  "height": 116,
+                  "content": "三国战纪",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "PsIcG",
+                  "x": 752,
+                  "y": 6,
+                  "name": "游玩时间",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 286,
+                  "height": 116,
+                  "content": "11 月 16 日",
+                  "textAlign": "right",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "nbGs7",
+              "x": 12,
+              "y": 554,
+              "name": "1944：循环之主 · 列表项",
+              "width": 1074,
+              "height": 128,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "U1k8Gh",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 1062,
+                  "height": 116,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "AfyVy",
+                  "x": 34,
+                  "y": 6,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 690,
+                  "height": 116,
+                  "content": "1944：循环之主",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "Hnm6d",
+                  "x": 752,
+                  "y": 6,
+                  "name": "游玩时间",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 286,
+                  "height": 116,
+                  "content": "11 月 15 日",
+                  "textAlign": "right",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "hMRdK",
+          "x": 1186,
+          "y": 208,
+          "name": "当前游戏预览",
+          "width": 674,
+          "height": 694,
+          "fill": {
+            "type": "gradient",
+            "gradientType": "linear",
+            "enabled": true,
+            "rotation": 226,
+            "size": {
+              "height": 1
+            },
+            "colors": [
+              {
+                "color": "#2A394BC4",
+                "position": 0
+              },
+              {
+                "color": "#172630B3",
+                "position": 1
+              }
+            ]
+          },
+          "cornerRadius": 46,
+          "stroke": "#435968",
+          "strokeWidth": 2.2,
+          "strokeAlignment": "inner",
+          "effect": {
+            "type": "background_blur",
+            "radius": 42
+          },
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "iuJNB",
               "x": 21,
               "y": 21,
               "name": "封面 · KOF ’98",
               "clip": true,
-              "width": 918,
-              "height": 492,
+              "width": 632,
+              "height": 494,
               "fill": [
                 {
                   "type": "gradient",
@@ -1682,49 +1984,49 @@
               "children": [
                 {
                   "type": "path",
-                  "id": "aRBwo",
+                  "id": "crjdh",
                   "x": 0,
                   "y": 0,
                   "name": "封面斜纹",
-                  "geometry": "M-246 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246m-157.86 246l223.86-246",
+                  "geometry": "M-247 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247",
                   "viewBox": [
                     0,
                     0,
-                    459,
-                    246
+                    316,
+                    247
                   ],
-                  "width": 918,
-                  "height": 492,
+                  "width": 632,
+                  "height": 494,
                   "stroke": "#9ED3CD25",
                   "strokeWidth": 4.6
                 },
                 {
                   "type": "path",
-                  "id": "vfAVL",
+                  "id": "FALs3",
                   "x": 0,
                   "y": 0,
                   "name": "封面同心环",
-                  "geometry": "M329.078 80.325a11.5 11.5 0 1 0 23 0 11.5 11.5 0 1 0-23 0m-11.5 0a23 23 0 1 0 46 0 23 23 0 1 0-46 0m-11.5 0a34.5 34.5 0 1 0 69 0 34.5 34.5 0 1 0-69 0m-11.5 0a46 46 0 1 0 92 0 46 46 0 1 0-92 0m-11.5 0a57.5 57.5 0 1 0 115 0 57.5 57.5 0 1 0-115 0m-11.5 0a69 69 0 1 0 138 0 69 69 0 1 0-138 0m-11.5 0a80.5 80.5 0 1 0 161 0 80.5 80.5 0 1 0-161 0m-11.5 0a92 92 0 1 0 184 0 92 92 0 1 0-184 0m-11.5 0a103.5 103.5 0 1 0 207 0 103.5 103.5 0 1 0-207 0m-11.5 0a115 115 0 1 0 230 0 115 115 0 1 0-230 0m-11.5 0a126.5 126.5 0 1 0 253 0 126.5 126.5 0 1 0-253 0m-11.5 0a138 138 0 1 0 276 0 138 138 0 1 0-276 0",
+                  "geometry": "M222.972 55.3a11.5 11.5 0 1 0 23 0 11.5 11.5 0 1 0-23 0m-11.5 0a23 23 0 1 0 46 0 23 23 0 1 0-46 0m-11.5 0a34.5 34.5 0 1 0 69 0 34.5 34.5 0 1 0-69 0m-11.5 0a46 46 0 1 0 92 0 46 46 0 1 0-92 0m-11.5 0a57.5 57.5 0 1 0 115 0 57.5 57.5 0 1 0-115 0m-11.5 0a69 69 0 1 0 138 0 69 69 0 1 0-138 0m-11.5 0a80.5 80.5 0 1 0 161 0 80.5 80.5 0 1 0-161 0m-11.5 0a92 92 0 1 0 184 0 92 92 0 1 0-184 0m-11.5 0a103.5 103.5 0 1 0 207 0 103.5 103.5 0 1 0-207 0m-11.5 0a115 115 0 1 0 230 0 115 115 0 1 0-230 0",
                   "viewBox": [
                     0,
                     0,
-                    459,
-                    246
+                    316,
+                    247
                   ],
-                  "width": 918,
-                  "height": 492,
+                  "width": 632,
+                  "height": 494,
                   "stroke": "#E8FFAD41",
                   "strokeWidth": 3
                 },
                 {
                   "type": "text",
-                  "id": "v1lZwz",
+                  "id": "c2ZCqs",
                   "x": 32,
-                  "y": 157.85999999999999,
+                  "y": 158.84,
                   "name": "封面主标题",
                   "fill": "#F4F8D7",
                   "textGrowth": "fixed-width-height",
-                  "width": 882,
+                  "width": 596,
                   "height": 126.54,
                   "content": "KOF",
                   "lineHeight": 1,
@@ -1737,13 +2039,13 @@
                 },
                 {
                   "type": "text",
-                  "id": "WtShI",
+                  "id": "NcF6f",
                   "x": 32,
-                  "y": 251.33999999999997,
+                  "y": 252.32,
                   "name": "封面副标题",
                   "fill": "#F4F8D7",
                   "textGrowth": "fixed-width-height",
-                  "width": 882,
+                  "width": 596,
                   "height": 88.92,
                   "content": "’98",
                   "lineHeight": 1,
@@ -1758,14 +2060,14 @@
             },
             {
               "type": "text",
-              "id": "N9qfSQ",
-              "x": 40,
+              "id": "Qg7kQ",
+              "x": 42,
               "y": 530,
-              "name": "主游戏名称",
+              "name": "游戏标题",
               "fill": "#E8F5F9",
               "textGrowth": "fixed-width-height",
-              "width": 770,
-              "height": 80,
+              "width": 540,
+              "height": 86,
               "content": "拳皇 98",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
@@ -1774,14 +2076,14 @@
             },
             {
               "type": "text",
-              "id": "u7mZ3P",
-              "x": 40,
+              "id": "N7e0yJ",
+              "x": 42,
               "y": 604,
-              "name": "游戏进度",
+              "name": "最近游玩时间",
               "fill": "#AFC3CF",
               "textGrowth": "fixed-width-height",
-              "width": 750,
-              "height": 62,
+              "width": 520,
+              "height": 60,
               "content": "今天 · 13:42",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
@@ -1790,8 +2092,8 @@
             },
             {
               "type": "path",
-              "id": "F3rYL0",
-              "x": 900,
+              "id": "E9CoW",
+              "x": 614,
               "y": 590,
               "name": "进入箭头",
               "geometry": "M2 2l4 4-4 4",
@@ -1806,652 +2108,6 @@
               "stroke": "#9FBFC7",
               "strokeWidth": 4.8,
               "strokeLinejoin": "round"
-            }
-          ]
-        },
-        {
-          "type": "rectangle",
-          "cornerRadius": 50.6,
-          "id": "LXlVx",
-          "x": 55.4,
-          "y": 203.4,
-          "name": "手柄焦点",
-          "width": 969.2,
-          "height": 703.2,
-          "stroke": "#B6F5DF",
-          "strokeWidth": 4.6,
-          "strokeAlignment": "outer"
-        },
-        {
-          "type": "frame",
-          "id": "MiuJm",
-          "x": 1048,
-          "y": 208,
-          "name": "其他游戏",
-          "width": 812,
-          "height": 694,
-          "fill": {
-            "type": "gradient",
-            "gradientType": "linear",
-            "enabled": true,
-            "rotation": 226,
-            "size": {
-              "height": 1
-            },
-            "colors": [
-              {
-                "color": "#2A394BC4",
-                "position": 0
-              },
-              {
-                "color": "#172630B3",
-                "position": 1
-              }
-            ]
-          },
-          "cornerRadius": 46,
-          "stroke": "#435968",
-          "strokeWidth": 2.2,
-          "strokeAlignment": "inner",
-          "effect": {
-            "type": "background_blur",
-            "radius": 42
-          },
-          "layout": "none",
-          "children": [
-            {
-              "type": "frame",
-              "id": "UBEH4",
-              "x": 21,
-              "y": 21,
-              "name": "合金弹头 3",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "nG92Z",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · METAL SLUG 3",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
-                    {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#0B2227",
-                          "position": 0
-                        },
-                        {
-                          "color": "#30524B",
-                          "position": 1
-                        }
-                      ]
-                    },
-                    {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#A3D47CEC",
-                          "position": 0
-                        },
-                        {
-                          "color": "#A3D47C00",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "iE96q",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "HCXeY",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "Mxe8x",
-                      "x": 20,
-                      "y": 41.7342,
-                      "name": "封面主标题",
-                      "fill": "#EBF8D9",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 39.360600000000005,
-                      "content": "METAL",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 35.46,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.31202,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "TfDjb",
-                      "x": 20,
-                      "y": 70.81139999999999,
-                      "name": "封面副标题",
-                      "fill": "#EBF8D9",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 27.658800000000003,
-                      "content": "SLUG 3",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 21.9852,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.31202,
-                      "fontStyle": "italic"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "ICkgp",
-                  "x": 236,
-                  "y": 46,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "合金弹头 3",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "text",
-                  "id": "uAYbH",
-                  "x": 236,
-                  "y": 102,
-                  "name": "游玩时间",
-                  "fill": "#AFC3CF",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 56,
-                  "content": "昨天 · 20:14",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 28,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "path",
-                  "id": "g8Oq06",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
-                  "viewBox": [
-                    0,
-                    0,
-                    8,
-                    12
-                  ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "z3RKh",
-              "x": 21,
-              "y": 244,
-              "name": "怒首领蜂",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "W81jp",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · DODON PACHI",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
-                    {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#121A2C",
-                          "position": 0
-                        },
-                        {
-                          "color": "#584267",
-                          "position": 1
-                        }
-                      ]
-                    },
-                    {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#C394C4E8",
-                          "position": 0
-                        },
-                        {
-                          "color": "#C394C400",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "bTcCv",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "aGDU9",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "ARsqO",
-                      "x": 20,
-                      "y": 44.840496,
-                      "name": "封面主标题",
-                      "fill": "#F2F8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 34.637328000000004,
-                      "content": "DODON",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 31.204800000000002,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1545776,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "Uf4Gn",
-                      "x": 20,
-                      "y": 70.428432,
-                      "name": "封面副标题",
-                      "fill": "#F2F8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 24.339744000000003,
-                      "content": "PACHI",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 19.346976,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1545776,
-                      "fontStyle": "italic"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "gXHGa",
-                  "x": 236,
-                  "y": 46,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "怒首领蜂",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "text",
-                  "id": "j88Wr",
-                  "x": 236,
-                  "y": 102,
-                  "name": "游玩时间",
-                  "fill": "#AFC3CF",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 56,
-                  "content": "11 月 18 日",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 28,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "path",
-                  "id": "L3QVnB",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
-                  "viewBox": [
-                    0,
-                    0,
-                    8,
-                    12
-                  ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
-                }
-              ]
-            },
-            {
-              "type": "frame",
-              "id": "vwiir",
-              "x": 21,
-              "y": 467,
-              "name": "三国战纪",
-              "width": 770,
-              "height": 206,
-              "fill": "#101C2AB0",
-              "cornerRadius": 25,
-              "layout": "none",
-              "children": [
-                {
-                  "type": "frame",
-                  "id": "Z1Rzsz",
-                  "x": 28,
-                  "y": 34,
-                  "name": "封面 · KNIGHTS OF VALOUR",
-                  "clip": true,
-                  "width": 180,
-                  "height": 138,
-                  "fill": [
-                    {
-                      "type": "gradient",
-                      "gradientType": "linear",
-                      "enabled": true,
-                      "rotation": 224,
-                      "size": {
-                        "height": 1
-                      },
-                      "colors": [
-                        {
-                          "color": "#0D1D2A",
-                          "position": 0
-                        },
-                        {
-                          "color": "#3B5086",
-                          "position": 1
-                        }
-                      ]
-                    },
-                    {
-                      "type": "gradient",
-                      "gradientType": "radial",
-                      "enabled": true,
-                      "rotation": 0,
-                      "size": {
-                        "width": 0.67,
-                        "height": 0.99
-                      },
-                      "colors": [
-                        {
-                          "color": "#88A9F8E8",
-                          "position": 0
-                        },
-                        {
-                          "color": "#88A9F800",
-                          "position": 1
-                        }
-                      ],
-                      "center": {
-                        "x": 0.77,
-                        "y": 0.39
-                      }
-                    }
-                  ],
-                  "cornerRadius": 16,
-                  "layout": "none",
-                  "children": [
-                    {
-                      "type": "path",
-                      "id": "f1Had",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面斜纹",
-                      "geometry": "M-69 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69m-37.79 69l62.79-69",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#9ED3CD25",
-                      "strokeWidth": 2.5
-                    },
-                    {
-                      "type": "path",
-                      "id": "OaWwQ",
-                      "x": 0,
-                      "y": 0,
-                      "name": "封面同心环",
-                      "geometry": "M60.28 15.75a6.5 6.5 0 1 0 13 0 6.5 6.5 0 1 0-13 0m-6.5 0a13 13 0 1 0 26 0 13 13 0 1 0-26 0m-6.5 0a19.5 19.5 0 1 0 39 0 19.5 19.5 0 1 0-39 0m-6.5 0a26 26 0 1 0 52 0 26 26 0 1 0-52 0",
-                      "viewBox": [
-                        0,
-                        0,
-                        90,
-                        69
-                      ],
-                      "width": 180,
-                      "height": 138,
-                      "stroke": "#E8FFAD41",
-                      "strokeWidth": 2
-                    },
-                    {
-                      "type": "text",
-                      "id": "ZQFX7",
-                      "x": 20,
-                      "y": 45.35821200000001,
-                      "name": "封面主标题",
-                      "fill": "#EBF8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 33.850116,
-                      "content": "KNIGHTS",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 30.4956,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1283372,
-                      "fontStyle": "italic"
-                    },
-                    {
-                      "type": "text",
-                      "id": "RsBIR",
-                      "x": 20,
-                      "y": 70.36460400000001,
-                      "name": "封面副标题",
-                      "fill": "#EBF8DF",
-                      "textGrowth": "fixed-width-height",
-                      "width": 156,
-                      "height": 23.786568,
-                      "content": "OF VALOUR",
-                      "lineHeight": 1,
-                      "textAlignVertical": "middle",
-                      "fontFamily": "Inter",
-                      "fontSize": 18.907272,
-                      "fontWeight": "900",
-                      "letterSpacing": -1.1283372,
-                      "fontStyle": "italic"
-                    }
-                  ]
-                },
-                {
-                  "type": "text",
-                  "id": "MKYld",
-                  "x": 236,
-                  "y": 46,
-                  "name": "游戏名称",
-                  "fill": "#E8F5F9",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 70,
-                  "content": "三国战纪",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 38,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "text",
-                  "id": "Oz0K9",
-                  "x": 236,
-                  "y": 102,
-                  "name": "游玩时间",
-                  "fill": "#AFC3CF",
-                  "textGrowth": "fixed-width-height",
-                  "width": 460,
-                  "height": 56,
-                  "content": "11 月 16 日",
-                  "textAlignVertical": "middle",
-                  "fontFamily": "Noto Sans SC",
-                  "fontSize": 28,
-                  "fontWeight": "700"
-                },
-                {
-                  "type": "path",
-                  "id": "XOWiC",
-                  "x": 724,
-                  "y": 94,
-                  "name": "进入箭头",
-                  "geometry": "M2 2l4 4-4 4",
-                  "viewBox": [
-                    0,
-                    0,
-                    8,
-                    12
-                  ],
-                  "width": 16,
-                  "height": 24,
-                  "stroke": "#9FBFC7",
-                  "strokeWidth": 4.8,
-                  "strokeLinejoin": "round"
-                }
-              ]
             }
           ]
         },
@@ -2956,8 +2612,8 @@
           "id": "O5p8q",
           "x": 60,
           "y": 208,
-          "name": "游戏列表",
-          "width": 1098,
+          "name": "游戏列表 · 2 列 × 4 行",
+          "width": 1800,
           "height": 694,
           "fill": {
             "type": "gradient",
@@ -2990,37 +2646,37 @@
           "children": [
             {
               "type": "frame",
-              "id": "qlPOW",
-              "x": 12,
-              "y": 12,
+              "id": "Z3e8WA",
+              "x": 21,
+              "y": 21,
               "name": "合金弹头 3 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "vVRbn",
+                  "id": "p1xRP",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "合金弹头 3 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#0F1B2980",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "aDT4R",
+                  "id": "n13Q9",
                   "x": 34,
-                  "y": 6,
-                  "name": "合金弹头 3",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "合金弹头 3",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -3029,16 +2685,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "q3EPF",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "yzTnC",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "mslug3.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -3047,38 +2702,51 @@
               ]
             },
             {
+              "type": "rectangle",
+              "cornerRadius": 32.6,
+              "id": "G1e9P",
+              "x": 22.4,
+              "y": 22.4,
+              "name": "手柄焦点",
+              "width": 870.2,
+              "height": 145.2,
+              "stroke": "#B6F5DF",
+              "strokeWidth": 4.6,
+              "strokeAlignment": "outer"
+            },
+            {
               "type": "frame",
-              "id": "TWI29",
-              "x": 12,
-              "y": 147.5,
+              "id": "JaWHu",
+              "x": 906,
+              "y": 21,
               "name": "拳皇 98 · 列表项",
-              "width": 1074,
-              "height": 127.99999999999997,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "eWhv0",
+                  "id": "eWPgt",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "拳皇 98 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "t08h6",
+                  "id": "GKqF1",
                   "x": 34,
-                  "y": 6,
-                  "name": "拳皇 98",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "拳皇 98",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -3087,16 +2755,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "jsIhu",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "sdgbA",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "kof98.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -3106,37 +2773,37 @@
             },
             {
               "type": "frame",
-              "id": "S7jiO",
-              "x": 12,
-              "y": 283,
+              "id": "CSUGV",
+              "x": 21,
+              "y": 189,
               "name": "三国战纪 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "mpYKY",
+                  "id": "obCuE",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "三国战纪 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "y2R2hE",
+                  "id": "KYEuC",
                   "x": 34,
-                  "y": 6,
-                  "name": "三国战纪",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "三国战纪",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -3145,14 +2812,30 @@
                 },
                 {
                   "type": "text",
-                  "id": "ZjKyO",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
-                  "fill": "#FFCC88",
+                  "id": "wv5Ot",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 590,
+                  "height": 40,
+                  "content": "kov.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "xTlbN",
+                  "x": 640,
+                  "y": 84,
+                  "name": "启动依赖状态",
+                  "fill": "#F3CE98",
+                  "textGrowth": "fixed-width-height",
+                  "width": 199,
+                  "height": 40,
                   "content": "缺少 BIOS",
                   "textAlign": "right",
                   "textAlignVertical": "middle",
@@ -3164,37 +2847,37 @@
             },
             {
               "type": "frame",
-              "id": "GcdNs",
-              "x": 12,
-              "y": 418.5,
+              "id": "S3ZBJt",
+              "x": 906,
+              "y": 189,
               "name": "怒首领蜂 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "NeFVb",
+                  "id": "TFhgo",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "怒首领蜂 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "GWucU",
+                  "id": "FEn3b",
                   "x": 34,
-                  "y": 6,
-                  "name": "怒首领蜂",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "怒首领蜂",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -3203,16 +2886,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "wo4m0",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "C54XMx",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "ddonpach.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -3222,37 +2904,37 @@
             },
             {
               "type": "frame",
-              "id": "it0ON",
-              "x": 12,
-              "y": 554,
+              "id": "RZ4aU",
+              "x": 21,
+              "y": 357,
               "name": "游戏标题较长的本地套件 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "Y86mV",
+                  "id": "lxkP5",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "游戏标题较长的本地套件 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "eH3gF",
+                  "id": "V70g9W",
                   "x": 34,
-                  "y": 6,
-                  "name": "游戏标题较长的本地套件",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "游戏标题较长的本地套件",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -3261,16 +2943,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "u2oqEE",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "o8i8T",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "example.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -3279,240 +2960,175 @@
               ]
             },
             {
-              "type": "rectangle",
-              "cornerRadius": 32.6,
-              "id": "LBtxv",
-              "x": 13.4,
-              "y": 13.4,
-              "name": "手柄焦点",
-              "width": 1071.2,
-              "height": 125.2,
-              "stroke": "#B6F5DF",
-              "strokeWidth": 4.6,
-              "strokeAlignment": "outer"
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "bOyIh",
-          "x": 1186,
-          "y": 208,
-          "name": "当前游戏预览",
-          "width": 674,
-          "height": 694,
-          "fill": {
-            "type": "gradient",
-            "gradientType": "linear",
-            "enabled": true,
-            "rotation": 226,
-            "size": {
-              "height": 1
-            },
-            "colors": [
-              {
-                "color": "#2A394BC4",
-                "position": 0
-              },
-              {
-                "color": "#172630B3",
-                "position": 1
-              }
-            ]
-          },
-          "cornerRadius": 46,
-          "stroke": "#435968",
-          "strokeWidth": 2.2,
-          "strokeAlignment": "inner",
-          "effect": {
-            "type": "background_blur",
-            "radius": 42
-          },
-          "layout": "none",
-          "children": [
-            {
               "type": "frame",
-              "id": "SJAYe",
-              "x": 21,
-              "y": 21,
-              "name": "封面 · METAL SLUG 3",
-              "clip": true,
-              "width": 632,
-              "height": 494,
-              "fill": [
-                {
-                  "type": "gradient",
-                  "gradientType": "linear",
-                  "enabled": true,
-                  "rotation": 224,
-                  "size": {
-                    "height": 1
-                  },
-                  "colors": [
-                    {
-                      "color": "#0B2227",
-                      "position": 0
-                    },
-                    {
-                      "color": "#30524B",
-                      "position": 1
-                    }
-                  ]
-                },
-                {
-                  "type": "gradient",
-                  "gradientType": "radial",
-                  "enabled": true,
-                  "rotation": 0,
-                  "size": {
-                    "width": 0.67,
-                    "height": 0.99
-                  },
-                  "colors": [
-                    {
-                      "color": "#A3D47CEC",
-                      "position": 0
-                    },
-                    {
-                      "color": "#A3D47C00",
-                      "position": 1
-                    }
-                  ],
-                  "center": {
-                    "x": 0.77,
-                    "y": 0.39
-                  }
-                }
-              ],
-              "cornerRadius": 25,
+              "id": "vLcj8",
+              "x": 906,
+              "y": 357,
+              "name": "1944：循环之主 · 列表项",
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "type": "path",
-                  "id": "G856x",
-                  "x": 0,
-                  "y": 0,
-                  "name": "封面斜纹",
-                  "geometry": "M-247 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247",
-                  "viewBox": [
-                    0,
-                    0,
-                    316,
-                    247
-                  ],
-                  "width": 632,
-                  "height": 494,
-                  "stroke": "#9ED3CD25",
-                  "strokeWidth": 4.6
-                },
-                {
-                  "type": "path",
-                  "id": "MzS2M",
-                  "x": 0,
-                  "y": 0,
-                  "name": "封面同心环",
-                  "geometry": "M222.972 55.3a11.5 11.5 0 1 0 23 0 11.5 11.5 0 1 0-23 0m-11.5 0a23 23 0 1 0 46 0 23 23 0 1 0-46 0m-11.5 0a34.5 34.5 0 1 0 69 0 34.5 34.5 0 1 0-69 0m-11.5 0a46 46 0 1 0 92 0 46 46 0 1 0-92 0m-11.5 0a57.5 57.5 0 1 0 115 0 57.5 57.5 0 1 0-115 0m-11.5 0a69 69 0 1 0 138 0 69 69 0 1 0-138 0m-11.5 0a80.5 80.5 0 1 0 161 0 80.5 80.5 0 1 0-161 0m-11.5 0a92 92 0 1 0 184 0 92 92 0 1 0-184 0m-11.5 0a103.5 103.5 0 1 0 207 0 103.5 103.5 0 1 0-207 0m-11.5 0a115 115 0 1 0 230 0 115 115 0 1 0-230 0",
-                  "viewBox": [
-                    0,
-                    0,
-                    316,
-                    247
-                  ],
-                  "width": 632,
-                  "height": 494,
-                  "stroke": "#E8FFAD41",
-                  "strokeWidth": 3
+                  "id": "MXKRb",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "VCdO3",
-                  "x": 32,
-                  "y": 158.84,
-                  "name": "封面主标题",
-                  "fill": "#EBF8D9",
+                  "id": "mIzBi",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 596,
-                  "height": 126.54,
-                  "content": "METAL",
-                  "lineHeight": 1,
+                  "width": 805,
+                  "height": 54,
+                  "content": "1944：循环之主",
                   "textAlignVertical": "middle",
-                  "fontFamily": "Inter",
-                  "fontSize": 114,
-                  "fontWeight": "900",
-                  "letterSpacing": -4.218,
-                  "fontStyle": "italic"
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
                 },
                 {
                   "type": "text",
-                  "id": "RvCvO",
-                  "x": 32,
-                  "y": 252.32,
-                  "name": "封面副标题",
-                  "fill": "#EBF8D9",
+                  "id": "HwnlZ",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 596,
-                  "height": 88.92,
-                  "content": "SLUG 3",
-                  "lineHeight": 1,
+                  "width": 805,
+                  "height": 40,
+                  "content": "1944.zip",
                   "textAlignVertical": "middle",
-                  "fontFamily": "Inter",
-                  "fontSize": 70.67999999999999,
-                  "fontWeight": "900",
-                  "letterSpacing": -4.218,
-                  "fontStyle": "italic"
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
                 }
               ]
             },
             {
-              "type": "text",
-              "id": "MtiTv",
-              "x": 42,
-              "y": 530,
-              "name": "游戏标题",
-              "fill": "#E8F5F9",
-              "textGrowth": "fixed-width-height",
-              "width": 540,
-              "height": 86,
-              "content": "合金弹头 3",
-              "textAlignVertical": "middle",
-              "fontFamily": "Noto Sans SC",
-              "fontSize": 54,
-              "fontWeight": "700"
+              "type": "frame",
+              "id": "lMqJb",
+              "x": 21,
+              "y": 525,
+              "name": "龙与地下城：暗黑秘影 · 列表项",
+              "width": 873,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "ftE7N",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "M8ZPnK",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 54,
+                  "content": "龙与地下城：暗黑秘影",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "PolfF",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 40,
+                  "content": "ddsom.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
             },
             {
-              "type": "text",
-              "id": "hkzIo",
-              "x": 42,
-              "y": 604,
-              "name": "ROM 文件名",
-              "fill": "#AFC3CF",
-              "textGrowth": "fixed-width-height",
-              "width": 520,
-              "height": 60,
-              "content": "mslug3.zip",
-              "textAlignVertical": "middle",
-              "fontFamily": "Inter",
-              "fontSize": 28,
-              "fontWeight": "700"
-            },
-            {
-              "type": "path",
-              "id": "T3mZe3",
-              "x": 614,
-              "y": 590,
-              "name": "进入箭头",
-              "geometry": "M2 2l4 4-4 4",
-              "viewBox": [
-                0,
-                0,
-                8,
-                12
-              ],
-              "width": 16,
-              "height": 24,
-              "stroke": "#9FBFC7",
-              "strokeWidth": 4.8,
-              "strokeLinejoin": "round"
+              "type": "frame",
+              "id": "wcXgy",
+              "x": 906,
+              "y": 525,
+              "name": "街头霸王 III 3rd Strike · 列表项",
+              "width": 873,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "j4VWki",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "z50Ze",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 54,
+                  "content": "街头霸王 III 3rd Strike",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "S0IjL",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 40,
+                  "content": "sfiii3.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
             }
           ]
         },
@@ -3593,9 +3209,9 @@
               "name": "操作 · 翻页",
               "fill": "#C6D6E0",
               "textGrowth": "fixed-width-height",
-              "width": 76,
+              "width": 184,
               "height": 64,
-              "content": "翻页",
+              "content": "换列 / 翻页",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
               "fontSize": 30,
@@ -3606,7 +3222,7 @@
               "type": "ref",
               "ref": "JGGFc",
               "name": "Y",
-              "x": 354,
+              "x": 458,
               "y": 12,
               "width": 56,
               "height": 50,
@@ -3625,7 +3241,7 @@
             {
               "type": "text",
               "id": "PJ9oq",
-              "x": 420,
+              "x": 524,
               "y": 4,
               "name": "操作 · 字母筛选",
               "fill": "#C6D6E0",
@@ -3648,7 +3264,7 @@
               "textGrowth": "fixed-width-height",
               "width": 196,
               "height": 64,
-              "content": "1 / 42",
+              "content": "1 / 27",
               "textAlign": "right",
               "textAlignVertical": "middle",
               "fontFamily": "Inter",
@@ -3661,7 +3277,7 @@
               "type": "ref",
               "ref": "JGGFc",
               "name": "L1 / R1",
-              "x": 568,
+              "x": 672,
               "y": 12,
               "width": 106,
               "height": 50,
@@ -3680,7 +3296,7 @@
             {
               "type": "text",
               "id": "KX60x",
-              "x": 684,
+              "x": 788,
               "y": 4,
               "name": "操作 · 切换页面",
               "fill": "#C6D6E0",
@@ -4054,8 +3670,8 @@
           "id": "ZHnTk",
           "x": 60,
           "y": 208,
-          "name": "游戏列表",
-          "width": 1098,
+          "name": "游戏列表 · 2 列 × 4 行",
+          "width": 1800,
           "height": 694,
           "fill": {
             "type": "gradient",
@@ -4088,37 +3704,37 @@
           "children": [
             {
               "type": "frame",
-              "id": "U2Fra",
-              "x": 12,
-              "y": 12,
+              "id": "dOHnx",
+              "x": 21,
+              "y": 21,
               "name": "合金弹头 3 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "a2HWmg",
+                  "id": "PhnKW",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "合金弹头 3 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#0F1B2980",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "ZqYX5",
+                  "id": "V3gwrv",
                   "x": 34,
-                  "y": 6,
-                  "name": "合金弹头 3",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "合金弹头 3",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -4127,16 +3743,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "lppCq",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "t0bpBs",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "mslug3.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -4145,38 +3760,51 @@
               ]
             },
             {
+              "type": "rectangle",
+              "cornerRadius": 32.6,
+              "id": "QnH46",
+              "x": 22.4,
+              "y": 22.4,
+              "name": "手柄焦点",
+              "width": 870.2,
+              "height": 145.2,
+              "stroke": "#B6F5DF",
+              "strokeWidth": 4.6,
+              "strokeAlignment": "outer"
+            },
+            {
               "type": "frame",
-              "id": "NRYBX",
-              "x": 12,
-              "y": 147.5,
+              "id": "kcAkS",
+              "x": 906,
+              "y": 21,
               "name": "拳皇 98 · 列表项",
-              "width": 1074,
-              "height": 127.99999999999997,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "lR2R5",
+                  "id": "xV5QT",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "拳皇 98 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "gfCIL",
+                  "id": "GVW3t",
                   "x": 34,
-                  "y": 6,
-                  "name": "拳皇 98",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "拳皇 98",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -4185,16 +3813,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "xgp76",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "FfCvV",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "kof98.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -4204,37 +3831,37 @@
             },
             {
               "type": "frame",
-              "id": "GtnQI",
-              "x": 12,
-              "y": 283,
+              "id": "Lo9RD",
+              "x": 21,
+              "y": 189,
               "name": "三国战纪 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "wqqiX",
+                  "id": "ORbCu",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "三国战纪 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "a6wRty",
+                  "id": "GdRzb",
                   "x": 34,
-                  "y": 6,
-                  "name": "三国战纪",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "三国战纪",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -4243,14 +3870,30 @@
                 },
                 {
                   "type": "text",
-                  "id": "juuRo",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
-                  "fill": "#FFCC88",
+                  "id": "hejnG",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 590,
+                  "height": 40,
+                  "content": "kov.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "plxIl",
+                  "x": 640,
+                  "y": 84,
+                  "name": "启动依赖状态",
+                  "fill": "#F3CE98",
+                  "textGrowth": "fixed-width-height",
+                  "width": 199,
+                  "height": 40,
                   "content": "缺少 BIOS",
                   "textAlign": "right",
                   "textAlignVertical": "middle",
@@ -4262,37 +3905,37 @@
             },
             {
               "type": "frame",
-              "id": "fGApA",
-              "x": 12,
-              "y": 418.5,
+              "id": "ffu7B",
+              "x": 906,
+              "y": 189,
               "name": "怒首领蜂 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "lIR3i",
+                  "id": "cKlCk",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "怒首领蜂 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "p6Z6eL",
+                  "id": "kIOnx",
                   "x": 34,
-                  "y": 6,
-                  "name": "怒首领蜂",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "怒首领蜂",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -4301,16 +3944,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "BMj4J",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "L9XxUm",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "ddonpach.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -4320,37 +3962,37 @@
             },
             {
               "type": "frame",
-              "id": "r3moL",
-              "x": 12,
-              "y": 554,
+              "id": "odRKL",
+              "x": 21,
+              "y": 357,
               "name": "游戏标题较长的本地套件 · 列表项",
-              "width": 1074,
-              "height": 128,
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "id": "n4eM6O",
+                  "id": "L1Mxn",
                   "type": "ref",
                   "ref": "NM4QY",
-                  "name": "游戏标题较长的本地套件 · 行背景",
+                  "name": "行背景",
                   "x": 6,
                   "y": 6,
-                  "width": 1062,
-                  "height": 116,
+                  "width": 861,
+                  "height": 136,
                   "fill": "#101C2AB0",
                   "stroke": "#00000000",
                   "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "OTxBG",
+                  "id": "d5wObh",
                   "x": 34,
-                  "y": 6,
-                  "name": "游戏标题较长的本地套件",
+                  "y": 26,
+                  "name": "游戏名称",
                   "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 740,
-                  "height": 116,
+                  "width": 805,
+                  "height": 54,
                   "content": "游戏标题较长的本地套件",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
@@ -4359,16 +4001,15 @@
                 },
                 {
                   "type": "text",
-                  "id": "bGNcY",
-                  "x": 752,
-                  "y": 6,
-                  "name": "行尾信息",
+                  "id": "Tgy8f",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
                   "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 286,
-                  "height": 116,
+                  "width": 805,
+                  "height": 40,
                   "content": "example.zip",
-                  "textAlign": "right",
                   "textAlignVertical": "middle",
                   "fontFamily": "Noto Sans SC",
                   "fontSize": 28,
@@ -4377,240 +4018,175 @@
               ]
             },
             {
-              "type": "rectangle",
-              "cornerRadius": 32.6,
-              "id": "h6IH38",
-              "x": 13.4,
-              "y": 13.4,
-              "name": "手柄焦点",
-              "width": 1071.2,
-              "height": 125.2,
-              "stroke": "#B6F5DF",
-              "strokeWidth": 4.6,
-              "strokeAlignment": "outer"
-            }
-          ]
-        },
-        {
-          "type": "frame",
-          "id": "hjdXk",
-          "x": 1186,
-          "y": 208,
-          "name": "当前游戏预览",
-          "width": 674,
-          "height": 694,
-          "fill": {
-            "type": "gradient",
-            "gradientType": "linear",
-            "enabled": true,
-            "rotation": 226,
-            "size": {
-              "height": 1
-            },
-            "colors": [
-              {
-                "color": "#2A394BC4",
-                "position": 0
-              },
-              {
-                "color": "#172630B3",
-                "position": 1
-              }
-            ]
-          },
-          "cornerRadius": 46,
-          "stroke": "#435968",
-          "strokeWidth": 2.2,
-          "strokeAlignment": "inner",
-          "effect": {
-            "type": "background_blur",
-            "radius": 42
-          },
-          "layout": "none",
-          "children": [
-            {
               "type": "frame",
-              "id": "k1YoR",
-              "x": 21,
-              "y": 21,
-              "name": "封面 · METAL SLUG 3",
-              "clip": true,
-              "width": 632,
-              "height": 494,
-              "fill": [
-                {
-                  "type": "gradient",
-                  "gradientType": "linear",
-                  "enabled": true,
-                  "rotation": 224,
-                  "size": {
-                    "height": 1
-                  },
-                  "colors": [
-                    {
-                      "color": "#0B2227",
-                      "position": 0
-                    },
-                    {
-                      "color": "#30524B",
-                      "position": 1
-                    }
-                  ]
-                },
-                {
-                  "type": "gradient",
-                  "gradientType": "radial",
-                  "enabled": true,
-                  "rotation": 0,
-                  "size": {
-                    "width": 0.67,
-                    "height": 0.99
-                  },
-                  "colors": [
-                    {
-                      "color": "#A3D47CEC",
-                      "position": 0
-                    },
-                    {
-                      "color": "#A3D47C00",
-                      "position": 1
-                    }
-                  ],
-                  "center": {
-                    "x": 0.77,
-                    "y": 0.39
-                  }
-                }
-              ],
-              "cornerRadius": 25,
+              "id": "Jhev0",
+              "x": 906,
+              "y": 357,
+              "name": "1944：循环之主 · 列表项",
+              "width": 873,
+              "height": 148,
               "layout": "none",
               "children": [
                 {
-                  "type": "path",
-                  "id": "Fvnze",
-                  "x": 0,
-                  "y": 0,
-                  "name": "封面斜纹",
-                  "geometry": "M-247 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247m-158.77 247l224.77-247",
-                  "viewBox": [
-                    0,
-                    0,
-                    316,
-                    247
-                  ],
-                  "width": 632,
-                  "height": 494,
-                  "stroke": "#9ED3CD25",
-                  "strokeWidth": 4.6
-                },
-                {
-                  "type": "path",
-                  "id": "RDIZv",
-                  "x": 0,
-                  "y": 0,
-                  "name": "封面同心环",
-                  "geometry": "M222.972 55.3a11.5 11.5 0 1 0 23 0 11.5 11.5 0 1 0-23 0m-11.5 0a23 23 0 1 0 46 0 23 23 0 1 0-46 0m-11.5 0a34.5 34.5 0 1 0 69 0 34.5 34.5 0 1 0-69 0m-11.5 0a46 46 0 1 0 92 0 46 46 0 1 0-92 0m-11.5 0a57.5 57.5 0 1 0 115 0 57.5 57.5 0 1 0-115 0m-11.5 0a69 69 0 1 0 138 0 69 69 0 1 0-138 0m-11.5 0a80.5 80.5 0 1 0 161 0 80.5 80.5 0 1 0-161 0m-11.5 0a92 92 0 1 0 184 0 92 92 0 1 0-184 0m-11.5 0a103.5 103.5 0 1 0 207 0 103.5 103.5 0 1 0-207 0m-11.5 0a115 115 0 1 0 230 0 115 115 0 1 0-230 0",
-                  "viewBox": [
-                    0,
-                    0,
-                    316,
-                    247
-                  ],
-                  "width": 632,
-                  "height": 494,
-                  "stroke": "#E8FFAD41",
-                  "strokeWidth": 3
+                  "id": "qrsO7",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
                 },
                 {
                   "type": "text",
-                  "id": "uwsWi",
-                  "x": 32,
-                  "y": 158.84,
-                  "name": "封面主标题",
-                  "fill": "#EBF8D9",
+                  "id": "B46bJ",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
                   "textGrowth": "fixed-width-height",
-                  "width": 596,
-                  "height": 126.54,
-                  "content": "METAL",
-                  "lineHeight": 1,
+                  "width": 805,
+                  "height": 54,
+                  "content": "1944：循环之主",
                   "textAlignVertical": "middle",
-                  "fontFamily": "Inter",
-                  "fontSize": 114,
-                  "fontWeight": "900",
-                  "letterSpacing": -4.218,
-                  "fontStyle": "italic"
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
                 },
                 {
                   "type": "text",
-                  "id": "nJ9RR",
-                  "x": 32,
-                  "y": 252.32,
-                  "name": "封面副标题",
-                  "fill": "#EBF8D9",
+                  "id": "V8ftc",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
                   "textGrowth": "fixed-width-height",
-                  "width": 596,
-                  "height": 88.92,
-                  "content": "SLUG 3",
-                  "lineHeight": 1,
+                  "width": 805,
+                  "height": 40,
+                  "content": "1944.zip",
                   "textAlignVertical": "middle",
-                  "fontFamily": "Inter",
-                  "fontSize": 70.67999999999999,
-                  "fontWeight": "900",
-                  "letterSpacing": -4.218,
-                  "fontStyle": "italic"
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
                 }
               ]
             },
             {
-              "type": "text",
-              "id": "v9xEtC",
-              "x": 42,
-              "y": 530,
-              "name": "游戏标题",
-              "fill": "#E8F5F9",
-              "textGrowth": "fixed-width-height",
-              "width": 540,
-              "height": 86,
-              "content": "合金弹头 3",
-              "textAlignVertical": "middle",
-              "fontFamily": "Noto Sans SC",
-              "fontSize": 54,
-              "fontWeight": "700"
+              "type": "frame",
+              "id": "o3LiJ",
+              "x": 21,
+              "y": 525,
+              "name": "龙与地下城：暗黑秘影 · 列表项",
+              "width": 873,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "p2gxDy",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "aIJFq",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 54,
+                  "content": "龙与地下城：暗黑秘影",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "JhN00",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 40,
+                  "content": "ddsom.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
             },
             {
-              "type": "text",
-              "id": "dGKqb",
-              "x": 42,
-              "y": 604,
-              "name": "ROM 文件名",
-              "fill": "#AFC3CF",
-              "textGrowth": "fixed-width-height",
-              "width": 520,
-              "height": 60,
-              "content": "mslug3.zip",
-              "textAlignVertical": "middle",
-              "fontFamily": "Inter",
-              "fontSize": 28,
-              "fontWeight": "700"
-            },
-            {
-              "type": "path",
-              "id": "SQ773",
-              "x": 614,
-              "y": 590,
-              "name": "进入箭头",
-              "geometry": "M2 2l4 4-4 4",
-              "viewBox": [
-                0,
-                0,
-                8,
-                12
-              ],
-              "width": 16,
-              "height": 24,
-              "stroke": "#9FBFC7",
-              "strokeWidth": 4.8,
-              "strokeLinejoin": "round"
+              "type": "frame",
+              "id": "SxtLv",
+              "x": 906,
+              "y": 525,
+              "name": "街头霸王 III 3rd Strike · 列表项",
+              "width": 873,
+              "height": 148,
+              "layout": "none",
+              "children": [
+                {
+                  "id": "R9hCyx",
+                  "type": "ref",
+                  "ref": "NM4QY",
+                  "name": "行背景",
+                  "x": 6,
+                  "y": 6,
+                  "width": 861,
+                  "height": 136,
+                  "fill": "#101C2AB0",
+                  "stroke": "#00000000",
+                  "strokeWidth": 0
+                },
+                {
+                  "type": "text",
+                  "id": "vHfTD",
+                  "x": 34,
+                  "y": 26,
+                  "name": "游戏名称",
+                  "fill": "#E8F5F9",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 54,
+                  "content": "街头霸王 III 3rd Strike",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 38,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "text",
+                  "id": "t2upq",
+                  "x": 34,
+                  "y": 84,
+                  "name": "ROM 文件名",
+                  "fill": "#AFC3CF",
+                  "textGrowth": "fixed-width-height",
+                  "width": 805,
+                  "height": 40,
+                  "content": "sfiii3.zip",
+                  "textAlignVertical": "middle",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 28,
+                  "fontWeight": "700"
+                }
+              ]
             }
           ]
         },
@@ -4691,9 +4267,9 @@
               "name": "操作 · 翻页",
               "fill": "#C6D6E0",
               "textGrowth": "fixed-width-height",
-              "width": 76,
+              "width": 184,
               "height": 64,
-              "content": "翻页",
+              "content": "换列 / 翻页",
               "textAlignVertical": "middle",
               "fontFamily": "Noto Sans SC",
               "fontSize": 30,
@@ -4704,7 +4280,7 @@
               "type": "ref",
               "ref": "JGGFc",
               "name": "Y",
-              "x": 354,
+              "x": 458,
               "y": 12,
               "width": 56,
               "height": 50,
@@ -4723,7 +4299,7 @@
             {
               "type": "text",
               "id": "EVoeI",
-              "x": 420,
+              "x": 524,
               "y": 4,
               "name": "操作 · 字母筛选",
               "fill": "#C6D6E0",
@@ -4746,7 +4322,7 @@
               "textGrowth": "fixed-width-height",
               "width": 196,
               "height": 64,
-              "content": "1 / 42",
+              "content": "1 / 27",
               "textAlign": "right",
               "textAlignVertical": "middle",
               "fontFamily": "Inter",
@@ -4759,7 +4335,7 @@
               "type": "ref",
               "ref": "JGGFc",
               "name": "L1 / R1",
-              "x": 568,
+              "x": 672,
               "y": 12,
               "width": 106,
               "height": 50,
@@ -4778,7 +4354,7 @@
             {
               "type": "text",
               "id": "v8oU8",
-              "x": 684,
+              "x": 788,
               "y": 4,
               "name": "操作 · 切换页面",
               "fill": "#C6D6E0",
