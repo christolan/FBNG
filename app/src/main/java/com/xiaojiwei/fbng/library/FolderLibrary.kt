@@ -36,7 +36,6 @@ internal data class LibraryRefresh(
 internal data class PreparedGame(
     val rom: File,
     val systemDir: File,
-    val savesDir: File,
     val stateDir: File,
 )
 
@@ -151,7 +150,6 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
             return PreparedGame(
                 rom = File(directory, storage.archive(game.name, isBios = false).name),
                 systemDir = storage.systemDir,
-                savesDir = storage.savesDir,
                 stateDir = storage.stateDir(game.name),
             )
         } catch (error: Exception) {

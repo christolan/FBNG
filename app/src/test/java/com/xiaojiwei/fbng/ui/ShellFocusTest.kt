@@ -20,7 +20,9 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -62,9 +64,9 @@ class ShellFocusTest {
     @get:Rule
     val rule = createComposeRule()
 
-    private fun awaitGamePage() {
+    private fun awaitGamePage(tag: String = "progress-slot-1") {
         rule.waitUntil(5_000) {
-            runCatching { rule.onNodeWithTag(ShellTags.Play).assertIsFocused(); true }.getOrDefault(false)
+            runCatching { rule.onNodeWithTag(tag).assertIsFocused(); true }.getOrDefault(false)
         }
     }
 
@@ -95,7 +97,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         assertEquals("mslug", played)
     }
 
@@ -156,7 +158,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         assertEquals("mslug", played)
     }
 
@@ -179,7 +181,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
     }
 
@@ -235,12 +237,11 @@ class ShellFocusTest {
         rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
         assertEquals(first, card(6).getUnclippedBoundsInRoot())
         card(6).assertIsFocused().performKeyInput { pressKey(Key.DirectionLeft) }
-        card(1).assertIsFocused()
-        rule.onNodeWithTag(ShellTags.NextPage).performTouchInput { click() }
+        card(1).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         card(6).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle { assertTrue(!inGame) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
         rule.runOnIdle {
             assertTrue(inGame)
             recentNames = listOf("game6") + recentNames.dropLast(1)
@@ -316,8 +317,8 @@ class ShellFocusTest {
         val secondBounds = rule.onNodeWithTag(ShellTags.game(games[1].name)).getUnclippedBoundsInRoot()
         assertEquals(firstBounds.right - firstBounds.left, secondBounds.right - secondBounds.left)
         assertTrue(kotlin.math.abs((firstBounds.bottom - firstBounds.top - (secondBounds.bottom - secondBounds.top)).value) <= 1f)
-        val nextPage = rule.onNodeWithTag(ShellTags.NextPage).getUnclippedBoundsInRoot()
-        assertTrue(nextPage.top > firstBounds.bottom)
+        val pageIndicator = rule.onNodeWithContentDescription("第 1 / 3 页").assertHasNoClickAction()
+        assertTrue(pageIndicator.getUnclippedBoundsInRoot().top > firstBounds.bottom)
         rule.onNodeWithTag(ShellTags.JumpToLetter).assertIsDisplayed()
         rule.onNodeWithTag(ShellTags.LibraryFilter).assertIsDisplayed()
         fun card(index: Int) = rule.onNodeWithTag(ShellTags.game(games[index].name))
@@ -326,12 +327,12 @@ class ShellFocusTest {
         card(3).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         card(0).assertDoesNotExist()
         card(10).assertIsFocused().performKeyInput { pressKey(Key.DirectionLeft) }
-        card(3).assertIsFocused()
-        repeat(2) {
-            rule.onNodeWithTag(ShellTags.NextPage).requestFocus().performKeyInput { pressKey(Key.ButtonA) }
-        }
+        card(3).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+        card(10).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
+        card(11).assertIsFocused().performKeyInput { pressKey(Key.DirectionRight) }
         card(18).assertIsFocused()
         assertEquals(firstBounds, card(16).getUnclippedBoundsInRoot())
+        rule.onNodeWithContentDescription("第 3 / 3 页").assertHasNoClickAction()
         card(18).performKeyInput { pressKey(Key.DirectionLeft) }
         val restoredRow = card(11).assertIsFocused()
         assertEquals(titleBounds, title.getUnclippedBoundsInRoot())
@@ -388,7 +389,7 @@ class ShellFocusTest {
         target.performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
         rule.onNodeWithText("${games[8].name}.zip").assertIsDisplayed()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
         target.assertIsFocused().assertIsDisplayed()
         rule.runOnIdle { height = 480.dp }
         rule.onNodeWithContentDescription("第 2 / 2 页").assertIsDisplayed()
@@ -621,7 +622,12 @@ class ShellFocusTest {
                 }
             }
         }
-        rule.onNodeWithTag(ShellTags.NavLibrary).requestFocus()
+        rule.onNodeWithTag(ShellTags.game("galaga")).assertIsFocused()
+            .performKeyInput { pressKey(Key.DirectionUp) }
+        for (tag in listOf(ShellTags.NavFavorites, ShellTags.NavRecent, ShellTags.NavLibrary, ShellTags.NavSettings)) {
+            rule.onNode(hasTestTag(tag) and isFocused()).assertDoesNotExist()
+        }
+        rule.onNodeWithTag(ShellTags.JumpToLetter).requestFocus()
             .assertIsFocused().performKeyInput { pressKey(Key.ButtonY) }
         rule.onNodeWithTag(ShellTags.letter('A')).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonB) }
@@ -667,8 +673,8 @@ class ShellFocusTest {
         }
         rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonA) }
-        awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+        awaitGamePage("progress-manage-folders")
+        rule.onNodeWithTag("progress-manage-folders").assertIsFocused()
             .performKeyInput { pressKey(Key.ButtonB) }
         rule.onNodeWithTag(ShellTags.recent("galaga")).assertIsFocused()
 
@@ -676,7 +682,7 @@ class ShellFocusTest {
         rule.onNodeWithTag(ShellTags.game("mslug")).requestFocus()
             .performKeyInput { pressKey(Key.ButtonA) }
         awaitGamePage()
-        rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused()
         rule.runOnIdle { returnFromGame = "mslug" }
         rule.onNodeWithTag(ShellTags.game("mslug")).assertIsFocused()
     }

@@ -44,7 +44,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -88,7 +87,6 @@ private enum class LibraryPicker { Letters, Status }
 
 private enum class SettingsCategory(val label: Int, val tag: String) {
     Import(R.string.shell_import, ShellTags.OpenImport),
-    Covers(R.string.covers_title, "settings-covers"),
     Sync(R.string.shell_sync, ShellTags.OpenSync),
     About(R.string.settings_about, "settings-about"),
 }
@@ -112,7 +110,7 @@ internal fun LibraryContent(
     recentNames: List<String> = emptyList(),
     recentTimes: Map<String, Long> = emptyMap(),
     onToggleFavorite: (String) -> Unit = {},
-    covers: CoverUiState? = null,
+    previews: Map<String, GamePreviewArtwork> = emptyMap(),
     appUpdate: UpdateUiState? = null,
     returnFromGame: String? = null,
     onReturnRestored: () -> Unit = {},
@@ -161,7 +159,7 @@ internal fun LibraryContent(
                 recentNames = recentNames,
                 recentTimes = recentTimes,
                 onToggleFavorite = onToggleFavorite,
-                covers = covers,
+                previews = previews,
                 appUpdate = appUpdate,
                 returnFromGame = returnFromGame,
                 onReturnRestored = onReturnRestored,
@@ -188,7 +186,7 @@ private fun LibraryShell(
     recentNames: List<String>,
     recentTimes: Map<String, Long>,
     onToggleFavorite: (String) -> Unit,
-    covers: CoverUiState?,
+    previews: Map<String, GamePreviewArtwork>,
     appUpdate: UpdateUiState?,
     returnFromGame: String?,
     onReturnRestored: () -> Unit,
@@ -199,7 +197,8 @@ private fun LibraryShell(
     val gamepad = LocalGamepadInput.current
     var sectionName by rememberSaveable { mutableStateOf(initialSection.name) }
     var settingsOrigin by rememberSaveable { mutableStateOf(ShellSection.Favorites) }
-    var settingsCategory by rememberSaveable { mutableStateOf(SettingsCategory.Import) }
+    var settingsName by rememberSaveable { mutableStateOf(SettingsCategory.Import.name) }
+    val settingsCategory = SettingsCategory.entries.firstOrNull { it.name == settingsName } ?: SettingsCategory.Import
     var savedFocus by rememberSaveable { mutableStateOf("") }
     var libraryFocus by rememberSaveable { mutableStateOf("") }
     var favoritesFocus by rememberSaveable { mutableStateOf("") }
@@ -207,7 +206,6 @@ private fun LibraryShell(
     var favoritesIndex by rememberSaveable { mutableStateOf(0) }
     var recentIndex by rememberSaveable { mutableStateOf(0) }
     var pickerReturnFocus by rememberSaveable { mutableStateOf("") }
-    var navFocus by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedName by rememberSaveable { mutableStateOf<String?>(null) }
     var detailName by rememberSaveable { mutableStateOf<String?>(null) }
     var importOrigin by rememberSaveable { mutableStateOf<ShellSection?>(null) }
@@ -230,8 +228,6 @@ private fun LibraryShell(
             ShellTags.ClearFilters,
             ShellTags.ShowAllStatuses,
             ShellTags.LibraryFilter,
-            ShellTags.PreviousPage,
-            ShellTags.NextPage,
             ShellTags.AddFolder,
             ShellTags.ScanFolders,
             ShellTags.OpenImport,
@@ -239,13 +235,6 @@ private fun LibraryShell(
             ShellTags.SettingsInfo,
             ShellTags.SettingsCore,
             ShellTags.AppUpdate,
-            ShellTags.FetchCovers,
-            ShellTags.RefreshCovers,
-            ShellTags.ClearCovers,
-            ShellTags.NavFavorites,
-            ShellTags.NavRecent,
-            ShellTags.NavLibrary,
-            ShellTags.NavSettings,
         ).plus(SettingsCategory.entries.map { it.tag })
             .associateWith { FocusRequester() }
     }
@@ -254,7 +243,6 @@ private fun LibraryShell(
         key(tag) { remember { FocusRequester() } }
     }
     fun focusSaved(id: String) {
-        navFocus = null
         when (section) {
             ShellSection.Library -> libraryFocus = id
             ShellSection.Favorites -> favoritesFocus = id
@@ -275,7 +263,6 @@ private fun LibraryShell(
 
     fun restoreFocus(id: String) {
         restoreTarget = id
-        navFocus = null
         focusRequest++
     }
 
@@ -398,7 +385,6 @@ private fun LibraryShell(
             picker = null
             if (showResults) {
                 restoreTarget = null
-                navFocus = null
                 focusRequest++
             } else restoreFocus(libraryFocus)
         }
@@ -433,7 +419,6 @@ private fun LibraryShell(
             if (destination == section) return
             if (pickerOpen) closePicker()
             if (destination == ShellSection.Settings && (showShelf || section == ShellSection.Library)) settingsOrigin = section
-            navFocus = null
             savedFocus = when {
                 destination == ShellSection.Settings && section == ShellSection.Import -> ShellTags.OpenImport
                 destination == ShellSection.Settings && section == ShellSection.Sync -> ShellTags.OpenSync
@@ -464,7 +449,7 @@ private fun LibraryShell(
         fun back() {
             when {
                 pickerOpen -> closePicker()
-                section == ShellSection.Import && navFocus == null && savedFocus.isNotEmpty() && savedFocus != SettingsCategory.Import.tag -> {
+                section == ShellSection.Import && savedFocus.isNotEmpty() && savedFocus != SettingsCategory.Import.tag -> {
                     savedFocus = SettingsCategory.Import.tag
                     restoreFocus(SettingsCategory.Import.tag)
                 }
@@ -474,7 +459,7 @@ private fun LibraryShell(
                     openSection(origin)
                     if (detailName == null) restoreFocus(ShellTags.EmptyImport)
                 }
-                section == ShellSection.Settings && navFocus == null && savedFocus.isNotEmpty() && savedFocus != settingsCategory.tag -> {
+                section == ShellSection.Settings && savedFocus.isNotEmpty() && savedFocus != settingsCategory.tag -> {
                     savedFocus = settingsCategory.tag
                     restoreFocus(settingsCategory.tag)
                 }
@@ -487,7 +472,7 @@ private fun LibraryShell(
             key(detail.game.name) {
                 GameLaunchPage(
                     entry = detail,
-                    cover = covers?.images?.get(detail.game.name),
+                    preview = previews[detail.game.name] ?: GamePreviewArtwork(),
                     fold = fold,
                     favorite = detail.game.name in favoriteNames,
                     busy = playBusy || returnFromGame != null,
@@ -505,12 +490,6 @@ private fun LibraryShell(
         }
 
         BackHandler(enabled = section != ShellSection.Favorites, onBack = ::back)
-        val tabTag = when (section) {
-            ShellSection.Favorites -> ShellTags.NavFavorites
-            ShellSection.Recent -> ShellTags.NavRecent
-            ShellSection.Library -> ShellTags.NavLibrary
-            ShellSection.Settings, ShellSection.Import, ShellSection.Sync -> ShellTags.NavSettings
-        }
         val libraryFocusBusy = section == ShellSection.Library && playBusy
         val importBusy = busy && (section == ShellSection.Import ||
             (section == ShellSection.Settings && settingsCategory == SettingsCategory.Import))
@@ -536,7 +515,7 @@ private fun LibraryShell(
                     }
                 }
                 restoreTarget = null
-            } else if (navFocus?.let(::request) == true) return@LaunchedEffect
+            }
             val preferred = when (section) {
                 ShellSection.Favorites, ShellSection.Recent -> listOf(
                     shelfCards.getOrNull(shelfIndex) ?: ShellTags.OpenLibrary,
@@ -566,10 +545,9 @@ private fun LibraryShell(
                 if (targets.any(::request)) return@LaunchedEffect
                 withFrameNanos { }
             }
-            request(tabTag)
         }
         Box(Modifier.fillMaxSize().onPreviewKeyEvent { event ->
-            if (pickerOpen || navFocus != null) return@onPreviewKeyEvent false
+            if (pickerOpen) return@onPreviewKeyEvent false
             val down = event.type == KeyEventType.KeyDown
             val index = if (section == ShellSection.Library && focusedGameName != null) {
                 pageEntries.indexOfFirst { it.game.name == focusedGameName }
@@ -643,8 +621,8 @@ private fun LibraryShell(
                         } else {
                             val directory = storage.stateDir(name)
                             if (!directory.isDirectory) null else runCatching {
-                                GameProgressStore(directory).slotWithProgress()
-                                    ?.let { context.getString(R.string.shelf_has_progress, it) }
+                                GameProgressStore(directory).currentSave()
+                                    ?.let { context.getString(R.string.shelf_has_progress, it.id) }
                             }.getOrNull()
                         }
                         caption?.let { name to it }
@@ -652,7 +630,7 @@ private fun LibraryShell(
                 }
             }
             val navigation: @Composable () -> Unit = {
-                ShellTabs(section, requesters, { if (it != section.topLevelTab) openSection(it) }, { navFocus = it },
+                ShellTabs(section, { if (it != section.topLevelTab) openSection(it) },
                     appUpdate?.state is UpdateState.Available)
             }
             Box(if (pickerOpen) Modifier.semantics { hideFromAccessibility() } else Modifier) {
@@ -661,13 +639,12 @@ private fun LibraryShell(
                         entries = shelfPageEntries,
                         hasSavedGames = if (recent) recentNames.isNotEmpty() else favoriteNames.isNotEmpty(),
                         recent = recent,
-                        covers = covers,
+                        previewArtwork = previews,
                         scanning = workMessage == R.string.folder_scanning && busy,
                         margin = margin,
                         pageIndex = shelfPage,
                         selectedTag = shelfCards.getOrNull(shelfIndex),
                         pages = shelfPages,
-                        onPage = ::changeShelfPage,
                         cardRequesters = cardRequesters,
                         requesters = requesters,
                         navigation = navigation,
@@ -702,7 +679,6 @@ private fun LibraryShell(
                             libraryPage = anchor / (LibraryColumns * rows)
                             libraryRows = rows
                         },
-                        onPage = ::changePage,
                         cardRequesters = cardRequesters,
                         navigation = navigation,
                         scanning = workMessage == R.string.folder_scanning && busy,
@@ -712,7 +688,6 @@ private fun LibraryShell(
                         onSelected = { selectedName = it },
                         onDetails = { name ->
                             if (pickerOpen) closePicker()
-                            navFocus = null
                             selectedName = name
                             libraryFocus = ShellTags.game(name)
                             detailName = name
@@ -737,7 +712,6 @@ private fun LibraryShell(
                             libraryPage = 0
                             selectedName = null
                             libraryFocus = ""
-                            navFocus = null
                             focusRequest++
                         },
                         query = searchQuery,
@@ -752,10 +726,10 @@ private fun LibraryShell(
                             },
                             onCategory = { next ->
                                 if (directImport && next != SettingsCategory.Import) openSection(ShellSection.Settings)
-                                settingsCategory = next
+                                settingsName = next.name
                             },
                             busy = busy, folders = folders, folderError = folderError, workMessage = workMessage,
-                            folderActions = folderActions, covers = covers, appUpdate = appUpdate,
+                            folderActions = folderActions, appUpdate = appUpdate,
                             margin = margin, requesters = requesters,
                             navigation = navigation, onFocused = ::focusSaved,
                             request = { restoreFocus(it) },
@@ -788,7 +762,6 @@ private fun SettingsPage(
     folderError: Int?,
     workMessage: Int,
     folderActions: FolderActions,
-    covers: CoverUiState?,
     appUpdate: UpdateUiState?,
     margin: Dp,
     requesters: Map<String, FocusRequester>,
@@ -797,34 +770,15 @@ private fun SettingsPage(
     request: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
-    var clearCovers by remember { mutableStateOf(false) }
     var pendingRemoval by remember { mutableStateOf<FolderScan?>(null) }
     fun contentEntry(item: SettingsCategory): String? = when (item) {
         SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
-        SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
         SettingsCategory.Sync -> null
         SettingsCategory.About -> if (appUpdate == null) ShellTags.SettingsInfo else ShellTags.AppUpdate
     }
-    if (clearCovers && covers != null) {
-        fun dismiss() {
-            clearCovers = false
-            request(ShellTags.ClearCovers)
-        }
-        GameConfirmationDialog(
-            title = stringResource(R.string.covers_clear_title),
-            body = stringResource(R.string.covers_clear_body),
-            actionLabel = stringResource(R.string.covers_clear),
-            onConfirm = {
-                clearCovers = false
-                request(ShellTags.FetchCovers)
-                covers.clear()
-            },
-            onDismiss = ::dismiss,
-        )
-    }
     ShellPage(
         title = "",
-        modalOpen = pendingRemoval != null || clearCovers,
+        modalOpen = pendingRemoval != null,
         margin = margin,
         leadingAction = navigation,
         footer = {
@@ -852,9 +806,6 @@ private fun SettingsPage(
                                     true
                                 }
                             }
-                            .focusProperties {
-                                if (item == SettingsCategory.Import) up = requesters.getValue(ShellTags.NavSettings)
-                            }
                             .libraryFocus(item.tag, requesters.getValue(item.tag)) {
                                 onCategory(item)
                                 onFocused(it)
@@ -873,6 +824,7 @@ private fun SettingsPage(
                         if (contentEntry(item) != null) Text("›", color = scheme.secondary)
                     }
                 }
+                Spacer(Modifier.weight(1f))
             }
             val contentInset = if (category == SettingsCategory.About) {
                 Modifier.clip(FbngShapes.Island).padding(horizontal = FbngDimens.panelInset)
@@ -888,7 +840,6 @@ private fun SettingsPage(
                         folders, busy, workMessage, folderError, requesters, onFocused, folderActions,
                         onRemove = { pendingRemoval = it },
                     )
-                    SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) { clearCovers = true } }
                     SettingsCategory.Sync -> Text(
                         stringResource(R.string.sync_body), Modifier.padding(FbngDimens.space16),
                         style = MaterialTheme.typography.bodyLarge,

@@ -109,8 +109,6 @@ dependencies {
     implementation(libs.window)
     implementation(libs.coroutines.android)
     implementation(libs.core.ktx)
-    implementation(libs.work.runtime)
-    implementation(libs.coil.compose)
     implementation(libs.commons.compress)
     implementation(libs.libretrodroid)
     debugImplementation(libs.compose.ui.tooling)
@@ -134,8 +132,8 @@ android {
         applicationId = "com.xiaojiwei.fbng"
         minSdk = 33
         targetSdk = 36
-        versionCode = 29
-        versionName = "0.10.3"
+        versionCode = 30
+        versionName = "0.11.0"
         ndk {
             abiFilters += "arm64-v8a"
         }

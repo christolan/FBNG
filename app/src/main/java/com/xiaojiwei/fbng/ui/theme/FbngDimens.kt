@@ -31,7 +31,7 @@ internal object FbngDimens {
     val libraryLetterFilterWidth = space48 + space32
     val libraryStatusFilterWidth = space48 + space32
     val libraryToolbarBreakpoint = space48 * 13
-    const val coverAspectRatio = 4f / 3f
+    const val gamePreviewAspectRatio = 4f / 3f
 
     val libraryPickerWidth = space48 * 9
 }

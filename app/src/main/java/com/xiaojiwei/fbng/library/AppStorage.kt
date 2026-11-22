@@ -6,7 +6,6 @@ class AppStorage(val root: File) {
     val romsDir = File(root, "roms")
     val systemDir = File(root, "system")
     val systemFbneoDir = File(systemDir, "fbneo")
-    val savesDir = File(root, "saves")
     val cacheDir = File(root, "cache")
     internal val playDir = File(cacheDir, "play")
 
@@ -16,7 +15,7 @@ class AppStorage(val root: File) {
         File(if (isBios) systemFbneoDir else romsDir, "${checkedName(setName)}.zip")
 
     fun ensure() {
-        listOf(romsDir, systemFbneoDir, savesDir, cacheDir).forEach { it.mkdirs() }
+        listOf(romsDir, systemFbneoDir, cacheDir).forEach { it.mkdirs() }
     }
 
     fun sourceName(setName: String, isBios: Boolean): String = runCatching {

@@ -22,6 +22,6 @@ LibretroDroid 0.13.2 的 Java 接口没有暴露拟合比例。截图探针通�
 
 ## 资源与许可
 
-配套 DAT、简体中文游戏名、中文名数据的许可和封面索引位于 [FBNeo assets](../app/src/main/assets/fbneo/)。ROM 和 BIOS 由用户自行提供，仓库和 APK 都不包含这些 ZIP。
+配套 DAT、简体中文游戏名和中文名数据的许可位于 [FBNeo assets](../app/src/main/assets/fbneo/)。ROM 和 BIOS 由用户自行提供，仓库和 APK 都不包含这些 ZIP。
 
 FBNG 供个人使用，不收费、不接受捐赠、不发布到应用商店。仓库保留 [FBNeo 许可全文](../third_party/FBNeo/license.txt)。LibretroDroid 使用 GPLv3。[LibretroDroid 项目](https://github.com/Swordfish90/LibretroDroid)

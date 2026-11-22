@@ -2,12 +2,12 @@ package com.xiaojiwei.fbng.game
 
 import android.graphics.Bitmap
 import android.graphics.Rect
+import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.PixelCopy
 import android.view.Surface
-import android.view.SurfaceView
 import androidx.annotation.MainThread
 import androidx.core.graphics.createBitmap
 import java.io.ByteArrayOutputStream
@@ -19,12 +19,14 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
 internal object GameCover {
-    data class Source(val surface: Surface, val bounds: Rect)
+    private data class Source(val surface: Surface, val bounds: Rect)
 
+    private const val TAG = "FBNG"
+    private const val CAPTURE_TIMEOUT_MS = 400L
     private val handler by lazy { Handler(HandlerThread("game-cover").apply { start() }.looper) }
 
     @MainThread
-    fun source(view: SurfaceView): Source? {
+    private fun source(view: GLSurfaceView): Source? {
         if (!view.holder.surface.isValid || view.width <= 0 || view.height <= 0) return null
         val width = view.width
         val height = view.height
@@ -36,23 +38,31 @@ internal object GameCover {
         return Source(view.holder.surface, Rect(left, top, left + gameWidth, top + gameHeight))
     }
 
-    suspend fun capturePreview(source: Source): ByteArray? = withTimeoutOrNull(200L) {
+    @MainThread
+    suspend fun captureLastFrame(view: GLSurfaceView): ByteArray? = withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
         suspendCancellableCoroutine { continuation ->
-            handler.post {
-                if (continuation.isActive) request(source) { continuation.resume(it) }
-            }
+            requestAfterRender(view) { continuation.resume(it) }
         }
     }
 
-    fun capture(source: Source?): ByteArray? {
-        if (source == null) return null
+    @MainThread
+    fun captureLastFrameBlocking(view: GLSurfaceView): ByteArray? {
         val done = CountDownLatch(1)
         var result: ByteArray? = null
-        request(source) {
+        requestAfterRender(view) {
             result = it
             done.countDown()
         }
-        return if (done.await(1, TimeUnit.SECONDS)) result else null
+        return if (done.await(CAPTURE_TIMEOUT_MS, TimeUnit.MILLISECONDS)) result else null
+    }
+
+    private fun requestAfterRender(view: GLSurfaceView, onComplete: (ByteArray?) -> Unit) {
+        val source = source(view)
+        if (source == null) {
+            onComplete(null)
+            return
+        }
+        view.queueEvent { handler.post { request(source, onComplete) } }
     }
 
     private fun request(source: Source, onComplete: (ByteArray?) -> Unit) {
@@ -62,13 +72,16 @@ internal object GameCover {
         try {
             PixelCopy.request(source.surface, source.bounds, bitmap, { status ->
                 val result = try {
-                    if (status != PixelCopy.SUCCESS) null else {
+                    if (status != PixelCopy.SUCCESS) {
+                        Log.w(TAG, "Could not copy game frame: PixelCopy status $status")
+                        null
+                    } else {
                         ByteArrayOutputStream().use { out ->
                             if (bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)) out.toByteArray() else null
                         }
                     }
                 } catch (error: RuntimeException) {
-                    Log.w("FBNG", "Could not encode save preview", error)
+                    Log.w(TAG, "Could not encode save preview", error)
                     null
                 } finally {
                     bitmap.recycle()
@@ -77,7 +90,7 @@ internal object GameCover {
             }, handler)
         } catch (error: RuntimeException) {
             bitmap.recycle()
-            Log.w("FBNG", "Could not capture save preview", error)
+            Log.w(TAG, "Could not capture save preview", error)
             onComplete(null)
         }
     }

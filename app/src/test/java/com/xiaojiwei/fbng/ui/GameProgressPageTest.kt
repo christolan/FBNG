@@ -5,6 +5,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
@@ -14,11 +15,12 @@ import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.test.requestFocus
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.xiaojiwei.fbng.game.SaveStateStore
@@ -29,7 +31,6 @@ import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.LibraryGame
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import java.io.File
-import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -51,35 +52,39 @@ class GameProgressPageTest {
     val folder = TemporaryFolder()
 
     @Test
-    fun launchPageStartsOnlyAfterConfirmingTheSelectedFixedSlot() {
+    fun launchPageStartsDirectlyFromTheFocusedOrTappedSlot() {
         val game = LibraryGame("slot_test", "Slot test")
         val context = ApplicationProvider.getApplicationContext<Context>()
         val stateDir = AppStorage(context.filesDir).stateDir(game.name)
         val store = SaveStateStore(stateDir)
         store.write(byteArrayOf(1), coreCommit = "core")
-        store.createManualSlot(byteArrayOf(2), coreCommit = "core")
+        GameProgressStore(stateDir).saveSlot(2, SavedSlot(byteArrayOf(2), "core", 1), null)
         val launches = mutableListOf<Int?>()
         try {
             rule.setContent {
                 FbngTheme {
                     GameLaunchPage(
                         entry = LibraryEntry(game, game.description, 'S'),
-                        cover = null, fold = null, favorite = false,
+                        preview = GamePreviewArtwork(), fold = null, favorite = false,
                         busy = false, launchError = false,
                         onPlay = { launches.add(it) },
                         onToggleFavorite = {}, onConfigureFolders = {}, onBack = {},
                     )
                 }
             }
-            rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("progress-slot-3")).fetchSemanticsNodes().size == 1 }
-            rule.onNodeWithTag(ShellTags.Play).assertIsFocused()
-            rule.onNodeWithTag("progress-slot-3").performClick()
+            awaitFocus("progress-slot-1")
+            rule.onNodeWithTag("progress-slot-1").performKeyInput { pressKey(Key.DirectionDown) }
+            awaitFocus("progress-slot-2")
+            rule.onNodeWithTag("delete-progress-slot-2").assertDoesNotExist()
+            rule.onNodeWithTag("progress-slot-2").performKeyInput { pressKey(Key.ButtonX) }
+            rule.onNode(hasText("取消") and hasClickAction() and hasAnyAncestor(isDialog()))
+                .assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+            awaitFocus("progress-slot-2")
             rule.runOnIdle { assertTrue(launches.isEmpty()) }
-            rule.onNodeWithTag(ShellTags.Play).performClick()
-            rule.runOnIdle { assertEquals(listOf<Int?>(3), launches) }
-            rule.onNodeWithTag("progress-slot-1").performClick()
-            rule.onNodeWithTag(ShellTags.Play).performClick()
-            rule.runOnIdle { assertEquals(listOf<Int?>(3, 1), launches) }
+            rule.onNodeWithTag("progress-slot-2").performKeyInput { pressKey(Key.ButtonA) }
+            rule.runOnIdle { assertEquals(listOf<Int?>(2), launches) }
+            rule.onNodeWithTag("progress-slot-4").performClick()
+            rule.runOnIdle { assertEquals(listOf<Int?>(2, 4), launches) }
         } finally {
             stateDir.deleteRecursively()
         }
@@ -95,21 +100,32 @@ class GameProgressPageTest {
         rule.setContent {
             FbngTheme {
                 GameProgressPage(
-                    LibraryEntry(game, game.description, 'L'), null, null, false, store,
+                    LibraryEntry(game, game.description, 'L'), GamePreviewArtwork(), null, false, store,
                     busy = false, ready = true, message = "", onPrimary = { launchedSlot = it },
                     onToggleFavorite = {}, onBack = {},
                 )
             }
         }
-        rule.onNodeWithTag("snapshots-tab").performClick()
+        rule.onNodeWithTag("snapshots-tab").performTouchInput { click() }
         rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithTag(ShellTags.Play).assertIsEnabled().performClick()
+        rule.onNodeWithTag("retry-snapshots").performKeyInput { pressKey(Key.ButtonL1) }
+        awaitFocus("progress-slot-1")
+        rule.onNodeWithTag("progress-slot-1").assertIsEnabled().performClick()
         rule.runOnIdle { assertEquals(1, launchedSlot) }
+        rule.onNodeWithTag("progress-slot-1").assertIsFocused().performKeyInput { pressKey(Key.ButtonR1) }
+        rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
         File(directory, "snapshots").delete()
         rule.onNodeWithTag("retry-snapshots").performClick()
         rule.waitUntil(5_000) {
-            rule.onAllNodes(hasText("还没有快照。游玩时暂停即可生成。")).fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodes(hasText("还没有快照")).fetchSemanticsNodes().isNotEmpty()
         }
+        awaitFocus(ShellTags.ToggleFavorite)
+        rule.onNodeWithTag("snapshots-tab").assertIsSelected()
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).performKeyInput { pressKey(Key.DirectionLeft) }
+        rule.onNode(isFocused() and (hasTestTag("slots-tab") or hasTestTag("snapshots-tab") or hasTestTag(ShellTags.DetailBack)))
+            .assertDoesNotExist()
+        rule.onNodeWithTag(ShellTags.ToggleFavorite).assertIsFocused().performKeyInput { pressKey(Key.ButtonL1) }
+        awaitFocus("progress-slot-1")
     }
 
     @Test
@@ -120,14 +136,14 @@ class GameProgressPageTest {
         rule.setContent {
             FbngTheme {
                 GameProgressPage(
-                    LibraryEntry(game, game.description, 'P'), null, null, false, store,
+                    LibraryEntry(game, game.description, 'P'), GamePreviewArtwork(), null, false, store,
                     busy = false, ready = true, message = "", onPrimary = { resumedSlot = it },
-                    onToggleFavorite = {}, onBack = {}, activeSlot = 2,
+                    onToggleFavorite = {}, onBack = { resumedSlot = 2 }, activeSlot = 2,
                 )
             }
         }
         rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-slots")).fetchSemanticsNodes().isNotEmpty() }
-        val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsFocused().assertIsEnabled()
+        val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsEnabled()
         val resumeBounds = resume.getUnclippedBoundsInRoot()
         rule.onNodeWithTag("snapshots-tab").performClick()
         rule.waitUntil(5_000) { rule.onAllNodes(hasTestTag("retry-snapshots")).fetchSemanticsNodes().isNotEmpty() }
@@ -138,7 +154,7 @@ class GameProgressPageTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w540dp-h320dp-land-mdpi")
-    fun pauseKeepsPrimaryAndSnapshotActionsVisibleAndRestoresCardFocus() {
+    fun pauseScrollsSnapshotRowsAndRestoresFocusAfterSnapshotActions() {
         val directory = folder.newFolder("snapshots")
         val store = GameProgressStore(directory)
         repeat(7) { index ->
@@ -146,46 +162,72 @@ class GameProgressPageTest {
             val id = store.createSnapshot(SavedSlot(byteArrayOf(1), "", savedAt), null, 1)
             assertTrue(File(directory, "snapshots/slot$id.save").setLastModified(savedAt))
         }
+        store.saveSlot(1, SavedSlot(byteArrayOf(2), "", 1), null)
         val game = LibraryGame("pause", "Pause")
-        var resumedSlot: Int? = null
+        var resumed = false
+        val applied = mutableListOf<Pair<Int, Int>>()
         rule.setContent {
             FbngTheme {
                 GameProgressPage(
-                    LibraryEntry(game, game.description, 'P'), null, null, false, store,
-                    busy = false, ready = true, message = "", onPrimary = { resumedSlot = it },
-                    onToggleFavorite = {}, onBack = { resumedSlot = 1 }, activeSlot = 1,
+                    LibraryEntry(game, game.description, 'P'), GamePreviewArtwork(), null, false, store,
+                    busy = false, ready = true, message = "", onPrimary = {},
+                    onToggleFavorite = {}, onBack = { resumed = true }, activeSlot = 1,
                     onCreateSnapshot = { error("unexpected snapshot creation") }, onQuit = {},
+                    onApplySnapshot = { id, slot -> applied.add(id to slot) },
                 )
             }
         }
-        val resume = rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
+        awaitFocus("progress-slot-1")
+        val resume = rule.onNodeWithTag(ShellTags.Pause)
         val resumeBounds = resume.getUnclippedBoundsInRoot()
-        resume.performKeyInput { pressKey(Key.ButtonR1) }
-        rule.onNodeWithTag("snapshots-tab").assertIsFocused()
-        awaitSnapshotFocus("snapshot-6", request = true)
-        rule.onNodeWithTag("snapshot-6").performKeyInput { pressKey(Key.DirectionRight) }
-        awaitSnapshotFocus("snapshot-3")
-        rule.onNodeWithTag("snapshot-3").performKeyInput { pressKey(Key.DirectionRight) }
-        awaitSnapshotFocus("snapshot-1")
-        assertEquals(resumeBounds, resume.getUnclippedBoundsInRoot())
-        for (tag in listOf("create-snapshot", "apply-snapshot", "delete-snapshot", "snapshot-prev")) {
-            val action = rule.onNodeWithTag(tag).assertIsDisplayed().getUnclippedBoundsInRoot()
-            assertTrue(action.bottom <= 320.dp)
+        rule.onNodeWithTag("progress-slot-1").performKeyInput { pressKey(Key.ButtonR1) }
+        awaitFocus("snapshot-7")
+        rule.onNodeWithTag("create-snapshot").assertIsDisplayed()
+        rule.onNode(hasTestTag("snapshot-prev") or hasTestTag("snapshot-next")).assertDoesNotExist()
+        for (id in 4..7) {
+            val item = rule.onNodeWithTag("snapshot-$id").assertIsDisplayed().getUnclippedBoundsInRoot()
+            rule.onNodeWithTag("delete-snapshot-$id").assertDoesNotExist()
+            assertTrue(item.bottom <= 320.dp)
         }
-        rule.onNodeWithTag("delete-snapshot").performClick()
-        val confirm = rule.onNode(hasText("删除快照") and hasClickAction() and hasAnyAncestor(isDialog()))
-        rule.onNodeWithText("取消").assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
-        rule.onNodeWithTag("delete-snapshot").assertIsFocused().performKeyInput { pressKey(Key.ButtonA) }
-        confirm.assertIsDisplayed().performClick()
-        awaitSnapshotFocus("snapshot-2")
-        rule.onNodeWithTag("snapshot-2").performKeyInput { pressKey(Key.ButtonB) }
-        rule.runOnIdle { assertEquals(1, resumedSlot) }
+
+        rule.onNodeWithTag("snapshot-7").performKeyInput { pressKey(Key.DirectionDown) }
+        awaitFocus("snapshot-6")
+        for (id in 6 downTo 3) {
+            rule.onNodeWithTag("snapshot-$id").performKeyInput { pressKey(Key.DirectionDown) }
+            awaitFocus("snapshot-${id - 1}")
+        }
+        rule.onNodeWithTag("snapshot-2").assertIsDisplayed()
+        rule.onNodeWithTag("snapshot-list").performTouchInput { swipeDown() }
+        rule.onNodeWithTag("snapshot-7").assertIsDisplayed()
+        rule.onNodeWithTag("slots-tab").performClick()
+        awaitFocus("progress-slot-1")
+        rule.onNodeWithTag("progress-slot-1").performKeyInput { pressKey(Key.ButtonR1) }
+        awaitFocus("snapshot-2")
+        assertEquals(resumeBounds, resume.getUnclippedBoundsInRoot())
+        rule.onNodeWithTag("snapshot-2").performKeyInput { pressKey(Key.ButtonX) }
+        rule.onNode(hasText("取消") and hasClickAction() and hasAnyAncestor(isDialog())).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        awaitFocus("snapshot-2")
+        rule.onNodeWithTag("snapshot-2").performKeyInput { pressKey(Key.ButtonX) }
+        rule.onNode(hasText("删除快照") and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+        awaitFocus("snapshot-1")
+
+        rule.onNodeWithTag("snapshot-1").performKeyInput { pressKey(Key.ButtonA) }
+        awaitFocus("snapshot-target-1")
+        rule.onNodeWithTag("snapshot-target-1").performKeyInput { pressKey(Key.ButtonA) }
+        rule.waitUntil(5_000) { rule.onAllNodes(hasText("覆盖存档 1？")).fetchSemanticsNodes().isNotEmpty() }
+        rule.onNode(hasText("取消") and hasClickAction() and hasAnyAncestor(isDialog())).assertIsFocused().performKeyInput { pressKey(Key.ButtonB) }
+        awaitFocus("snapshot-target-1")
+        rule.runOnIdle { assertTrue(applied.isEmpty()) }
+        rule.onNodeWithTag("snapshot-target-4").performClick()
+        awaitFocus("progress-slot-4")
+        rule.runOnIdle { assertEquals(listOf(1 to 4), applied) }
+        rule.onNodeWithTag("progress-slot-4").performKeyInput { pressKey(Key.ButtonB) }
+        rule.runOnIdle { assertTrue(resumed) }
     }
 
-    private fun awaitSnapshotFocus(tag: String, request: Boolean = false) {
-        val node = rule.onNodeWithTag(tag)
-        rule.waitUntil("$tag appears", 5_000) { rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty() }
-        if (request) node.requestFocus()
-        rule.waitUntil("$tag is focused", 5_000) { rule.onAllNodes(hasTestTag(tag) and isFocused()).fetchSemanticsNodes().isNotEmpty() }
+    private fun awaitFocus(tag: String) {
+        rule.waitUntil("$tag is focused", 5_000) {
+            rule.onAllNodes(hasTestTag(tag) and isFocused()).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 }

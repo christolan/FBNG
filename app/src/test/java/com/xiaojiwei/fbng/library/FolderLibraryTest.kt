@@ -100,7 +100,6 @@ class FolderLibraryTest {
         val selected = refresh.snapshot.games.single { it.name == "arcadej" }
         val prepared = reopened.prepare(selected)
         assertEquals(storage.stateDir("arcadej"), prepared.stateDir)
-        assertEquals(storage.savesDir, prepared.savesDir)
         assertEquals("arcadej.zip", prepared.rom.name)
         assertEquals(setOf("arcadej.zip", "arcade.zip", "board.zip"), prepared.rom.parentFile!!.list()!!.toSet())
         assertTrue(prepared.rom.readBytes().contentEquals(clone.readBytes()))

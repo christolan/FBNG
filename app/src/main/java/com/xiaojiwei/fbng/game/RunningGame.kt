@@ -1,15 +1,24 @@
 package com.xiaojiwei.fbng.game
 
+import android.opengl.GLSurfaceView
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
 import com.swordfish.libretrodroid.GLRetroView
 import com.xiaojiwei.fbng.BuildConfig
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-internal class RunningGame(val view: GLRetroView, private val store: GameProgressStore, val slotId: Int) {
+internal class RunningGame(
+    val view: GLRetroView,
+    private val store: GameProgressStore,
+    initialSlot: Int,
+    private val nativeSaveDirectory: File,
+) {
     val life = SessionLifecycleOwner()
     var ready by mutableStateOf(false)
         private set
@@ -26,9 +35,10 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
     private var canAutoSave = false
     private var quitSaved = false
     private var dialogOpen = false
-    var pauseCover by mutableStateOf<ByteArray?>(null)
+    var slotId by mutableStateOf(initialSlot)
         private set
-    private var coverGeneration = 0
+    private var savedSinceResume = false
+    private var capturedFrame: ByteArray? = null
 
     init {
         require(slotId in 1..GameProgressStore.SLOT_COUNT)
@@ -38,22 +48,19 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
 
     fun start() { foreground = true; updatePlayback() }
 
-    fun togglePause() {
+    fun resume() {
         if (!ready || busy || dialogOpen) return
-        paused = !paused
-        if (!paused) clearPauseCover()
+        paused = false
         updatePlayback()
     }
 
-    suspend fun capturePauseCover() {
-        if (!foreground || !ready || busy) return
-        val generation = coverGeneration
-        val source = GameCover.source(view) ?: return
-        val cover = GameCover.capturePreview(source)
-        if (generation == coverGeneration) pauseCover = cover
+    suspend fun pauseAndSave() = withCoreLocked {
+        paused = true
+        if (foreground && !savedSinceResume) pauseWithFrame { GameCover.captureLastFrame(view) }
+        else life.pause()
+        saveProgress()
     }
 
-    private fun clearPauseCover() { coverGeneration++; pauseCover = null }
     fun setDialogOpen(open: Boolean) { dialogOpen = open; updatePlayback() }
 
     suspend fun initialize(): SavedSlot? {
@@ -63,7 +70,7 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
             try {
                 val slot = withContext(Dispatchers.IO) { store.readSlot(slotId) }
                 if (slot != null) check(view.unserializeState(slot.bytes, useEmulationThread = false)) {
-                    "无法恢复这个槽位，请尝试应用兼容快照或删除进度后重新开始。"
+                    "无法恢复这个存档，请尝试应用兼容快照或删除进度后重新开始。"
                 }
                 withContext(NonCancellable + Dispatchers.IO) { store.selectSlot(slotId) }
                 canAutoSave = true
@@ -78,26 +85,40 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
 
     suspend fun createSnapshot(): Int = withPausedCore {
         val state = captureState()
-        val cover = pauseCover
+        val cover = if (savedSinceResume) withContext(Dispatchers.IO) { store.slotCover(slotId) } else capturedFrame
         withContext(NonCancellable + Dispatchers.IO) { store.createSnapshot(state, cover, slotId) }
     }
 
-    suspend fun applySnapshot(id: Int): SavedSlot = withPausedCore {
+    suspend fun switchSave(target: Int): Boolean = withPausedCore {
+        saveProgress()
+        val state = withContext(Dispatchers.IO) { store.readSlot(target) }
+        if (state == null) {
+            quitSaved = true
+            return@withPausedCore false
+        }
+        restoreProgress(state, target) { store.selectSlot(target) }
+        true
+    }
+
+    suspend fun applySnapshot(id: Int, target: Int) = withPausedCore {
+        saveProgress()
+        val (state, cover) = withContext(Dispatchers.IO) { store.readSnapshot(id) to store.snapshotCover(id) }
+        restoreProgress(state, target) { store.activateSnapshot(target, state, cover) }
+    }
+
+    private suspend fun restoreProgress(state: SavedSlot, target: Int, persist: () -> Unit) {
         withContext(NonCancellable) {
-            val state = withContext(Dispatchers.IO) { store.readSnapshot(id) }
-            val cover = withContext(Dispatchers.IO) { store.snapshotCover(id) }
             val original = captureState()
             val wasAllowed = canAutoSave
             canAutoSave = false
             try {
                 check(view.unserializeState(state.bytes, useEmulationThread = false)) {
-                    "无法应用快照，请检查核心版本。原槽位未修改。"
+                    "无法读取进度，请检查核心版本。"
                 }
-                withContext(Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
-                clearPauseCover()
-                pauseCover = cover
+                withContext(Dispatchers.IO) { persist() }
+                slotId = target
+                savedSinceResume = true
                 canAutoSave = true
-                state
             } catch (error: Exception) {
                 val restored = runCatching { view.unserializeState(original.bytes, useEmulationThread = false) }.getOrDefault(false)
                 if (restored) canAutoSave = wasAllowed else fail()
@@ -123,9 +144,7 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
 
     suspend fun saveBeforeQuit() {
         if (ready && canAutoSave) withPausedCore {
-            val state = captureState()
-            val cover = pauseCover ?: GameCover.capture(GameCover.source(view))
-            withContext(NonCancellable + Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
+            saveProgress()
             quitSaved = true
         }
         quitSaved = true
@@ -135,33 +154,73 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
         failed = true
         ready = false
         canAutoSave = false
-        clearPauseCover()
         life.pause()
     }
 
     fun stop() {
         foreground = false
-        life.pause()
+        pauseBeforeStop()
         saveBeforeStop()
     }
 
     fun destroy() {
         if (closed) return
-        life.pause()
-        if (busy) { destroyRequested = true; return }
-        try { saveBeforeStop() } finally {
+        if (busy) {
+            destroyRequested = true
+            life.pause()
+            return
+        }
+        try {
+            pauseBeforeStop()
+            saveBeforeStop()
+        } finally {
             closed = true
             ready = false
-            clearPauseCover()
-            life.destroy()
+            try {
+                life.destroy()
+            } finally {
+                if (!nativeSaveDirectory.deleteRecursively()) Log.w("FBNG", "Could not clean up the FBNeo session directory")
+            }
         }
     }
 
+    private fun pauseBeforeStop() {
+        if (life.lifecycle.currentState == Lifecycle.State.RESUMED && needsAutoSave()) {
+            pauseWithFrame { GameCover.captureLastFrameBlocking(view) }
+        } else {
+            life.pause()
+        }
+    }
+
+    private inline fun pauseWithFrame(capture: () -> ByteArray?) {
+        val previousMode = view.renderMode
+        view.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        try {
+            capturedFrame = capture()
+        } finally {
+            life.pause()
+            view.renderMode = previousMode
+        }
+    }
+
+    private fun needsAutoSave() = ready && !busy && canAutoSave && !quitSaved && !closed && !savedSinceResume
+
     private fun saveBeforeStop() {
-        if (!ready || busy || !canAutoSave || quitSaved || closed) return
+        if (!needsAutoSave()) return
+        store.saveSlot(slotId, captureState(), capturedFrame)
+        savedSinceResume = true
+        capturedFrame = null
+    }
+
+    private suspend fun saveProgress() {
+        if (savedSinceResume) return
         val state = captureState()
-        val cover = if (paused) pauseCover else GameCover.capture(GameCover.source(view))
-        store.saveSlot(slotId, state, cover)
+        val cover = capturedFrame
+        withContext(NonCancellable) {
+            withContext(Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
+            savedSinceResume = true
+            capturedFrame = null
+        }
     }
 
     private fun captureState() = SavedSlot(
@@ -169,10 +228,14 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
         BuildConfig.FBNEO_COMMIT, System.currentTimeMillis(),
     )
 
-    private suspend fun <T> withPausedCore(action: suspend () -> T): T {
+    private suspend fun <T> withPausedCore(action: suspend () -> T): T = withCoreLocked {
+        life.pause()
+        action()
+    }
+
+    private suspend fun <T> withCoreLocked(action: suspend () -> T): T {
         check(!closed && !destroyRequested && !busy && !failed)
         busy = true
-        life.pause()
         return try { action() } finally {
             busy = false
             if (destroyRequested) destroy() else {
@@ -184,6 +247,10 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
 
     private fun updatePlayback() {
         if (closed || destroyRequested) return
-        if (foreground && !paused && !dialogOpen && !busy && !failed) life.resume() else life.pause()
+        if (foreground && !paused && !dialogOpen && !busy && !failed && !quitSaved) {
+            savedSinceResume = false
+            capturedFrame = null
+            life.resume()
+        } else life.pause()
     }
 }

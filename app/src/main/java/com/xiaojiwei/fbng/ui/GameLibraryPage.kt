@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -50,7 +49,6 @@ internal fun GameLibraryPage(
     pages: Int,
     rows: Int,
     onRows: (Int) -> Unit,
-    onPage: (Int) -> Unit,
     cardRequesters: MutableMap<String, FocusRequester>,
     navigation: @Composable () -> Unit,
     scanning: Boolean,
@@ -73,7 +71,7 @@ internal fun GameLibraryPage(
         title = "",
         leadingAction = navigation,
         modalOpen = modalOpen,
-        footer = { BrowseFooter(pageIndex, pages, ShellTags.NavLibrary, scanning, requesters, onFocused, onPage) },
+        footer = { BrowseFooter(pageIndex, pages, ShellTags.NavLibrary, scanning) },
         margin = margin,
         headerAction = { width ->
             val labelWidth = with(LocalDensity.current) { MaterialTheme.typography.labelLarge.fontSize.toDp() } * 4
@@ -153,9 +151,7 @@ internal fun GameLibraryPage(
                                     }
                                     GameBrowseRow(
                                         entry,
-                                        cell.focusProperties {
-                                            if (row == 0) up = requesters.getValue(ShellTags.NavLibrary)
-                                        }.libraryFocus(tag, requester) {
+                                        cell.libraryFocus(tag, requester) {
                                             onFocused(it)
                                             onSelected(name)
                                         }.fbngFocusTarget({ onDetails(name) }, scheme.surface),

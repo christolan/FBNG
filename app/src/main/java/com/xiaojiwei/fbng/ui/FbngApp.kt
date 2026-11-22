@@ -18,12 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.xiaojiwei.fbng.FbngApplication
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.artwork.CoverRepository
-import com.xiaojiwei.fbng.artwork.CoverWorker
 import com.xiaojiwei.fbng.dat.DatCatalog
 import com.xiaojiwei.fbng.dat.DatParse
 import com.xiaojiwei.fbng.dat.FbneoDat
@@ -38,7 +34,6 @@ import com.xiaojiwei.fbng.library.readGameTitles
 import com.xiaojiwei.fbng.ui.theme.FbngTheme
 import com.xiaojiwei.fbng.update.UpdateState
 import java.io.IOException
-import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -76,50 +71,7 @@ fun FbngApp(bridge: GamepadBridge) {
     val recentGames = remember { RecentGames(context) }
     var recentNames by remember { mutableStateOf(recentGames.read()) }
     val favorites = remember(context) { context.getSharedPreferences("library-favorites", Context.MODE_PRIVATE) }
-    val coverPreferences = remember(context) { context.getSharedPreferences("cover-requests", Context.MODE_PRIVATE) }
     val scope = rememberCoroutineScope()
-    val coverRepository = remember(context) { CoverRepository.get(context) }
-    val coverImages by coverRepository.images.collectAsStateWithLifecycle()
-    var clearingCovers by remember { mutableStateOf(false) }
-    var clearCoverResult by remember { mutableStateOf<Boolean?>(null) }
-    var manualCoverId by remember { mutableStateOf(coverPreferences.getString("manual-id", null)) }
-    val manualCoverWork by produceState<WorkInfo?>(null, manualCoverId) {
-        val id = manualCoverId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
-        value = null
-        if (id != null) WorkManager.getInstance(context).getWorkInfoByIdFlow(id).collect { value = it }
-    }
-    LaunchedEffect(coverRepository) {
-        coverRepository.reloadImages()
-        if (coverRepository.eligibleNames().isNotEmpty()) CoverWorker.enqueue(context)
-    }
-    fun requestCovers(refresh: Boolean) {
-        if (clearingCovers) return
-        clearCoverResult = null
-        if (manualCoverWork?.id?.toString() == manualCoverId && manualCoverWork?.state?.isFinished == false &&
-            (if (refresh) CoverWorker.REFRESH else "missing") in manualCoverWork?.tags.orEmpty()
-        ) return
-        val id = CoverWorker.enqueue(context, manual = true, refresh = refresh).toString()
-        coverPreferences.edit().putString("manual-id", id).apply()
-        manualCoverId = id
-    }
-    fun clearCovers() {
-        if (clearingCovers) return
-        clearingCovers = true
-        manualCoverId = null
-        coverPreferences.edit().remove("manual-id").apply()
-        scope.launch {
-            try {
-                clearCoverResult = CoverWorker.clearDownloaded(context)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Log.w("FBNG", "Could not clear downloaded covers", error)
-                clearCoverResult = false
-            } finally {
-                clearingCovers = false
-            }
-        }
-    }
     var favoriteNames by remember(favorites) {
         mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
     }
@@ -127,13 +79,16 @@ fun FbngApp(bridge: GamepadBridge) {
         val updated = if (name in favoriteNames) favoriteNames - name else favoriteNames + name
         favorites.edit().putStringSet("sets", updated).apply()
         favoriteNames = updated
-        if (name in updated) CoverWorker.enqueue(context)
     }
     val saveableState = rememberSaveableStateHolder()
     val load by produceState<CatalogLoad>(CatalogLoad.Loading, context) {
         value = withContext(Dispatchers.IO) { loadBundledCatalog(context) }
     }
     var library by remember { mutableStateOf<LibraryRefresh?>(null) }
+    val libraryGames = library?.snapshot?.games.orEmpty()
+    val previewArtwork = remember(libraryGames) {
+        gamePreviewArtwork(libraryGames.map { it.name })
+    }
     var playing by remember { mutableStateOf<GameLaunch?>(null) }
     var workMessage by remember { mutableStateOf<Int?>(null) }
     var initialScan by remember { mutableStateOf(true) }
@@ -249,15 +204,7 @@ fun FbngApp(bridge: GamepadBridge) {
                     recentTimes = recentNames.associateWith(recentGames::playedAt),
                     returnFromGame = returnFromGame,
                     onReturnRestored = { returnFromGame = null },
-                    covers = CoverUiState(
-                        images = coverImages,
-                        manualWork = manualCoverWork,
-                        fetch = { requestCovers(false) },
-                        refresh = { requestCovers(true) },
-                        clear = ::clearCovers,
-                        clearing = clearingCovers,
-                        clearResult = clearCoverResult,
-                    ),
+                    previews = previewArtwork,
                     appUpdate = UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing),
                     onToggleFavorite = ::toggleFavorite,
                 )
@@ -268,13 +215,12 @@ fun FbngApp(bridge: GamepadBridge) {
                 game = game.game,
                 entry = game.entry,
                 initialSlot = game.initialSlot,
-                cover = coverImages[setName],
+                preview = previewArtwork[setName] ?: GamePreviewArtwork(),
                 favorite = setName in favoriteNames,
                 bridge = bridge,
                 onToggleFavorite = { toggleFavorite(setName) },
                 onStarted = {
                     recentNames = recentGames.record(setName)
-                    CoverWorker.enqueue(context)
                 },
                 onQuit = {
                     returnFromGame = setName

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,11 +22,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import com.xiaojiwei.fbng.R
+import com.xiaojiwei.fbng.game.GameProgressStore
+import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
@@ -45,7 +47,6 @@ internal fun GameShelfPage(
     pageIndex: Int,
     selectedTag: String?,
     pages: Int,
-    onPage: (Int) -> Unit,
     cardRequesters: MutableMap<String, FocusRequester>,
     requesters: Map<String, FocusRequester>,
     navigation: @Composable () -> Unit,
@@ -54,15 +55,16 @@ internal fun GameShelfPage(
     onOpenLibrary: () -> Unit,
     onChoose: (LibraryEntry) -> Unit,
     recent: Boolean = false,
-    covers: CoverUiState? = null,
+    previewArtwork: Map<String, GamePreviewArtwork> = emptyMap(),
 ) {
     val scheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
     val navTab = if (recent) ShellTags.NavRecent else ShellTags.NavFavorites
     ShellPage(
         title = "",
         margin = margin,
         leadingAction = navigation,
-        footer = { BrowseFooter(pageIndex, pages, navTab, scanning, requesters, onFocused, onPage) },
+        footer = { BrowseFooter(pageIndex, pages, navTab, scanning) },
     ) {
         Column(
             Modifier.fillMaxSize(),
@@ -95,19 +97,27 @@ internal fun GameShelfPage(
                 }
                 return@Column
             }
-            val coverCard: @Composable (LibraryEntry, Modifier) -> Unit = { entry, modifier ->
+            val previewCard: @Composable (LibraryEntry, Modifier) -> Unit = { entry, modifier ->
+                val name = entry.game.name
+                val store = remember(context, name) { GameProgressStore(AppStorage(context.filesDir).stateDir(name)) }
+                val screenshot = rememberSaveScreenshot(store) { store.currentCover() }
+                val artwork = (previewArtwork[name] ?: GamePreviewArtwork()).copy(image = screenshot)
                 Column(
                     modifier.padding(FbngDimens.panelInset),
                     verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    GameCover(
-                        covers?.images?.get(entry.game.name),
-                        Modifier.fillMaxWidth().weight(1f).clip(FbngShapes.PanelItem),
-                        contentScale = ContentScale.Crop,
+                    GamePreview(
+                        entry.title, artwork,
+                        (if (recent) Modifier.weight(1f).fillMaxWidth()
+                        else Modifier.weight(1f, fill = false).aspectRatio(FbngDimens.gamePreviewAspectRatio))
+                            .clip(FbngShapes.PanelItem),
+                        announceTitle = !recent,
                     )
                     Column(Modifier.fillMaxWidth().padding(horizontal = FbngDimens.space8)) {
                         Text(
-                            entry.title, style = MaterialTheme.typography.titleMedium,
+                            if (recent || screenshot != null) entry.title else "",
+                            style = MaterialTheme.typography.titleMedium,
                             minLines = if (recent) 1 else 2, maxLines = if (recent) 1 else 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -130,9 +140,7 @@ internal fun GameShelfPage(
                             cardRequesters[tag] = requester
                             onDispose { if (cardRequesters[tag] == requester) cardRequesters.remove(tag) }
                         }
-                        val target = modifier.focusProperties {
-                            if (!recent || index == 0) up = requesters.getValue(navTab)
-                        }.libraryFocus(tag, requester, onFocused)
+                        val target = modifier.libraryFocus(tag, requester, onFocused)
                         if (recent) {
                             Row(
                                 target.fbngFocusTarget({ onChoose(entry) }, scheme.surface)
@@ -148,7 +156,7 @@ internal fun GameShelfPage(
                                 }
                             }
                         } else {
-                            coverCard(
+                            previewCard(
                                 entry,
                                 target.fbngFocusTarget(
                                     { onChoose(entry) }, Color.Transparent, shape = FbngShapes.Island,
@@ -158,7 +166,11 @@ internal fun GameShelfPage(
                     }
                 }
             }
-            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 if (recent) {
                     Column(
                         Modifier.weight(5f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
@@ -167,9 +179,9 @@ internal fun GameShelfPage(
                         repeat(RecentPageSize) { item(it, Modifier.weight(1f).fillMaxWidth()) }
                     }
                     val selected = entries.firstOrNull { ShellTags.recent(it.game.name) == selectedTag } ?: entries.first()
-                    coverCard(selected, Modifier.weight(3f).fillMaxHeight().fbngIsland())
+                    previewCard(selected, Modifier.weight(3f).fillMaxHeight().fbngIsland())
                 } else {
-                    repeat(FavoritesPageSize) { item(it, Modifier.weight(1f).fillMaxHeight()) }
+                    repeat(FavoritesPageSize) { item(it, Modifier.weight(1f)) }
                 }
             }
         }

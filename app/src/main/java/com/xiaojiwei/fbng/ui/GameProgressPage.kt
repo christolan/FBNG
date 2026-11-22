@@ -1,12 +1,15 @@
 package com.xiaojiwei.fbng.ui
 
-import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -16,34 +19,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
 import com.xiaojiwei.fbng.BuildConfig
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.artwork.CoverImage
 import com.xiaojiwei.fbng.game.GameProgressStore
 import com.xiaojiwei.fbng.game.SaveSlotInfo
-import com.xiaojiwei.fbng.game.SavedSlot
-import com.xiaojiwei.fbng.game.SnapshotPage
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.*
 import java.text.DateFormat
@@ -54,14 +53,19 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class ProgressAction { DeleteSlot, DeleteSnapshot, Apply }
-private data class ProgressConfirmation(val action: ProgressAction, val id: Int, val target: Int = 1, val state: SavedSlot? = null)
+private enum class ProgressAction { DeleteSlot, DeleteSnapshot, Overwrite }
+private data class ProgressConfirmation(val action: ProgressAction, val id: Int, val coreCommit: String = "")
+private const val Rp6DesignDensity = 369f / 160f
+private const val VisibleSnapshotRows = 4
+private fun slotTag(id: Int) = "progress-slot-$id"
 private fun snapshotTag(id: Int) = "snapshot-$id"
+private fun targetTag(id: Int) = "snapshot-target-$id"
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun GameProgressPage(
     entry: LibraryEntry,
-    cover: CoverImage?,
+    preview: GamePreviewArtwork,
     fold: FoldSnapshot?,
     favorite: Boolean,
     store: GameProgressStore,
@@ -73,23 +77,23 @@ internal fun GameProgressPage(
     onBack: () -> Unit,
     messageIsError: Boolean = false,
     activeSlot: Int? = null,
-    pausedCover: ByteArray? = null,
     onCreateSnapshot: (suspend () -> Int)? = null,
-    onApplySnapshot: (suspend (Int) -> SavedSlot)? = null,
+    onApplySnapshot: (suspend (Int, Int) -> Unit)? = null,
     onDeleteCurrent: (suspend () -> Unit)? = null,
     onQuit: (() -> Unit)? = null,
     onDialogOpen: (Boolean) -> Unit = {},
     onOperationError: (Exception) -> Unit = {},
+    onConfigureFolders: (() -> Unit)? = null,
+    initialSelectedSlot: Int? = null,
 ) {
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    var selectedSlot by rememberSaveable(entry.game.name) { mutableStateOf(1) }
+    var selectedSlot by rememberSaveable(entry.game.name) { mutableStateOf(initialSelectedSlot ?: activeSlot) }
     var selectedSnapshot by rememberSaveable(entry.game.name) { mutableStateOf<Int?>(null) }
     var snapshotsOpen by rememberSaveable(entry.game.name) { mutableStateOf(false) }
-    var page by rememberSaveable(entry.game.name) { mutableStateOf(0) }
     var slots by remember(store) { mutableStateOf<List<SaveSlotInfo>?>(null) }
-    var snapshotPage by remember(store) { mutableStateOf<SnapshotPage?>(null) }
-    var snapshotFocusIndex by rememberSaveable { mutableStateOf<Int?>(null) }
+    var snapshots by remember(store) { mutableStateOf(emptyList<SaveSlotInfo>()) }
+    val snapshotListState = key(entry.game.name) { rememberLazyListState() }
     var working by remember { mutableStateOf(false) }
     var slotsRevision by remember { mutableStateOf(0) }
     var snapshotsRevision by remember { mutableStateOf(0) }
@@ -100,41 +104,46 @@ internal fun GameProgressPage(
     var localMessage by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf<ProgressConfirmation?>(null) }
-    var targetSnapshot by remember { mutableStateOf<Pair<Int, SavedSlot>?>(null) }
-    var dialogTrigger by remember { mutableStateOf<String?>(null) }
+    var targetSnapshot by remember { mutableStateOf<Int?>(null) }
     var targetSlot by remember { mutableStateOf(1) }
-    var initialSelection by remember(store) { mutableStateOf(false) }
+    var lastPlayedSlot by remember(store) { mutableStateOf<Int?>(null) }
     val paused = activeSlot != null
-    val currentSlot = activeSlot ?: selectedSlot
-    val primary = if (paused) ShellTags.Pause else ShellTags.Play
-    val requesters = remember { mutableMapOf<String, FocusRequester>() }
-    fun requester(key: String) = requesters.getOrPut(key) { FocusRequester() }
-    var focused by rememberSaveable { mutableStateOf(primary) }
-    var restoreKey by remember { mutableStateOf<String?>(null) }
-    var focusRevision by remember { mutableStateOf(0) }
-    fun restore(key: String) { restoreKey = key; focusRevision++ }
-    fun target(key: String): Modifier = Modifier.libraryFocus(key, requester(key)) { focused = it }
-    val dialogOpen = pending != null || targetSnapshot != null
+    val savedSlot = activeSlot ?: lastPlayedSlot
+    val selectingTarget = targetSnapshot != null
     val blocked = busy || working
     val slotsLoaded = loadedSlotsRevision == slotsRevision && !slotsError
-    val snapshotsLoaded = loadedSnapshotsRevision == snapshotsRevision && snapshotPage?.page == page && !snapshotsError
-    val primaryNeedsSlots = !paused && entry.game.canLaunch
-    val primaryEnabled = ready && !blocked && (!primaryNeedsSlots || slotsLoaded)
-    val canOperateSlots = slotsLoaded && ready && !blocked
-    val canOperateSnapshots = snapshotsLoaded && ready && !blocked
+    val snapshotsLoaded = loadedSnapshotsRevision == snapshotsRevision && !snapshotsError
+    val canOperate = ready && !blocked && pending == null
+    val canApply = canOperate && slotsLoaded && (!paused || onApplySnapshot != null)
+
+    val requesters = remember { mutableMapOf<String, FocusRequester>() }
+    var focused by remember { mutableStateOf<String?>(null) }
+    var restoreKey by remember { mutableStateOf<String?>(null) }
+    var focusRevision by remember { mutableIntStateOf(0) }
+    fun restore(tag: String?) {
+        restoreKey = tag
+        focusRevision++
+    }
+    fun requester(tag: String) = requesters.getOrPut(tag) { FocusRequester() }
+    fun target(tag: String, onFocus: () -> Unit = {}): Modifier =
+        Modifier.libraryFocus(tag, requester(tag)) {
+            focused = it
+            onFocus()
+        }
     val focusManager = LocalFocusManager.current
+    val gamepad = LocalGamepadInput.current
     val window = LocalWindowInfo.current
     val windowSize = window.containerSize
     val windowFocused = window.isWindowFocused
+    val backTag = if (paused && !selectingTarget) ShellTags.Pause else ShellTags.DetailBack
+    val manageTag = "progress-manage-folders"
 
     LaunchedEffect(store, slotsRevision) {
         try {
-            val (items, savedSelection) = withContext(Dispatchers.IO) {
-                store.listSlots() to if (!paused && !initialSelection) store.selectedSlot() else null
-            }
+            val (items, current) = withContext(Dispatchers.IO) { store.listSlots() to store.currentSlot() }
             slots = items
-            if (savedSelection != null) selectedSlot = savedSelection
-            initialSelection = true
+            lastPlayedSlot = current?.takeIf { id -> items.any { it.id == id && it.available } }
+            if (selectedSlot == null) selectedSlot = activeSlot ?: lastPlayedSlot ?: 1
             loadedSlotsRevision = slotsRevision
             slotsError = false
         } catch (error: Exception) {
@@ -143,128 +152,211 @@ internal fun GameProgressPage(
             slotsError = true
         }
     }
-    LaunchedEffect(store, snapshotsOpen, snapshotsRevision, page) {
+    LaunchedEffect(store, snapshotsOpen, snapshotsRevision) {
         if (!snapshotsOpen || snapshotsLoaded) return@LaunchedEffect
         try {
-            val result = withContext(Dispatchers.IO) { store.snapshotPage(page) }
-            val currentTags = result.items.map { snapshotTag(it.id) }.toSet()
-            snapshotPage?.items.orEmpty().map { snapshotTag(it.id) }.filterNot(currentTags::contains)
-                .forEach { requesters.remove(it) }
-            snapshotPage = result
-            page = result.page
-            loadedSnapshotsRevision = snapshotsRevision
-            snapshotsError = false
-            val requestedIndex = snapshotFocusIndex
-            if (requestedIndex != null) {
-                val id = result.items.getOrNull(requestedIndex.coerceAtMost(result.items.lastIndex))?.id
-                selectedSnapshot = id
-                restore(id?.let(::snapshotTag) ?: if (onCreateSnapshot != null) "create-snapshot" else "snapshots-tab")
-                snapshotFocusIndex = null
-            } else if (result.items.none { it.id == selectedSnapshot }) {
-                selectedSnapshot = result.items.firstOrNull()?.id
+            val result = withContext(Dispatchers.IO) { store.listSnapshots() }
+            val currentIds = result.map(SaveSlotInfo::id).toSet()
+            snapshots.filterNot { it.id in currentIds }.forEach {
+                requesters.remove(snapshotTag(it.id))
             }
+            snapshots = result
+            snapshotsError = false
+            if (selectedSnapshot !in currentIds) {
+                selectedSnapshot = result.firstOrNull()?.id
+            }
+            loadedSnapshotsRevision = snapshotsRevision
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             Log.w("FBNG", "Could not read snapshots", error)
             snapshotsError = true
         }
     }
-    LaunchedEffect(dialogOpen, working) {
-        onDialogOpen(dialogOpen || working)
-        if (dialogOpen) focusManager.clearFocus(force = true)
-    }
+    val inputBlocked = selectingTarget || pending != null || working
+    LaunchedEffect(inputBlocked) { onDialogOpen(inputBlocked) }
+    LaunchedEffect(snapshotsOpen, selectingTarget, pending != null) { gamepad?.shellSurfaceChanged() }
+    LaunchedEffect(pending) { if (pending != null) focusManager.clearFocus(force = true) }
     DisposableEffect(Unit) { onDispose { onDialogOpen(false) } }
-    LaunchedEffect(blocked, primaryEnabled, slotsError, snapshotsLoaded, snapshotsError, dialogOpen, snapshotsOpen, windowSize, windowFocused, focusRevision, fold) {
-        if (blocked || dialogOpen || !windowFocused) return@LaunchedEffect
-        if (focused == primary && primaryNeedsSlots && ready && !slotsLoaded && !slotsError) return@LaunchedEffect
+    LaunchedEffect(blocked, ready, slotsLoaded, slotsError, snapshotsLoaded, snapshotsError, pending, targetSnapshot,
+        snapshotsOpen, windowSize, windowFocused, focusRevision, fold) {
+        if (blocked || pending != null || !windowFocused) return@LaunchedEffect
+        val default = when {
+            selectingTarget -> targetTag(targetSlot)
+            !ready -> if (onQuit != null) ShellTags.Quit else ShellTags.ToggleFavorite
+            snapshotsOpen && snapshotsError -> "retry-snapshots"
+            snapshotsOpen && !snapshotsLoaded -> return@LaunchedEffect
+            snapshotsOpen -> selectedSnapshot?.let(::snapshotTag)
+                ?: if (onCreateSnapshot != null) "create-snapshot" else ShellTags.ToggleFavorite
+            !entry.game.canLaunch && onConfigureFolders != null -> manageTag
+            slotsError -> "retry-slots"
+            !slotsLoaded -> return@LaunchedEffect
+            else -> slotTag(selectedSlot ?: 1)
+        }
+        if (ready && snapshotsOpen && snapshotsLoaded && !selectingTarget) {
+            val index = snapshots.indexOfFirst { it.id == selectedSnapshot }
+            if (index >= 0 && snapshotListState.layoutInfo.visibleItemsInfo.none { it.key == selectedSnapshot }) {
+                snapshotListState.scrollToItem(index)
+            }
+        }
         repeat(4) {
             withFrameNanos { }
-            val keys = listOfNotNull(
-                restoreKey, focused,
-                "retry-snapshots".takeIf { snapshotsOpen && snapshotsError },
-                "retry-slots".takeIf { !snapshotsOpen && slotsError },
-                "snapshots-tab".takeIf { snapshotsOpen },
-                primary.takeIf { primaryEnabled },
-                if (paused) ShellTags.Quit else ShellTags.DetailBack,
-            ).distinct()
-            for (key in keys) if (runCatching { requesters[key]?.requestFocus() == true }.getOrDefault(false)) {
-                restoreKey = null
-                return@LaunchedEffect
+            for (tag in listOfNotNull(restoreKey, focused, default).distinct()) {
+                if (runCatching { requesters[tag]?.requestFocus() == true }.getOrDefault(false)) {
+                    restoreKey = null
+                    return@LaunchedEffect
+                }
             }
         }
     }
-    fun operate(focusAfter: String? = null, action: suspend () -> Unit) {
-        if (blocked) return
-        val originalFocus = focused
+
+    fun operate(focusOnFailure: String?, operation: suspend () -> Unit) {
+        if (busy || working) return
         working = true
         localMessage = ""
         localError = false
         scope.launch {
-            try { action() } catch (error: Exception) {
+            try {
+                operation()
+            } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 Log.e("FBNG", "Progress operation failed", error)
                 localError = true
                 localMessage = resources.getString(R.string.progress_error, error.message.orEmpty())
+                restore(focusOnFailure)
                 onOperationError(error)
             } finally {
                 working = false
-                restore(if (localError) originalFocus else focusAfter ?: originalFocus)
             }
         }
     }
+    fun switchTab(snapshotTab: Boolean) {
+        if (snapshotsOpen == snapshotTab) return
+        snapshotsOpen = snapshotTab
+        focused = null
+        restore(if (snapshotTab) selectedSnapshot?.let(::snapshotTag) else selectedSlot?.let(::slotTag))
+    }
     fun dismiss() {
         if (blocked) return
+        val confirmation = pending
+        if (confirmation != null) {
+            pending = null
+            val row = when (confirmation.action) {
+                ProgressAction.DeleteSlot -> slotTag(confirmation.id)
+                ProgressAction.DeleteSnapshot -> snapshotTag(confirmation.id)
+                ProgressAction.Overwrite -> targetTag(confirmation.id)
+            }
+            restore(row)
+        } else if (selectingTarget) {
+            targetSnapshot = null
+            restore(selectedSnapshot?.let(::snapshotTag))
+        } else {
+            onBack()
+        }
+    }
+    BackHandler(onBack = ::dismiss)
+
+    fun chooseSnapshot(id: Int) {
+        if (!canApply) return
+        val items = slots.orEmpty()
+        targetSlot = savedSlot ?: items.firstOrNull { !it.available }?.id ?: items.first().id
+        selectedSnapshot = id
+        targetSnapshot = id
+        restore(targetTag(targetSlot))
+    }
+    fun applySnapshot(target: Int) {
+        val id = targetSnapshot ?: return
+        operate(targetTag(target)) {
+            if (paused) requireNotNull(onApplySnapshot)(id, target)
+            else withContext(NonCancellable + Dispatchers.IO) { store.applySnapshot(id, target) }
+            targetSnapshot = null
+            snapshotsOpen = false
+            selectedSlot = target
+            slotsRevision++
+            restore(slotTag(target))
+            localMessage = if (paused) resources.getString(R.string.progress_applied_running)
+                else resources.getString(R.string.progress_written, target)
+        }
+    }
+    fun chooseTarget(slot: SaveSlotInfo) {
+        if (!canApply) return
+        targetSlot = slot.id
+        if (slot.available) {
+            val id = targetSnapshot ?: return
+            operate(targetTag(slot.id)) {
+                val commit = withContext(Dispatchers.IO) { store.readSnapshot(id).coreCommit }
+                pending = ProgressConfirmation(ProgressAction.Overwrite, slot.id, commit)
+            }
+        } else {
+            applySnapshot(slot.id)
+        }
+    }
+    fun createSnapshot() {
+        val create = onCreateSnapshot ?: return
+        if (!canOperate || selectingTarget) return
+        operate(focused) {
+            selectedSnapshot = create()
+            snapshotsOpen = true
+            snapshotsRevision++
+            restore(selectedSnapshot?.let(::snapshotTag))
+            localMessage = resources.getString(R.string.progress_created)
+        }
+    }
+    fun canDeleteSlot(slot: SaveSlotInfo) =
+        slot.available && (if (slot.id == activeSlot) onDeleteCurrent != null else entry.game.canLaunch || paused)
+
+    fun requestDelete(item: SaveSlotInfo) {
+        if (!canOperate || selectingTarget) return
+        if (snapshotsOpen && snapshotsLoaded) {
+            selectedSnapshot = item.id
+            pending = ProgressConfirmation(ProgressAction.DeleteSnapshot, item.id)
+        } else if (!snapshotsOpen && slotsLoaded && canDeleteSlot(item)) {
+            selectedSlot = item.id
+            pending = ProgressConfirmation(ProgressAction.DeleteSlot, item.id)
+        }
+    }
+    fun confirm(confirmation: ProgressConfirmation) {
         pending = null
-        targetSnapshot = null
-        restore(dialogTrigger ?: focused)
-        dialogTrigger = null
-    }
-    fun back() {
-        if (blocked) return
-        if (dialogOpen) dismiss() else onBack()
-    }
-    BackHandler(onBack = ::back)
-    fun prepareApply(id: Int) = operate {
-        val state = withContext(Dispatchers.IO) { store.readSnapshot(id) }
-        dialogTrigger = "apply-snapshot"
-        if (activeSlot != null) pending = ProgressConfirmation(ProgressAction.Apply, id, activeSlot, state)
-        else { targetSlot = selectedSlot; targetSnapshot = id to state }
-    }
-    fun changePage(delta: Int) {
-        val current = snapshotPage ?: return
-        if (blocked || !snapshotsLoaded || !snapshotsOpen) return
-        val next = (page + delta).coerceIn(0, current.pages - 1)
-        if (next == page) return
-        snapshotFocusIndex = current.items.indexOfFirst { snapshotTag(it.id) == focused }.takeIf { it >= 0 }
-            ?: current.items.indexOfFirst { it.id == selectedSnapshot }.coerceAtLeast(0)
-        page = next
+        when (confirmation.action) {
+            ProgressAction.Overwrite -> applySnapshot(confirmation.id)
+            ProgressAction.DeleteSlot -> operate(slotTag(confirmation.id)) {
+                if (confirmation.id == activeSlot) requireNotNull(onDeleteCurrent)()
+                else withContext(NonCancellable + Dispatchers.IO) { store.deleteSlot(confirmation.id) }
+                slotsRevision++
+                restore(slotTag(confirmation.id))
+                localMessage = resources.getString(R.string.progress_deleted)
+            }
+            ProgressAction.DeleteSnapshot -> operate(snapshotTag(confirmation.id)) {
+                val index = snapshots.indexOfFirst { it.id == confirmation.id }
+                withContext(NonCancellable + Dispatchers.IO) { store.deleteSnapshot(confirmation.id) }
+                selectedSnapshot = (snapshots.getOrNull(index + 1) ?: snapshots.getOrNull(index - 1))?.id
+                restore(selectedSnapshot?.let(::snapshotTag))
+                snapshotsRevision++
+                localMessage = resources.getString(R.string.progress_snapshot_deleted)
+            }
+        }
     }
     val scheme = MaterialTheme.colorScheme
+    val selectedSaveInfo = slots.orEmpty().firstOrNull { slotTag(it.id) == focused }
+    val selectedSnapshotInfo = snapshots.firstOrNull { snapshotTag(it.id) == focused }
+    val deleteItem = if (snapshotsOpen && snapshotsLoaded) selectedSnapshotInfo
+        else selectedSaveInfo?.takeIf { !snapshotsOpen && slotsLoaded && canDeleteSlot(it) }
+    val applyReady = canApply && !selectingTarget
+    val createReady = canOperate && !selectingTarget
+
     Surface(
         color = scheme.background, contentColor = scheme.onBackground,
         modifier = Modifier.fillMaxSize().onPreviewKeyEvent { event ->
-            if (dialogOpen || !snapshotsOpen || snapshotPage?.items.orEmpty().none { snapshotTag(it.id) == focused }) {
-                return@onPreviewKeyEvent false
-            }
-            val step = when (event.key) {
-                Key.DirectionLeft -> -1
-                Key.DirectionRight -> 1
-                else -> return@onPreviewKeyEvent false
-            }
-            if (event.type == KeyEventType.KeyDown) changePage(step)
-            true
-        }.onKeyEvent { event ->
+            val key = event.key
+            val release = event.type == KeyEventType.KeyUp
             when {
-                event.key == Key.ButtonB && event.type == KeyEventType.KeyUp -> { back(); true }
-                !dialogOpen && !blocked && event.type == KeyEventType.KeyUp &&
-                    (event.key == Key.ButtonL1 || event.key == Key.ButtonR1) -> {
-                    val next = event.key == Key.ButtonR1
-                    if (snapshotsOpen != next) {
-                        snapshotsOpen = next
-                        restore(if (next) "snapshots-tab" else "slots-tab")
-                    }
+                key == Key.ButtonB -> { if (release) dismiss(); true }
+                pending != null || selectingTarget -> false
+                key == Key.ButtonL1 || key == Key.ButtonR1 -> {
+                    if (release && !blocked) switchTab(key == Key.ButtonR1)
                     true
                 }
+                key == Key.ButtonX && deleteItem != null -> { if (release) requestDelete(deleteItem); true }
+                key == Key.ButtonY && onCreateSnapshot != null -> { if (release) createSnapshot(); true }
                 else -> false
             }
         },
@@ -273,6 +365,7 @@ internal fun GameProgressPage(
             var origin by remember { mutableStateOf(Offset.Zero) }
             val density = LocalDensity.current
             val hinge = fold?.takeIf { it.separating }
+            val compact = maxHeight < FbngDimens.shortShellHeight || hinge?.orientationVertical == false
             val pane = when {
                 hinge == null -> Modifier
                 hinge.orientationVertical -> with(density) {
@@ -283,56 +376,77 @@ internal fun GameProgressPage(
                 else -> with(density) { Modifier.padding(top = (hinge.hingeEndPx - origin.y).toDp().coerceIn(Dp.Hairline, maxHeight)) }
             }
             Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.positionInWindow() }.then(pane)) {
-                val feedback = if (messageIsError) message else localMessage.ifEmpty { message }
+                val feedback = localMessage.ifEmpty { message }
+                val verticalMargin = when {
+                    compact -> FbngDimens.space8
+                    paused -> FbngDimens.space16 + FbngDimens.rp6BarInset
+                    else -> FbngDimens.space16
+                }
                 val favorites: @Composable () -> Unit = {
                     FbngButton(onToggleFavorite, target(ShellTags.ToggleFavorite).height(FbngDimens.shellHeaderHeight),
-                        enabled = !blocked && !dialogOpen, kind = FbngButtonKind.Outline) {
-                        Text(stringResource(if (favorite) R.string.progress_favorited else R.string.progress_favorite))
+                        enabled = !blocked && pending == null && !selectingTarget, kind = FbngButtonKind.Outline) {
+                        Text(stringResource(if (favorite) R.string.progress_favorited else R.string.progress_favorite), maxLines = 1)
                     }
                 }
                 ShellPage(
                     title = entry.title,
                     margin = FbngDimens.compactMargin,
-                    modalOpen = dialogOpen,
-                    verticalMargin = if (paused) FbngDimens.space16 + FbngDimens.rp6BarInset else FbngDimens.space16,
+                    contentGap = if (compact) FbngDimens.space8 else FbngDimens.space12,
+                    modalOpen = pending != null,
+                    verticalMargin = verticalMargin,
                     leadingAction = {
-                        ShellHeaderBack(stringResource(if (paused) R.string.resume else R.string.back),
-                            ::back, target(ShellTags.DetailBack), enabled = !blocked && !dialogOpen)
+                        val enabled = !blocked && pending == null && (!paused || ready || selectingTarget)
+                        if (paused && !selectingTarget) {
+                            ShellHeaderButton(::dismiss, Modifier.testTag(backTag).focusProperties { canFocus = false }, enabled) {
+                                Text("‹  " + stringResource(R.string.progress_continue), maxLines = 1)
+                            }
+                        } else {
+                            ShellHeaderBack(stringResource(if (selectingTarget) R.string.cancel else R.string.back),
+                                ::dismiss, Modifier.testTag(backTag), enabled)
+                        }
                     },
                     headerAction = {
-                        if (paused) Box(Modifier.height(FbngDimens.shellHeaderHeight), contentAlignment = Alignment.CenterEnd) {
-                            Text(stringResource(R.string.progress_paused), style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
-                        } else favorites()
+                        if (!paused) favorites()
+                        else if (onQuit != null && !selectingTarget) {
+                            FbngButton(onQuit, target(ShellTags.Quit).height(FbngDimens.shellHeaderHeight),
+                                enabled = !blocked && pending == null, kind = FbngButtonKind.Outline) {
+                                Text(stringResource(R.string.progress_quit), maxLines = 1)
+                            }
+                        }
                     },
                     footer = {
-                        val hints = buildList {
-                            val action = when (focused) {
-                                primary -> when {
-                                    paused -> R.string.progress_resume
-                                    entry.game.canLaunch -> R.string.progress_start
-                                    else -> R.string.progress_manage_folders
-                                }
-                                ShellTags.DetailBack -> if (paused) R.string.progress_resume else R.string.back
-                                ShellTags.ToggleFavorite -> if (favorite) R.string.shell_hint_unfavorite else R.string.shell_hint_favorite
-                                ShellTags.Quit -> if (ready) R.string.progress_save_quit else R.string.quit
-                                "slots-tab" -> R.string.progress_slots
-                                "snapshots-tab" -> R.string.progress_snapshots
-                                "delete-progress" -> R.string.progress_delete
-                                "create-snapshot" -> R.string.progress_create_snapshot
-                                "apply-snapshot" -> R.string.progress_apply_short
-                                "delete-snapshot" -> R.string.progress_delete_snapshot
-                                "retry-snapshots", "retry-slots" -> R.string.progress_retry
-                                "snapshot-prev", "snapshot-next" -> R.string.shell_hint_page
-                                else -> R.string.shell_hint_select
-                            }
-                            add("A" to action)
-                            add("B" to if (paused) R.string.progress_resume else R.string.back)
-                            if (snapshotsOpen && (snapshotPage?.pages ?: 0) > 1) add("← / →" to R.string.shell_hint_page)
+                        val action = when {
+                            selectingTarget -> R.string.progress_choose_target
+                            focused == ShellTags.Quit -> R.string.progress_quit
+                            focused == ShellTags.ToggleFavorite -> if (favorite) R.string.shell_hint_unfavorite else R.string.shell_hint_favorite
+                            focused == manageTag -> R.string.progress_manage_folders
+                            focused == "create-snapshot" -> R.string.progress_create_snapshot
+                            focused?.startsWith("retry-") == true -> R.string.progress_retry
+                            selectedSaveInfo != null && !paused && !entry.game.canLaunch -> null
+                            selectedSaveInfo != null && !paused -> R.string.progress_start
+                            selectedSaveInfo?.id == activeSlot && activeSlot != null -> R.string.progress_resume
+                            selectedSaveInfo?.available == true -> R.string.progress_load_save
+                            selectedSaveInfo != null -> R.string.progress_start_empty
+                            selectedSnapshotInfo != null -> R.string.progress_apply_snapshot
+                            else -> R.string.shell_hint_select
                         }
-                        ShellFooter(hints) {
-                            Text(feedback, Modifier.widthIn(max = 350.dp),
-                                color = if (localError || messageIsError) scheme.error else scheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        val hints = buildList {
+                            if (action != null) add("A" to action)
+                            add("B" to if (selectingTarget) R.string.cancel else if (paused) R.string.progress_continue else R.string.back)
+                            if (!selectingTarget && deleteItem != null) add("X" to R.string.progress_delete_short)
+                            if (!selectingTarget && snapshotsOpen && onCreateSnapshot != null && focused != "create-snapshot") {
+                                add("Y" to R.string.progress_create_snapshot)
+                            }
+                        }
+                        BoxWithConstraints(Modifier.fillMaxWidth()) {
+                            val feedbackWidth = maxWidth / 3
+                            ShellFooter(hints) {
+                                if (feedback.isNotEmpty()) Text(
+                                    feedback, Modifier.widthIn(max = feedbackWidth),
+                                    color = if (localError || (localMessage.isEmpty() && messageIsError)) scheme.error else scheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     },
                 ) {
@@ -341,290 +455,267 @@ internal fun GameProgressPage(
                             Modifier.weight(7f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
                             verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                         ) {
-                            val frame by produceState<ImageBitmap?>(null, pausedCover) {
-                                value = pausedCover?.let { bytes ->
-                                    withContext(Dispatchers.IO) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap() }
-                                }
+                            val previewId = if (snapshotsOpen) targetSnapshot ?: selectedSnapshot.takeIf { snapshotsLoaded }
+                                else selectedSlot.takeIf { slotsLoaded }
+                            val screenshot = rememberSaveScreenshot(store, snapshotsOpen, previewId,
+                                if (snapshotsOpen) snapshotsRevision else slotsRevision) {
+                                previewId?.let { if (snapshotsOpen) store.snapshotCover(it) else store.slotCover(it) }
                             }
+                            GamePreview(entry.title, preview.copy(image = screenshot),
+                                Modifier.fillMaxWidth().weight(1f).clip(FbngShapes.PanelItem))
                             if (paused) {
-                                BoxWithConstraints(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                                    val bitmap = frame
-                                    val ratio = bitmap?.let { it.width.toFloat() / it.height } ?: FbngDimens.coverAspectRatio
-                                    val artwork = Modifier.fillMaxWidth().height(minOf(maxHeight, maxWidth / ratio))
-                                        .clip(FbngShapes.PanelItem)
-                                    if (bitmap == null) GameCover(cover, artwork, contentScale = ContentScale.Crop)
-                                    else Image(bitmap, null, artwork.background(Color.Black), contentScale = ContentScale.Fit)
-                                }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { favorites() }
                             } else {
-                                GameCover(cover, Modifier.fillMaxWidth().weight(1f).clip(FbngShapes.PanelItem),
-                                    contentScale = ContentScale.Crop)
-                                Text(entry.game.fileNames.joinToString(" · "),
-                                    Modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
+                                Text(entry.game.fileNames.joinToString(" · "), Modifier.padding(horizontal = FbngDimens.space8),
                                     style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
-
-                        val displayedPage = snapshotPage
-                        val listLoaded = if (snapshotsOpen) snapshotsLoaded else slotsLoaded
-                        val listError = if (snapshotsOpen) snapshotsError else slotsError
-                        val items = if (snapshotsOpen) displayedPage?.items.orEmpty() else slots.orEmpty()
-                        val snapshot = items.firstOrNull { snapshotsOpen && it.id == selectedSnapshot }
                         Column(
                             Modifier.weight(12f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
                             verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                         ) {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
-                                    val tabPadding = PaddingValues(horizontal = FbngDimens.space8)
-                                    ShoulderHint("L1")
-                                    FbngButton({ snapshotsOpen = false }, target("slots-tab").semantics { selected = !snapshotsOpen },
-                                        enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab, contentPadding = tabPadding) {
-                                        Text(stringResource(R.string.progress_slots))
-                                    }
-                                    FbngButton({ snapshotsOpen = true }, target("snapshots-tab").semantics { selected = snapshotsOpen },
-                                        enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab, contentPadding = tabPadding) {
-                                        Text(stringResource(R.string.progress_snapshots))
-                                    }
-                                    ShoulderHint("R1")
-                                }
-                                if (snapshotsOpen && displayedPage != null && displayedPage.pages > 1) {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
-                                        SnapshotPageButton(false, { changePage(-1) }, target("snapshot-prev"), canOperateSnapshots && page > 0)
-                                        Text(stringResource(R.string.progress_page, page + 1, displayedPage.pages), style = MaterialTheme.typography.bodyLarge)
-                                        SnapshotPageButton(true, { changePage(1) }, target("snapshot-next"), canOperateSnapshots && page + 1 < displayedPage.pages)
+                            val shortButton = Modifier.height(32.dp)
+                            val padding = PaddingValues(horizontal = FbngDimens.space4)
+                            if (selectingTarget) {
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    Text(stringResource(R.string.progress_target_title), Modifier.weight(1f),
+                                        style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    FbngButton(::dismiss, shortButton.focusProperties { canFocus = false },
+                                        enabled = !blocked && pending == null,
+                                        kind = FbngButtonKind.Outline, contentPadding = padding) {
+                                        Text(stringResource(R.string.cancel), style = MaterialTheme.typography.labelLarge, maxLines = 1)
                                     }
                                 }
-                            }
-                            Box(Modifier.weight(1f).fillMaxWidth()) {
-                                when {
-                                    !listLoaded -> FbngPanel {
-                                        val status = when {
-                                            !listError -> R.string.progress_loading
-                                            snapshotsOpen -> R.string.progress_snapshots_read_failed
-                                            else -> R.string.progress_slots_read_failed
-                                        }
-                                        Text(stringResource(status), style = MaterialTheme.typography.bodyLarge, color = if (listError) scheme.error else scheme.onSurfaceVariant)
-                                        if (listError) {
-                                            val retry = if (snapshotsOpen) "retry-snapshots" else "retry-slots"
-                                            FbngButton({
-                                                if (snapshotsOpen) {
-                                                    snapshotsError = false
-                                                    snapshotsRevision++
-                                                } else {
-                                                    slotsError = false
-                                                    slotsRevision++
-                                                }
-                                            }, target(retry), enabled = !blocked) { Text(stringResource(R.string.progress_retry)) }
-                                        }
-                                    }
-                                    items.isEmpty() -> Text(
-                                        stringResource(if (paused) R.string.progress_no_snapshots_paused else R.string.progress_no_snapshots),
-                                        Modifier.padding(FbngDimens.space8),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                    )
-                                    else -> Column(
-                                        Modifier.fillMaxSize(),
-                                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
+                            } else {
+                                FlowRow(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4, Alignment.End),
+                                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                                ) {
+                                    Row(
+                                        Modifier.align(Alignment.CenterVertically),
+                                        verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        for (item in items) key(snapshotsOpen, item.id) {
-                                            val tag = if (snapshotsOpen) snapshotTag(item.id) else "progress-slot-${item.id}"
-                                            val selected = if (snapshotsOpen) item.id == selectedSnapshot else item.id == currentSlot
-                                            val caption = when {
-                                                snapshotsOpen -> item.sourceSlot?.let { stringResource(R.string.progress_snapshot_source, it) }
-                                                    ?: stringResource(R.string.progress_legacy)
-                                                paused && selected -> stringResource(R.string.progress_active)
-                                                item.available -> stringResource(R.string.progress_saved)
-                                                else -> stringResource(R.string.progress_empty_short)
-                                            }
-                                            ProgressCard(
-                                                item, snapshot = snapshotsOpen, selected = selected,
-                                                modifier = Modifier.weight(1f).fillMaxWidth().libraryFocus(tag, requester(tag)) {
-                                                    focused = it
-                                                    if (snapshotsOpen) selectedSnapshot = item.id
-                                                },
-                                                enabled = if (snapshotsOpen) canOperateSnapshots else canOperateSlots && (!paused || selected),
-                                                caption = caption,
-                                                onClick = { if (snapshotsOpen) selectedSnapshot = item.id else selectedSlot = item.id },
-                                            )
+                                        ProgressShoulderHint("L1")
+                                        Spacer(Modifier.width(15.dp / Rp6DesignDensity))
+                                        ProgressTab(R.string.progress_slots, Modifier.testTag("slots-tab"), !snapshotsOpen, !blocked) {
+                                            switchTab(false)
                                         }
-                                        repeat(GameProgressStore.SLOT_COUNT - items.size) { Spacer(Modifier.weight(1f)) }
+                                        Spacer(Modifier.width(10.dp / Rp6DesignDensity))
+                                        ProgressTab(R.string.progress_snapshots, Modifier.testTag("snapshots-tab"), snapshotsOpen, !blocked) {
+                                            switchTab(true)
+                                        }
+                                        Spacer(Modifier.width(10.dp / Rp6DesignDensity))
+                                        ProgressShoulderHint("R1")
+                                    }
+                                    if (!entry.game.canLaunch && !paused && !snapshotsOpen) {
+                                        Text(entry.game.missing.joinToString(" · ") {
+                                            resources.getString(if (it.isBios) R.string.library_missing_bios else R.string.library_missing_parent, it.name)
+                                        }, Modifier.weight(1f).align(Alignment.CenterVertically),
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                            color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)
+                                    } else {
+                                        Spacer(Modifier.weight(1f))
+                                    }
+                                    if (snapshotsOpen && onCreateSnapshot != null) {
+                                        FbngButton(::createSnapshot, target("create-snapshot").then(shortButton),
+                                            enabled = createReady, kind = FbngButtonKind.Outline, contentPadding = padding) {
+                                            Text(stringResource(R.string.progress_create_snapshot),
+                                                style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                                        }
+                                    } else if (!snapshotsOpen && !entry.game.canLaunch && onConfigureFolders != null) {
+                                        FbngButton(onConfigureFolders, target(manageTag).then(shortButton), enabled = !blocked,
+                                            contentPadding = padding) {
+                                            Text(stringResource(R.string.progress_manage_folders), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                                        }
                                     }
                                 }
                             }
-                            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                                val stackActions = maxWidth < 385.dp
-                                val actionHeight = FbngDimens.shellHeaderHeight
-                                Box(Modifier.fillMaxWidth().height(if (stackActions) actionHeight * 2 + FbngDimens.space8 else actionHeight)) {
-                                    Row(Modifier.align(Alignment.TopStart),
-                                      horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8), verticalAlignment = Alignment.CenterVertically) {
-                                      val padding = PaddingValues(horizontal = FbngDimens.space8, vertical = FbngDimens.space4)
-                                      if (!entry.game.canLaunch && !paused && !snapshotsOpen) {
-                                          Text(entry.game.missing.joinToString(" · ") {
-                                              resources.getString(if (it.isBios) R.string.library_missing_bios else R.string.library_missing_parent, it.name)
-                                          }, Modifier.widthIn(max = 225.dp), maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                              color = Color(0xFFF1C484), style = MaterialTheme.typography.labelMedium)
-                                      } else if (!snapshotsOpen) {
-                                          FbngButton(
-                                              {
-                                                  dialogTrigger = "delete-progress"
-                                                  pending = ProgressConfirmation(ProgressAction.DeleteSlot, currentSlot)
-                                              },
-                                              target("delete-progress").height(actionHeight),
-                                              enabled = canOperateSlots && (paused || items.any { it.id == currentSlot && it.available }),
-                                              kind = FbngButtonKind.Outline, contentPadding = padding,
-                                          ) { Text(stringResource(R.string.progress_delete)) }
-                                      } else {
-                                          if (onCreateSnapshot != null) {
-                                              FbngButton({
-                                                  operate {
-                                                      onCreateSnapshot()
-                                                      page = 0
-                                                      snapshotFocusIndex = 0
-                                                      snapshotsRevision++
-                                                      localMessage = resources.getString(R.string.progress_created)
-                                                  }
-                                              }, target("create-snapshot").height(actionHeight), enabled = canOperateSnapshots, kind = FbngButtonKind.Outline, contentPadding = padding) {
-                                                  Text(stringResource(R.string.progress_create_snapshot))
-                                              }
-                                          }
-                                          if (snapshot != null) {
-                                              FbngButton(
-                                                  { prepareApply(snapshot.id) }, target("apply-snapshot").height(actionHeight),
-                                                  enabled = canOperateSnapshots && (paused || slotsLoaded),
-                                                  kind = FbngButtonKind.Outline, contentPadding = padding,
-                                              ) { Text(stringResource(R.string.progress_apply_short)) }
-                                              FbngButton(
-                                                  {
-                                                      dialogTrigger = "delete-snapshot"
-                                                      pending = ProgressConfirmation(ProgressAction.DeleteSnapshot, snapshot.id)
-                                                  },
-                                                  target("delete-snapshot").height(actionHeight), enabled = canOperateSnapshots, kind = FbngButtonKind.Outline, contentPadding = padding,
-                                              ) { Text(stringResource(R.string.progress_delete_short)) }
-                                          }
-                                      }
+                            val showSnapshotRows = snapshotsOpen && !selectingTarget
+                            val listLoaded = if (showSnapshotRows) snapshotsLoaded else slotsLoaded
+                            val listError = if (showSnapshotRows) snapshotsError else slotsError
+                            val progressItems = if (showSnapshotRows) snapshots else slots.orEmpty()
+                            val progressRow: @Composable (SaveSlotInfo, Modifier, () -> Unit) -> Unit =
+                                { item, rowModifier, revealFocusedRow ->
+                                    val tag = when {
+                                        selectingTarget -> targetTag(item.id)
+                                        showSnapshotRows -> snapshotTag(item.id)
+                                        else -> slotTag(item.id)
                                     }
-                                    Row(Modifier.align(Alignment.BottomEnd), horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                                      if (onQuit != null) {
-                                          FbngButton(onQuit, target(ShellTags.Quit).height(actionHeight), enabled = !blocked, kind = FbngButtonKind.Outline,
-                                              contentPadding = PaddingValues(horizontal = FbngDimens.space8)) {
-                                              Text(stringResource(if (ready) R.string.progress_save_quit else R.string.quit))
-                                          }
-                                      }
-                                      FbngButton({ onPrimary(currentSlot) }, target(primary).height(actionHeight), enabled = primaryEnabled,
-                                          contentPadding = PaddingValues(horizontal = FbngDimens.space12)) {
-                                          Text(stringResource(when {
-                                              paused -> R.string.progress_resume
-                                              entry.game.canLaunch -> R.string.progress_start
-                                              else -> R.string.progress_manage_folders
-                                          }))
-                                      }
+                                    val selected = when {
+                                        selectingTarget -> item.id == targetSlot
+                                        showSnapshotRows -> item.id == selectedSnapshot
+                                        else -> item.id == selectedSlot
+                                    }
+                                    val caption = when {
+                                        showSnapshotRows -> item.sourceSlot?.let { stringResource(R.string.progress_snapshot_source, it) }
+                                            ?: stringResource(R.string.progress_legacy)
+                                        item.id == savedSlot -> stringResource(R.string.progress_active)
+                                        item.available -> stringResource(R.string.progress_saved)
+                                        else -> stringResource(R.string.progress_empty_short)
+                                    }
+                                    val enabled = when {
+                                        selectingTarget -> canApply
+                                        showSnapshotRows -> applyReady
+                                        else -> canOperate && (paused || entry.game.canLaunch)
+                                    }
+                                    ProgressCard(
+                                        item, showSnapshotRows, selectingTarget, selected,
+                                        active = !showSnapshotRows && item.id == savedSlot, caption,
+                                        rowModifier.fillMaxWidth().then(target(tag) {
+                                            revealFocusedRow()
+                                            when {
+                                                selectingTarget -> targetSlot = item.id
+                                                showSnapshotRows -> selectedSnapshot = item.id
+                                                else -> selectedSlot = item.id
+                                            }
+                                        }),
+                                        enabled = enabled,
+                                        previewable = !enabled && canOperate && !selectingTarget,
+                                        onClick = {
+                                            when {
+                                                selectingTarget -> chooseTarget(item)
+                                                showSnapshotRows -> chooseSnapshot(item.id)
+                                                else -> {
+                                                    selectedSlot = item.id
+                                                    onPrimary(item.id)
+                                                }
+                                            }
+                                        },
+                                    )
+                                }
+                            when {
+                                !listLoaded -> FbngPanel {
+                                    val status = when {
+                                        !listError -> R.string.progress_loading
+                                        showSnapshotRows -> R.string.progress_snapshots_read_failed
+                                        else -> R.string.progress_slots_read_failed
+                                    }
+                                    Text(stringResource(status), style = MaterialTheme.typography.bodyLarge,
+                                        color = if (listError) scheme.error else scheme.onSurfaceVariant)
+                                    if (listError) {
+                                        val retry = if (showSnapshotRows) "retry-snapshots" else "retry-slots"
+                                        FbngButton({
+                                            if (showSnapshotRows) {
+                                                snapshotsError = false
+                                                snapshotsRevision++
+                                            } else {
+                                                slotsError = false
+                                                slotsRevision++
+                                            }
+                                        }, target(retry), enabled = !blocked) { Text(stringResource(R.string.progress_retry)) }
+                                    }
+                                }
+                                progressItems.isEmpty() -> Text(stringResource(R.string.progress_no_snapshots),
+                                    Modifier.padding(FbngDimens.space8), style = MaterialTheme.typography.bodyLarge)
+                                showSnapshotRows -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                                    val focusInset = FbngDimens.focusGap + FbngDimens.focusStroke
+                                    val rowHeight = (maxHeight / VisibleSnapshotRows - focusInset * 2)
+                                        .coerceAtLeast(FbngDimens.space32)
+                                    LazyColumn(Modifier.fillMaxSize().testTag("snapshot-list"), state = snapshotListState) {
+                                        items(progressItems, key = SaveSlotInfo::id) { item ->
+                                            val bringIntoView = remember { BringIntoViewRequester() }
+                                            Box(Modifier.bringIntoViewRequester(bringIntoView).padding(focusInset)) {
+                                                progressRow(item, Modifier.height(rowHeight)) {
+                                                    scope.launch { bringIntoView.bringIntoView() }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                else -> Column(Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
+                                    for (item in progressItems) key(item.id, selectingTarget) {
+                                        progressRow(item, Modifier.weight(1f)) {}
                                     }
                                 }
                             }
                         }
+                    }
+                }
+                pending?.let { confirmation ->
+                    Box(Modifier.align(Alignment.BottomCenter)
+                        .padding(horizontal = FbngDimens.compactMargin, vertical = verticalMargin)) {
+                        val backLabel = if (confirmation.action == ProgressAction.Overwrite) R.string.progress_back_to_target
+                            else R.string.cancel
+                        ShellFooter(listOf("A" to R.string.pad_confirm, "B" to backLabel))
                     }
                 }
             }
         }
     }
-    targetSnapshot?.let { (id, state) ->
-        val cancel = remember { FocusRequester() }
-        LaunchedEffect(Unit) { withFrameNanos { }; cancel.requestFocus() }
-        AlertDialog(onDismissRequest = ::dismiss, shape = FbngShapes.Island,
-            title = { DialogGamepadInput(); Text(stringResource(R.string.progress_target_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
-                    Text(stringResource(R.string.progress_target_hint))
-                    Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                        slots.orEmpty().forEach { slot ->
-                            FbngButton({ targetSlot = slot.id }, Modifier.weight(1f), selected = targetSlot == slot.id, kind = FbngButtonKind.Neutral) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(stringResource(R.string.progress_slot, slot.id), maxLines = 1)
-                                    Text(stringResource(if (slot.available) R.string.progress_saved else R.string.progress_empty_short),
-                                        style = MaterialTheme.typography.labelMedium, maxLines = 1)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            dismissButton = { FbngButton(::dismiss, Modifier.then(Modifier.libraryFocus("target-cancel", cancel) {}), kind = FbngButtonKind.Neutral) { Text(stringResource(R.string.cancel)) } },
-            confirmButton = { FbngButton({ targetSnapshot = null; pending = ProgressConfirmation(ProgressAction.Apply, id, targetSlot, state) }) { Text(stringResource(R.string.progress_next)) } },
-            properties = DialogProperties(usePlatformDefaultWidth = false),
-            modifier = Modifier.padding(horizontal = FbngDimens.space24).widthIn(max = 460.dp).fillMaxWidth()
-                .onKeyEvent { if (it.key == Key.ButtonB && it.type == KeyEventType.KeyUp) { dismiss(); true } else false },
-        )
-    }
+
     pending?.let { confirmation ->
+        val deletingCurrent = confirmation.action == ProgressAction.DeleteSlot && confirmation.id == activeSlot
         val title = when (confirmation.action) {
-            ProgressAction.DeleteSlot -> stringResource(if (paused) R.string.progress_delete_running_title else R.string.progress_delete_title, confirmation.id)
-            ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot_title, confirmation.id)
-            ProgressAction.Apply -> stringResource(R.string.progress_apply_title, confirmation.id, confirmation.target)
+            ProgressAction.DeleteSlot -> stringResource(if (deletingCurrent) R.string.progress_delete_running_title else R.string.progress_delete_title, confirmation.id)
+            ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot_title)
+            ProgressAction.Overwrite -> stringResource(R.string.progress_overwrite_title, confirmation.id)
         }
         val body = when (confirmation.action) {
-            ProgressAction.DeleteSlot -> stringResource(if (paused) R.string.progress_delete_running_body else R.string.progress_delete_body)
+            ProgressAction.DeleteSlot -> stringResource(if (deletingCurrent) R.string.progress_delete_running_body else R.string.progress_delete_body)
             ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot_body)
-            ProgressAction.Apply -> stringResource(if (paused) R.string.progress_apply_running_body else R.string.progress_apply_body)
-        } + (confirmation.state?.takeIf { it.coreCommit.isNotEmpty() && it.coreCommit != BuildConfig.FBNEO_COMMIT }?.let {
-            "\n" + stringResource(R.string.load_version_warn, it.coreCommit.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
-        } ?: "")
-        GameConfirmationDialog(title, body,
-            actionLabel = when (confirmation.action) {
-                ProgressAction.DeleteSlot -> stringResource(if (paused) R.string.progress_delete_running else R.string.progress_delete)
-                ProgressAction.DeleteSnapshot -> stringResource(R.string.progress_delete_snapshot)
-                ProgressAction.Apply -> stringResource(R.string.progress_overwrite)
-            }, onDismiss = ::dismiss, immersive = paused,
-            onConfirm = {
-                pending = null
-                dialogTrigger = null
-                val focusAfter = when (confirmation.action) {
-                    ProgressAction.DeleteSlot -> primary
-                    ProgressAction.DeleteSnapshot -> null
-                    ProgressAction.Apply -> if (paused) primary else "progress-slot-${confirmation.target}"
-                }
-                operate(focusAfter) {
-                    when (confirmation.action) {
-                        ProgressAction.DeleteSlot -> {
-                            if (paused) requireNotNull(onDeleteCurrent).invoke() else withContext(NonCancellable + Dispatchers.IO) { store.deleteSlot(confirmation.id) }
-                            slotsRevision++
-                            localMessage = resources.getString(R.string.progress_deleted)
-                        }
-                        ProgressAction.DeleteSnapshot -> {
-                            val items = snapshotPage?.items.orEmpty()
-                            val index = items.indexOfFirst { it.id == confirmation.id }
-                            withContext(NonCancellable + Dispatchers.IO) { store.deleteSnapshot(confirmation.id) }
-                            snapshotFocusIndex = if (items.size == 1 && page > 0) SnapshotPage.PAGE_SIZE - 1 else index.coerceAtLeast(0)
-                            snapshotsRevision++
-                            localMessage = resources.getString(R.string.progress_snapshot_deleted)
-                        }
-                        ProgressAction.Apply -> {
-                            if (paused) requireNotNull(onApplySnapshot).invoke(confirmation.id) else withContext(NonCancellable + Dispatchers.IO) { store.applySnapshot(confirmation.id, confirmation.target) }
-                            selectedSlot = confirmation.target
-                            snapshotsOpen = false
-                            slotsRevision++
-                            localMessage = resources.getString(if (paused) R.string.progress_applied_running else R.string.progress_applied)
-                        }
-                    }
-                }
-            },
+            ProgressAction.Overwrite -> stringResource(if (paused) R.string.progress_apply_running_body else R.string.progress_apply_body, confirmation.id)
+        } + confirmation.coreCommit.takeIf { it.isNotEmpty() && it != BuildConfig.FBNEO_COMMIT }?.let {
+            "\n" + stringResource(R.string.load_version_warn, it.take(12), BuildConfig.FBNEO_COMMIT_SHORT)
+        }.orEmpty()
+        val action = when (confirmation.action) {
+            ProgressAction.DeleteSlot -> if (deletingCurrent) R.string.progress_delete_running else R.string.progress_delete
+            ProgressAction.DeleteSnapshot -> R.string.progress_delete_snapshot
+            ProgressAction.Overwrite -> R.string.progress_overwrite
+        }
+        GameConfirmationDialog(title, body, stringResource(action),
+            onConfirm = { confirm(confirmation) }, onDismiss = ::dismiss, immersive = paused)
+    }
+}
+
+@Composable
+private fun ProgressTab(label: Int, modifier: Modifier, active: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier.size(122.dp / Rp6DesignDensity, 70.dp / Rp6DesignDensity)
+            .focusProperties { canFocus = false }
+            .semantics { selected = active }
+            .fbngFocusTarget(
+                onClick = onClick,
+                container = if (active) Color(0x26B4DBEC) else Color.Transparent,
+                enabled = enabled,
+                role = Role.Tab,
+                shape = RoundedCornerShape(24.dp / Rp6DesignDensity),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (active) Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(4.dp / Rp6DesignDensity)
+                .background(Color(0xFFB6F5DF)),
+        )
+        Text(
+            stringResource(label),
+            color = if (active) Color(0xFFE8F5F9) else Color(0xFFBDC9D2),
+            fontSize = 30.sp / Rp6DesignDensity,
+            lineHeight = 43.sp / Rp6DesignDensity,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
         )
     }
 }
 
 @Composable
-private fun SnapshotPageButton(next: Boolean, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) {
-    val label = stringResource(if (next) R.string.library_next_page else R.string.library_previous_page)
-    FbngButton(
-        onClick, modifier.width(FbngDimens.space32).semantics { contentDescription = label }, enabled,
-        kind = FbngButtonKind.Neutral, contentPadding = PaddingValues(),
+private fun ProgressShoulderHint(label: String) {
+    Box(
+        Modifier.size(49.dp / Rp6DesignDensity, 40.dp / Rp6DesignDensity)
+            .background(Color(0xFF2B3F4B), RoundedCornerShape(9.dp / Rp6DesignDensity)),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(if (next) "›" else "‹", style = MaterialTheme.typography.titleMedium)
+        Text(
+            label,
+            color = Color(0xFFC6D6E0),
+            fontSize = 23.sp / Rp6DesignDensity,
+            lineHeight = 28.sp / Rp6DesignDensity,
+            fontWeight = FontWeight.Normal,
+            maxLines = 1,
+        )
     }
 }
 
@@ -632,39 +723,47 @@ private fun SnapshotPageButton(next: Boolean, onClick: () -> Unit, modifier: Mod
 private fun ProgressCard(
     slot: SaveSlotInfo,
     snapshot: Boolean,
+    target: Boolean,
     selected: Boolean,
+    active: Boolean,
+    caption: String,
     modifier: Modifier,
     enabled: Boolean,
-    caption: String,
+    previewable: Boolean,
     onClick: () -> Unit,
 ) {
     val time = remember(slot.savedAtEpochMs) {
-        if (slot.savedAtEpochMs > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
+        if (slot.available && slot.savedAtEpochMs > 0) DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
             .format(Date(slot.savedAtEpochMs)) else ""
     }
     val scheme = MaterialTheme.colorScheme
+    val highlighted = selected || active
+    val title = when {
+        snapshot -> time.ifEmpty { stringResource(R.string.progress_snapshot, slot.id) }
+        target -> stringResource(R.string.progress_slot, slot.id)
+        else -> caption
+    }
     Row(
         modifier.semantics { this.selected = selected }.fbngFocusTarget(
-            onClick,
-            if (selected) scheme.primary.copy(alpha = .22f) else scheme.surface,
+            onClick, if (highlighted) scheme.primary.copy(alpha = .22f) else scheme.surface,
             enabled = enabled,
-            restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
-        )
-            .padding(horizontal = FbngDimens.space12),
+            focusableWhenDisabled = previewable,
+            restingStroke = if (highlighted) scheme.primary.copy(alpha = .65f) else Color.Transparent,
+        ).padding(horizontal = FbngDimens.space8),
         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (!snapshot) Box(
-            Modifier.size(FbngDimens.space24).background(
-                if (selected) scheme.primary else scheme.surfaceContainerHighest, FbngShapes.ActionKey,
-            ),
+        if (!snapshot && !target) Box(
+            Modifier.size(FbngDimens.space24).background(scheme.surfaceContainerHighest, FbngShapes.ActionKey),
             contentAlignment = Alignment.Center,
-        ) { Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge,
-            color = if (selected) scheme.onPrimary else scheme.onSurface) }
-        Text(if (snapshot) time.ifEmpty { stringResource(R.string.progress_snapshot, slot.id) } else caption,
-            Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
-            maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(if (snapshot) caption else time, style = MaterialTheme.typography.labelMedium,
+        ) {
+            Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge)
+        }
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (snapshot || target) Text(caption, style = MaterialTheme.typography.labelMedium,
             color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (!snapshot && time.isNotEmpty()) Text(time, style = MaterialTheme.typography.labelMedium,
+            color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (enabled) Text("›", style = MaterialTheme.typography.titleMedium, color = scheme.onSurfaceVariant)
     }
 }

@@ -5,7 +5,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.artwork.CoverImage
 import com.xiaojiwei.fbng.game.GameProgressStore
 import com.xiaojiwei.fbng.library.AppStorage
 import com.xiaojiwei.fbng.library.LibraryEntry
@@ -13,7 +12,7 @@ import com.xiaojiwei.fbng.library.LibraryEntry
 @Composable
 internal fun GameLaunchPage(
     entry: LibraryEntry,
-    cover: CoverImage?,
+    preview: GamePreviewArtwork,
     fold: FoldSnapshot?,
     favorite: Boolean,
     busy: Boolean,
@@ -22,13 +21,14 @@ internal fun GameLaunchPage(
     onToggleFavorite: () -> Unit,
     onConfigureFolders: () -> Unit,
     onBack: () -> Unit,
+    initialSelectedSlot: Int? = null,
 ) {
     val context = LocalContext.current
     val store = remember(context, entry.game.name) {
         GameProgressStore(AppStorage(context.filesDir).stateDir(entry.game.name))
     }
     GameProgressPage(
-        entry = entry, cover = cover, fold = fold, favorite = favorite, store = store,
+        entry = entry, preview = preview, fold = fold, favorite = favorite, store = store,
         busy = busy, ready = true,
         message = when {
             launchError -> stringResource(R.string.preparing_game_failed)
@@ -36,7 +36,8 @@ internal fun GameLaunchPage(
             else -> ""
         },
         messageIsError = launchError,
-        onPrimary = { if (entry.game.canLaunch) onPlay(it) else onConfigureFolders() },
+        onPrimary = onPlay, onConfigureFolders = onConfigureFolders,
+        initialSelectedSlot = initialSelectedSlot,
         onToggleFavorite = onToggleFavorite, onBack = onBack,
     )
 }

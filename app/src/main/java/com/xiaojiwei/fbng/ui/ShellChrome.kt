@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -76,7 +77,6 @@ internal object ShellTags {
     const val HeaderTitle = "shell-header-title"
     private const val GamePrefix = "shell-game-"
     private const val FavoritePrefix = "shell-favorite-game-"
-    const val Play = "shell-play"
     const val OpenLibrary = "shell-open-library"
     const val ToggleFavorite = "shell-toggle-favorite"
     const val EmptyImport = "shell-library-import"
@@ -90,8 +90,6 @@ internal object ShellTags {
     const val ShowAllStatuses = "shell-show-all-statuses"
     const val ClearFilters = "shell-clear-filters"
     const val LibraryFilter = "shell-library-filter"
-    const val PreviousPage = "shell-library-previous-page"
-    const val NextPage = "shell-library-next-page"
     fun letter(value: Char) = "shell-letter-$value"
     const val AddFolder = "shell-add-folder"
     const val ScanFolders = "shell-scan-folders"
@@ -102,9 +100,6 @@ internal object ShellTags {
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
     const val AppUpdate = "shell-app-update"
-    const val FetchCovers = "shell-fetch-covers"
-    const val ClearCovers = "shell-clear-covers"
-    const val RefreshCovers = "shell-refresh-covers"
     const val NavFavorites = "shell-nav-favorites"
     const val NavRecent = "shell-nav-recent"
     const val NavLibrary = "shell-nav-library"
@@ -244,10 +239,11 @@ internal fun ShellHeaderButton(
 }
 
 @Composable
-internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier, enabled: Boolean = true) {
+internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     ShellHeaderButton(
         onClick = onClick,
-        modifier = modifier.width(FbngDimens.shellHeaderHeight).semantics { contentDescription = label },
+        modifier = modifier.width(FbngDimens.shellHeaderHeight)
+            .focusProperties { canFocus = false }.semantics { contentDescription = label },
         enabled = enabled,
     ) { Text("‹", style = MaterialTheme.typography.titleMedium) }
 }
@@ -255,9 +251,7 @@ internal fun ShellHeaderBack(label: String, onClick: () -> Unit, modifier: Modif
 @Composable
 internal fun ShellTabs(
     section: ShellSection,
-    requesters: Map<String, FocusRequester>,
     onSection: (ShellSection) -> Unit,
-    onFocused: (String) -> Unit,
     updateAvailable: Boolean,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -280,7 +274,7 @@ internal fun ShellTabs(
                 val selected = destination.section == section.topLevelTab
                 val hasUpdate = destination.section == ShellSection.Settings && updateAvailable
                 Box(
-                    Modifier.libraryFocus(destination.tag, requesters.getValue(destination.tag), onFocused)
+                    Modifier.testTag(destination.tag).focusProperties { canFocus = false }
                         .semantics {
                             this.selected = selected
                             if (hasUpdate && updateDescription != null) stateDescription = updateDescription
@@ -364,9 +358,6 @@ internal fun BrowseFooter(
     pages: Int,
     tab: String,
     scanning: Boolean,
-    requesters: Map<String, FocusRequester>,
-    onFocused: (String) -> Unit,
-    onPage: (Int) -> Unit,
 ) {
     val hints = buildList {
         add("A" to if (pages == 0) R.string.shell_hint_select else R.string.shell_hint_open)
@@ -390,23 +381,13 @@ internal fun BrowseFooter(
             }
         }
         if (pages > 0) {
-            val scheme = MaterialTheme.colorScheme
-            for ((step, glyph, label) in listOf(Triple(-1, "‹", R.string.library_previous_page), Triple(0, "", 0), Triple(1, "›", R.string.library_next_page))) {
-                if (step == 0) {
-                    val description = stringResource(R.string.library_page_number, page + 1, pages)
-                    Text(stringResource(R.string.library_page_short, page + 1, pages),
-                        Modifier.clearAndSetSemantics { contentDescription = description },
-                        style = MaterialTheme.typography.labelMedium, color = scheme.onSurfaceVariant)
-                } else if (pages > 1) {
-                    val description = stringResource(label)
-                    val tag = if (step < 0) ShellTags.PreviousPage else ShellTags.NextPage
-                    Box(
-                        Modifier.size(FbngDimens.space24).libraryFocus(tag, requesters.getValue(tag), onFocused).semantics { contentDescription = description }
-                            .fbngFocusTarget({ onPage(page + step) }, Color.Transparent, enabled = page + step in 0 until pages),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(glyph, style = MaterialTheme.typography.labelLarge) }
-                }
-            }
+            val description = stringResource(R.string.library_page_number, page + 1, pages)
+            Text(
+                stringResource(R.string.library_page_short, page + 1, pages),
+                Modifier.clearAndSetSemantics { contentDescription = description },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

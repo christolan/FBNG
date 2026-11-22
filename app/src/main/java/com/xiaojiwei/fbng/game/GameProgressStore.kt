@@ -5,14 +5,9 @@ import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
-internal data class SnapshotPage(val items: List<SaveSlotInfo>, val total: Int, val page: Int) {
-    val pages: Int get() = ((total + PAGE_SIZE - 1) / PAGE_SIZE).coerceAtLeast(1)
-    companion object { const val PAGE_SIZE = 3 }
-}
-
 internal class GameProgressStore(private val directory: File) {
     companion object {
-        const val SLOT_COUNT = 3
+        const val SLOT_COUNT = 4
         private val snapshotName = Regex("slot([0-9]+)\\.save")
     }
 
@@ -20,6 +15,7 @@ internal class GameProgressStore(private val directory: File) {
     private val snapshotDirectory = File(directory, "snapshots")
     private val slots = SaveStateStore(slotDirectory)
     private val snapshots = SaveStateStore(snapshotDirectory)
+    private val legacy = SaveStateStore(directory)
     private val migration = File(directory, "progress-v1.migrated")
     private val selection = File(directory, "selected-slot")
 
@@ -27,7 +23,6 @@ internal class GameProgressStore(private val directory: File) {
     fun initialize() {
         if (migration.isFile) return
         check(directory.isDirectory || directory.mkdirs()) { "无法创建存档目录，请检查剩余空间。" }
-        val legacy = SaveStateStore(directory)
         for (old in legacy.listSlots().filter { it.available }) {
             val source = File(directory, "slot${old.id}.save")
             val snapshot = File(snapshotDirectory, "slot${old.id + 1}.save")
@@ -41,6 +36,7 @@ internal class GameProgressStore(private val directory: File) {
             if (old.id == SaveStateStore.AUTO_SLOT && !slots.hasSlot(1)) {
                 copyAtomic(snapshot, File(slotDirectory, "slot1.save"))
             }
+            if (old.id == SaveStateStore.AUTO_SLOT && !selection.isFile) writeMarker(selection, "1")
         }
         writeMarker(migration, "1")
     }
@@ -50,20 +46,37 @@ internal class GameProgressStore(private val directory: File) {
         return (1..SLOT_COUNT).map(slots::slotInfo)
     }
 
-    fun selectedSlot(): Int {
-        initialize()
-        return readSelection()
+    fun currentSlot(): Int? {
+        if (selection.isFile) return selection.readText().toIntOrNull()?.takeIf { it in 1..SLOT_COUNT }
+        return 1.takeIf { legacy.hasSlot() && (!migration.isFile || slots.hasSlot(1)) }
     }
 
-    private fun readSelection(): Int =
-        selection.takeIf { it.isFile }?.readText()?.toIntOrNull()?.takeIf { it in 1..SLOT_COUNT } ?: 1
+    fun currentSave(): SaveSlotInfo? {
+        val id = currentSlot() ?: return null
+        if (usesLegacyProgress(id)) return legacy.slotInfo(SaveStateStore.AUTO_SLOT).copy(id = id)
+        return slots.slotInfo(id).takeIf { it.available }
+    }
 
-    fun slotWithProgress(): Int? {
-        val selected = readSelection()
-        if (slots.hasSlot(selected)) return selected
-        return (1..SLOT_COUNT).map(slots::slotInfo).filter { it.available }
-            .maxByOrNull { it.savedAtEpochMs }?.id
-            ?: 1.takeIf { !migration.isFile && SaveStateStore(directory).hasSlot(SaveStateStore.AUTO_SLOT) }
+    fun currentCover(): ByteArray? {
+        val id = currentSlot() ?: return null
+        return if (usesLegacyProgress(id)) legacy.readCover(SaveStateStore.AUTO_SLOT) else slotCover(id)
+    }
+
+    private fun usesLegacyProgress(id: Int) = id == 1 && !migration.isFile && !slots.hasSlot(id) && legacy.hasSlot()
+
+    @Synchronized
+    fun activateSnapshot(id: Int, state: SavedSlot, cover: ByteArray?) {
+        val oldState = readSlot(id)
+        val oldCover = oldState?.let { slotCover(id) }
+        saveSlot(id, state, cover)
+        try {
+            selectSlot(id)
+        } catch (error: Exception) {
+            runCatching {
+                if (oldState == null) slots.delete(id) else saveSlot(id, oldState, oldCover)
+            }.exceptionOrNull()?.let(error::addSuppressed)
+            throw error
+        }
     }
 
     @Synchronized
@@ -73,7 +86,6 @@ internal class GameProgressStore(private val directory: File) {
         writeMarker(selection, id.toString())
     }
 
-    fun hasSlot(id: Int): Boolean { requireSlot(id); return slots.hasSlot(id) }
     fun readSlot(id: Int): SavedSlot? { requireSlot(id); initialize(); return slots.read(id) }
     fun slotCover(id: Int): ByteArray? { requireSlot(id); return slots.readCover(id) }
 
@@ -85,7 +97,21 @@ internal class GameProgressStore(private val directory: File) {
     }
 
     @Synchronized
-    fun deleteSlot(id: Int) { requireSlot(id); initialize(); slots.delete(id) }
+    fun deleteSlot(id: Int) {
+        requireSlot(id)
+        initialize()
+        if (currentSlot() != id) {
+            slots.delete(id)
+            return
+        }
+        writeMarker(selection, "0")
+        try {
+            slots.delete(id)
+        } catch (error: Exception) {
+            runCatching { selectSlot(id) }.exceptionOrNull()?.let(error::addSuppressed)
+            throw error
+        }
+    }
 
     private fun snapshotFiles(): List<Pair<Int, File>> =
         (snapshotDirectory.listFiles() ?: if (snapshotDirectory.exists()) {
@@ -95,11 +121,11 @@ internal class GameProgressStore(private val directory: File) {
         }
 
     @Synchronized
-    fun snapshotPage(requestedPage: Int): SnapshotPage {
+    fun listSnapshots(): List<SaveSlotInfo> {
         initialize()
-        val files = snapshotFiles().sortedWith(compareByDescending<Pair<Int, File>> { it.second.lastModified() }.thenByDescending { it.first })
-        val page = requestedPage.coerceIn(0, ((files.size - 1).coerceAtLeast(0)) / SnapshotPage.PAGE_SIZE)
-        return SnapshotPage(files.drop(page * SnapshotPage.PAGE_SIZE).take(SnapshotPage.PAGE_SIZE).map { snapshots.slotInfo(it.first) }, files.size, page)
+        return snapshotFiles()
+            .sortedWith(compareByDescending<Pair<Int, File>> { it.second.lastModified() }.thenByDescending { it.first })
+            .map { snapshots.slotInfo(it.first) }
     }
 
     fun readSnapshot(id: Int): SavedSlot = requireNotNull(snapshots.read(id)) { "快照已不存在，请选择其他快照。" }
@@ -125,7 +151,7 @@ internal class GameProgressStore(private val directory: File) {
     @Synchronized
     fun deleteSnapshot(id: Int) { snapshots.delete(id) }
 
-    private fun requireSlot(id: Int) = require(id in 1..SLOT_COUNT) { "请选择槽位 1、2 或 3。" }
+    private fun requireSlot(id: Int) = require(id in 1..SLOT_COUNT) { "请选择存档 1 至 $SLOT_COUNT。" }
 
     private fun copyAtomic(source: File, target: File) {
         check(target.parentFile!!.isDirectory || target.parentFile!!.mkdirs()) { "无法创建存档目录。" }
