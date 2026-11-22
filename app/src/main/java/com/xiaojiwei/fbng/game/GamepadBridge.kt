@@ -4,7 +4,6 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import com.swordfish.libretrodroid.GLRetroView
 
-/** Keeps the LibretroDroid mapping and releases inputs when the core loses control. */
 class GamepadBridge {
     var onPauseToggle: (() -> Unit)? = null
     var onPrimaryDisconnected: (() -> Unit)? = null
@@ -27,7 +26,6 @@ class GamepadBridge {
         for (key in released) {
             val port = heldKeys.remove(key) ?: continue
             val mapped = retroPadKeyCode(key.second)
-            // A removed device can no longer be resolved from its original KeyEvent.
             view.sendKeyEvent(KeyEvent.ACTION_UP, mapped, port)
         }
         val devices = motionPorts.keys.filter { deviceId == null || it == deviceId }
@@ -89,7 +87,6 @@ class GamepadBridge {
     }
 }
 
-// GLRetroView performs these four swaps before calling sendKeyEvent in LibretroDroid 0.13.2.
 internal fun retroPadKeyCode(code: Int): Int = when (code) {
     KeyEvent.KEYCODE_BUTTON_A -> KeyEvent.KEYCODE_BUTTON_B
     KeyEvent.KEYCODE_BUTTON_B -> KeyEvent.KEYCODE_BUTTON_A

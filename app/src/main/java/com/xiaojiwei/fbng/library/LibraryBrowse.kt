@@ -23,7 +23,6 @@ private val pinyin by lazy { Transliterator.getInstance("Han-Latin; Latin-ASCII"
 private val nameParts = Regex("\\p{IsHan}+|[A-Za-z0-9]+")
 private val pinyinParts = Regex("[A-Za-z]+|[0-9]+")
 
-/** Keep ASCII names/numbers, and reduce each Chinese syllable to its initial. */
 private fun titleInitials(title: String): String = buildString {
     for (part in nameParts.findAll(title)) {
         if (Character.UnicodeScript.of(part.value.codePointAt(0)) == Character.UnicodeScript.HAN) {

@@ -61,8 +61,6 @@ class BundledDatTest {
         assertTrue(catalog.inheritedRoms(kovsh).map { it.name }.containsAll(pgm.roms.map { it.name }))
         assertEquals("Asuka & Asuka (Japan)", catalog.byName.getValue("asukaja").description)
 
-        // DAT metadata stands in for ZIP entries. Every canonically named set should validate,
-        // including drivers whose DAT rows share a basename or reference renamed parent ROMs.
         val invalid = catalog.games.mapNotNull { game ->
             val members = game.roms.filter { it.required }.map { ZipMember(it.name, it.size, it.crc) }.distinct()
             val match = RomSetMatcher.identify(members, catalog, "${game.name}.zip").best

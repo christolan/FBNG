@@ -1,8 +1,3 @@
-# Builds the personal release APK.
-# Actions artifact: zlib zip (not LZMA), kept for 14 days.
-# Pushes to main publish when the app version changes. Manual runs can also
-# publish a release with the raw APK attached. Pull requests only upload the artifact.
-# 0.x stays a prerelease. The tag, title, and asset use the version, not "debug".
 name: Assemble release APK
 
 on:
@@ -18,7 +13,6 @@ permissions:
 
 concurrency:
   group: android-release-${{ github.ref }}
-  # A later push with the same version must not cancel a version-changing push.
   queue: max
 
 jobs:
@@ -26,8 +20,6 @@ jobs:
     name: assembleRelease
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Job permissions replace the workflow permissions. contents: write publishes
-    # the release; actions: write keeps the artifact upload.
     permissions:
       contents: write
       actions: write
@@ -35,7 +27,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
         with:
-          # pull_request builds the branch head, so the artifact name matches that commit.
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
 
       - name: Set up JDK 21
@@ -44,7 +35,6 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
-          # App version bumps do not invalidate the dependency cache.
           cache-dependency-path: |
             build.gradle.kts
             settings.gradle.kts
@@ -56,7 +46,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          # This cmdline-tools build can see platforms;android-37.2.
           cmdline-tools-version: "16111833"
           packages: platform-tools platforms;android-37.2 build-tools;36.0.0 ndk;28.2.13676358 cmake;3.22.1
 
@@ -183,8 +172,6 @@ jobs:
           apk="${{ steps.apk.outputs.path }}"
           signer="$(find "${ANDROID_HOME}/build-tools" -name apksigner -type f | sort | tail -1)"
           test -x "$signer"
-          # apksigner reports a scheme as true only on API levels that still use it.
-          # v1 is checked at 21, v2 at 24, v3 at the app minSdk 33.
           v1="$("$signer" verify --min-sdk-version 21 --verbose "$apk")"
           v2="$("$signer" verify --min-sdk-version 24 --verbose "$apk")"
           v3="$("$signer" verify --min-sdk-version 33 --verbose --print-certs "$apk")"
@@ -210,7 +197,6 @@ jobs:
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
-          # zlib level 6, the same family as gzip. Not LZMA.
           compression-level: 6
           overwrite: true
 

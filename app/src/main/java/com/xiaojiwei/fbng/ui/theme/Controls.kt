@@ -16,10 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 
 enum class FbngButtonKind {
-    /** Primary action. */
     Filled,
 
-    /** Neutral raised action with a quiet resting outline. */
     Outline,
 
     Neutral,

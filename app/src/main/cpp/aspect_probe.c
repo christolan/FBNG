@@ -5,13 +5,6 @@
 
 #define LOG_TAG "FBNG"
 
-/*
- * LibretroDroid 0.13.2 keeps the fitted aspect inside the native singleton and
- * does not expose it to Java. These are the Itanium names of
- * LibretroDroid::getAspectRatio() and the function-local singleton in
- * LibretroDroid::getInstance(). A miss returns NaN; the UI then uses 4:3 and
- * still does not inset the game.
- */
 #define ASPECT_SYMBOL "_ZN13libretrodroid13LibretroDroid14getAspectRatioEv"
 #define INSTANCE_SYMBOL "_ZZN13libretrodroid13LibretroDroid11getInstanceEvE8instance"
 

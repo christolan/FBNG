@@ -101,7 +101,7 @@ class GamepadInputTest {
     }
 
     @Test
-    @Suppress("DEPRECATION") // Robolectric's newer builder requires InputDevice.Builder, absent on API 33.
+    @Suppress("DEPRECATION")
     fun removingThePrimaryControllerDropsItsHeldInputAndNotifiesTheSession() {
         val manager = Shadow.extract<ShadowInputManager>(context.getSystemService(InputManager::class.java))
         val primary = ShadowInputDevice.makeInputDeviceNamed("Primary controller")

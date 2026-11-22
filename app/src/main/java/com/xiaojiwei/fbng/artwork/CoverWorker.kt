@@ -21,7 +21,6 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-/** WorkManager keeps offline requests alive across app exits and reconnects. */
 class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val repository = CoverRepository.get(applicationContext)
@@ -40,7 +39,6 @@ class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWor
                 repository.reloadImages()
                 for ((path, names) in repository.candidates()) {
                     currentCoroutineContext().ensureActive()
-                    // Favorites may change while a queued batch is running.
                     val eligible = repository.eligibleNames()
                     val count = names.count { it in eligible }
                     if (count == 0) continue
@@ -56,7 +54,6 @@ class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWor
                         }
                     }
                     setProgress(counts())
-                    // Do not hammer every remaining image during a network/server outage.
                     if (failed > 0) break
                 }
             } catch (error: IOException) {
@@ -65,7 +62,6 @@ class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWor
                 return@withLock Result.success(counts())
             }
             if (failed > 0 && !manual && runAttemptCount < 3) Result.retry()
-            // A terminal error is data, so it cannot cancel later requests in the unique queue.
             else Result.success(counts())
         }
     }

@@ -1,15 +1,10 @@
 package com.xiaojiwei.fbng.ui
 
 import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.dat.DatCatalog
@@ -103,32 +98,6 @@ private fun PreviewSync() {
 @Composable
 private fun PreviewMissingCore() {
     FbngTheme { MissingCore(onQuit = {}) }
-}
-
-@Preview(name = "hud portrait", widthDp = 400, heightDp = 800)
-@Preview(name = "hud landscape", widthDp = 800, heightDp = 360)
-@Composable
-private fun PreviewHud() {
-    FbngTheme {
-        BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black)) {
-            val minBar = with(LocalDensity.current) { MinHudBar.roundToPx() }
-            GameHud(
-                layout = layoutGameHud(
-                    screenWidthPx = constraints.maxWidth,
-                    screenHeightPx = constraints.maxHeight,
-                    gameAspect = 4f / 3f,
-                    minBarPx = minBar,
-                ),
-                ready = true,
-                busy = false,
-                hasSlot = true,
-                message = stringResource(R.string.slot_ready),
-                onSave = {},
-                onLoad = {},
-                onQuit = {},
-            )
-        }
-    }
 }
 
 @Composable

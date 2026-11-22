@@ -22,8 +22,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         gamepadInput.start()
-        // The UI is always dark. auto() follows the system night mode and draws
-        // dark status icons on the ink background when the phone is in light mode.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -35,9 +33,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // Window.Callback's public hook is required to route controller input before Compose.
-    // Lint inherits the restriction on androidx.core.app.ComponentActivity, an internal
-    // ancestor of the public androidx.activity.ComponentActivity we extend.
     @SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         gamepadInput.dispatchKey(event, window, allowPauseShortcut = true, ::deliverKey)

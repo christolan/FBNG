@@ -15,11 +15,6 @@ private fun style(size: Int, line: Int, weight: FontWeight) = TextStyle(
     lineHeight = line.sp,
 )
 
-/**
- * One sans family. Body and labels stay at 16sp so a gamepad-distance read
- * does not depend on Material's 12sp defaults. Titles used as the focused
- * name are at least 20sp.
- */
 internal val FbngTypography = Typography(
     displaySmall = style(36, 44, FontWeight.Bold),
     headlineMedium = style(28, 36, FontWeight.Bold),

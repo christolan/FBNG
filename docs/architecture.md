@@ -10,7 +10,7 @@
 | [LibraryScreen.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/LibraryScreen.kt) 与 [LayoutPolicy.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/LayoutPolicy.kt) | 导航、焦点、窗口宽度分级和铰链姿态 |
 | [library/](../app/src/main/java/com/xiaojiwei/fbng/library/) | 目录授权与扫描、归档索引、依赖解析、启动准备、检索和最近游玩 |
 | [dat/](../app/src/main/java/com/xiaojiwei/fbng/dat/) 与 [importing/](../app/src/main/java/com/xiaojiwei/fbng/importing/) | 街机 DAT 解析、ZIP 成员摘要、套件识别和完整校验 |
-| [GameScreen.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/GameScreen.kt) 与 [game/](../app/src/main/java/com/xiaojiwei/fbng/game/) | 核心加载、游戏会话、按键转发、暂停和存读档 |
+| [GameLaunchPage.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/GameLaunchPage.kt)、[GameScreen.kt](../app/src/main/java/com/xiaojiwei/fbng/ui/GameScreen.kt) 与 [game/](../app/src/main/java/com/xiaojiwei/fbng/game/) | 开局选槽、核心加载、游戏会话、按键转发、暂停和存读档 |
 | [cpp/](../app/src/main/cpp/) | `libfbng_aspect.so` 读取核心报告的画面比例 |
 | [artwork/](../app/src/main/java/com/xiaojiwei/fbng/artwork/) | 封面索引、联网任务和离线文件 |
 | [update/](../app/src/main/java/com/xiaojiwei/fbng/update/) | Release 检查与下载、APK 校验和系统安装 |
@@ -25,7 +25,11 @@
 
 套件名是游戏、收藏、最近、存档和封面的稳定标识。中文名用于显示和检索。DAT 的 `romof` 描述 ROM 依赖，`cloneof` 用于封面索引沿父游戏查找图片。
 
-壳层有基于 `FoldingFeature` 的铰链兼容分支。设备适配与真机验收以 RP6 为准。
+壳层有基于 `FoldingFeature` 的铰链兼容分支。设备适配与真机验收以 RP6 为准。清单声明 `PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY`，在 Android 16 大屏上保留固定横屏请求。
+
+- Activity 和弹窗各自在窗口回调中分发手柄事件，使 Compose 能收到弹窗内的摇杆输入。Activity 使用公开的 `Window.Callback` 接口，局部抑制 AndroidX 继承链触发的 `RestrictedApi` 检查。壳层在抬键时激活控件，并接管同一次按下事件以避免 Android 再执行默认操作。
+- 会话独立管理 LibretroDroid View 的生命周期，使窗口配置变化时可以保留画面，并在退出游戏时释放核心。后台自动保存须在生命周期回调返回之前完成。截图直接读取游戏 Surface，预览在后台线程调用 `PixelCopy`，避免部分 Android 版本的同步调用阻塞界面。
+- 街机 DAT 用 SAX 解析，以复用 Android 和 JVM 测试环境都提供的接口。扫描优先读取 ZIP 的文件描述符，遇到只提供流或文件片段的目录提供方时改用流读取。
 
 ## 本地数据
 

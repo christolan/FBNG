@@ -4,11 +4,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 
-/**
- * LibretroDroid registers itself on a Lifecycle. Driving that lifecycle ourselves lets a
- * configuration change keep the GLSurfaceView, and lets quitting the game destroy the core
- * without finishing the Activity.
- */
 class SessionLifecycleOwner : LifecycleOwner {
     private val registry = LifecycleRegistry(this)
     override val lifecycle: Lifecycle get() = registry

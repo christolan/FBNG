@@ -1,8 +1,5 @@
 package com.xiaojiwei.fbng.ui.theme
 
-/**
- * Blue-black surfaces with mint accents for the RP6 shell.
- */
 internal object FbngPalette {
     const val background = 0xFF101925L
     const val onBackground = 0xFFF4F7FBL

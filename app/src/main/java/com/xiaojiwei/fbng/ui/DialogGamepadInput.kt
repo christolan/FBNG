@@ -9,7 +9,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.window.DialogWindowProvider
 
-/** Dialogs own their Window.Callback, so generic motion can bypass the activity. */
 @Composable
 internal fun DialogGamepadInput() {
     val input = LocalGamepadInput.current ?: return

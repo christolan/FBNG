@@ -3,7 +3,6 @@ package com.xiaojiwei.fbng.ui.theme
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Spacing, radii, and focus metrics. New layout code reads these instead of raw dp. */
 internal object FbngDimens {
     val space4 = 4.dp
     val space8 = 8.dp
@@ -33,12 +32,7 @@ internal object FbngDimens {
     val libraryLetterFilterWidth = space48 + space32
     val libraryStatusFilterWidth = space48 + space32
     val libraryToolbarBreakpoint = space48 * 13
-    val hudActionWidth = space48 + space24
-    val hudActionsWidth = space48 * 12
     const val coverAspectRatio = 4f / 3f
-    val saveCardWidth = space48 * 4
-    val saveCardMinWidth = space48 * 2 + space24
-    val saveDialogWidth = space48 * 24
 
     val libraryPickerWidth = space48 * 9
 }

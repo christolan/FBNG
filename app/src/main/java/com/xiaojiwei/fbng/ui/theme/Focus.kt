@@ -37,13 +37,6 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 
-/**
- * Gamepad focus for a shell control. [focusable] is the first modifier so a
- * caller's [androidx.compose.ui.focus.focusRequester] sits directly above it —
- * anything between the two makes requestFocus() miss the target.
- * An outline marks focus. Disabled targets keep solid colors so their labels
- * remain readable.
- */
 @Composable
 internal fun Modifier.fbngFocusTarget(
     onClick: () -> Unit,

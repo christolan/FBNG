@@ -3,7 +3,6 @@ package com.xiaojiwei.fbng.library
 import android.content.Context
 import org.json.JSONArray
 
-/** Most recently started first; a game has only one entry across launches. */
 internal class RecentGames(context: Context) {
     private val preferences = context.getSharedPreferences("library-recent", Context.MODE_PRIVATE)
 

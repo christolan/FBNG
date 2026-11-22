@@ -18,6 +18,8 @@
 
 打包前检查 FBNeo 核心和 LibretroDroid 的 arm64 库，要求 ELF `PT_LOAD` 至少按 16 KB 对齐。打包时原生库以未压缩的形式写入 APK，组装完成后用 `zipalign -P 16` 检查。
 
+LibretroDroid 0.13.2 的 Java 接口没有暴露拟合比例。截图探针通过 `dlsym` 查找 C++ 单例和 `getAspectRatio()`。链接时保留对 `liblibretrodroid.so` 的显式依赖，供 Android 动态链接器解析库。符号不可用时，截图裁剪回退到 4:3。
+
 ## 资源与许可
 
 配套 DAT、简体中文游戏名、中文名数据的许可和封面索引位于 [FBNeo assets](../app/src/main/assets/fbneo/)。ROM 和 BIOS 由用户自行提供，仓库和 APK 都不包含这些 ZIP。

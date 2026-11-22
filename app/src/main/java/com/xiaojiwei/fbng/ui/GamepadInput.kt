@@ -102,7 +102,6 @@ internal class GamepadInput(context: Context, private val bridge: GamepadBridge)
             return true
         }
         val handled = deliver(event)
-        // The local action runs on key-up. Owning both edges also suppresses Android's fallback action.
         return handled || code == KeyEvent.KEYCODE_BUTTON_A || code == KeyEvent.KEYCODE_BUTTON_B
     }
 

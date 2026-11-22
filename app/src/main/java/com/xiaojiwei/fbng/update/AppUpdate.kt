@@ -166,7 +166,6 @@ internal class AppUpdate(private val context: FbngApplication) {
         val id = result.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1)
         val status = result.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
         if (sessionId != id) {
-            // A pending confirmation from a process that was stopped can be retried from Settings.
             if (id != -1 && status == PackageInstaller.STATUS_PENDING_USER_ACTION) abandon(id)
             return
         }

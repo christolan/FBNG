@@ -21,7 +21,6 @@ object ZipArchives {
         val descriptor = try {
             resolver.openFileDescriptor(uri, "r")
         } catch (_: IOException) {
-            // Some providers only expose a stream or a slice of a file.
             null
         }
         if (descriptor != null) {

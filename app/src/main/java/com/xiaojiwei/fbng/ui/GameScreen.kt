@@ -4,23 +4,15 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,21 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
@@ -72,11 +57,9 @@ import com.xiaojiwei.fbng.game.FbneoCore
 import com.xiaojiwei.fbng.game.GamepadBridge
 import com.xiaojiwei.fbng.game.RunningGame
 import com.xiaojiwei.fbng.game.GameProgressStore
-import com.xiaojiwei.fbng.game.SavedSlot
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.PreparedGame
 import com.xiaojiwei.fbng.ui.theme.FbngButton
-import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import java.io.File
@@ -84,9 +67,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 private const val TAG = "FBNG"
-
-/** 48dp touch target plus 4dp of padding on each side of the bar. */
-internal val MinHudBar = 56.dp
 
 @Composable
 internal fun GameScreen(
@@ -283,315 +263,6 @@ private fun GameSessionScreen(
             )
         }
     }
-}
-
-@Composable
-internal fun BoxScope.GameHud(
-    layout: GameHudLayout,
-    ready: Boolean,
-    busy: Boolean,
-    hasSlot: Boolean,
-    message: String,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
-    onQuit: () -> Unit,
-    paused: Boolean = false,
-    dialogOpen: Boolean = false,
-    onPause: () -> Unit = {},
-    onReset: () -> Unit = {},
-) {
-    val focus = remember { HudFocus() }
-    val focusManager = LocalFocusManager.current
-    LaunchedEffect(paused, busy, ready, dialogOpen, layout.band, layout.axis) {
-        if (paused && ready && !busy && !dialogOpen) focus.requesters.getValue(focus.tag).requestFocus()
-        else if (!paused) focusManager.clearFocus(force = true)
-    }
-    when (layout.band) {
-        HudBand.Sides -> {
-            StatusDock(
-                modifier = Modifier.align(Alignment.CenterStart).barSlot(widthPx = layout.barPx).clipToBounds(),
-                hasSlot = hasSlot,
-                message = message,
-                roomy = roomyBar(layout.barPx),
-            )
-            ButtonDock(
-                modifier = Modifier.align(Alignment.CenterEnd).barSlot(widthPx = layout.barPx).clipToBounds(),
-                vertical = true,
-                ready = ready,
-                busy = busy,
-                onSave = onSave,
-                onLoad = onLoad,
-                onQuit = onQuit,
-                paused = paused,
-                focus = focus,
-                onPause = onPause,
-                onReset = onReset,
-            )
-        }
-        HudBand.Ends -> {
-            StatusDock(
-                modifier = Modifier.align(Alignment.TopCenter).barSlot(heightPx = layout.barPx).clipToBounds(),
-                hasSlot = hasSlot,
-                message = message,
-                roomy = roomyBar(layout.barPx),
-            )
-            ButtonDock(
-                modifier = Modifier.align(Alignment.BottomCenter).barSlot(heightPx = layout.barPx).clipToBounds(),
-                vertical = false,
-                ready = ready,
-                busy = busy,
-                onSave = onSave,
-                onLoad = onLoad,
-                onQuit = onQuit,
-                paused = paused,
-                focus = focus,
-                onPause = onPause,
-                onReset = onReset,
-            )
-        }
-        HudBand.Overlay -> OverlayDock(
-            axis = layout.axis,
-            ready = ready,
-            busy = busy,
-            hasSlot = hasSlot,
-            message = message,
-            onSave = onSave,
-            onLoad = onLoad,
-            onQuit = onQuit,
-            paused = paused,
-            focus = focus,
-            onPause = onPause,
-            onReset = onReset,
-        )
-    }
-}
-
-@Composable
-private fun roomyBar(barPx: Int): Boolean {
-    val density = LocalDensity.current
-    return with(density) { barPx.toDp() } >= 96.dp
-}
-
-@Composable
-private fun StatusDock(
-    modifier: Modifier,
-    hasSlot: Boolean,
-    message: String,
-    roomy: Boolean,
-) {
-    Box(modifier) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(4.dp)
-                    .fillMaxWidth()
-                    .heightIn(max = maxHeight - 8.dp),
-                color = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Column(
-                    Modifier
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    if (roomy) {
-                        Text(
-                            stringResource(R.string.game_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    Text(
-                        stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = if (roomy) 3 else 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (message.isNotEmpty()) {
-                        Text(
-                            message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = if (roomy) 6 else 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    if (roomy) {
-                        Text(
-                            stringResource(R.string.in_game_hint),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ButtonDock(
-    modifier: Modifier,
-    vertical: Boolean,
-    ready: Boolean,
-    busy: Boolean,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
-    onQuit: () -> Unit,
-    paused: Boolean,
-    focus: HudFocus,
-    onPause: () -> Unit,
-    onReset: () -> Unit,
-) {
-    Box(modifier) {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(FbngDimens.space4)
-                    .then(if (vertical) Modifier.fillMaxWidth() else Modifier.widthIn(max = FbngDimens.hudActionsWidth).fillMaxWidth())
-                    .heightIn(max = maxHeight - FbngDimens.space8),
-                color = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                if (vertical) {
-                    Column(
-                        Modifier.verticalScroll(rememberScrollState()).padding(vertical = FbngDimens.space4),
-                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                    ) {
-                        HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
-                            Modifier.fillMaxWidth().heightIn(min = FbngDimens.buttonHeight))
-                    }
-                } else {
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = FbngDimens.space4),
-                        horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
-                            Modifier.widthIn(min = FbngDimens.hudActionWidth).heightIn(min = FbngDimens.buttonHeight))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun BoxScope.OverlayDock(
-    axis: BarAxis,
-    ready: Boolean,
-    busy: Boolean,
-    hasSlot: Boolean,
-    message: String,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
-    onQuit: () -> Unit,
-    paused: Boolean,
-    focus: HudFocus,
-    onPause: () -> Unit,
-    onReset: () -> Unit,
-) {
-    val align = when (axis) {
-        BarAxis.Sides -> Alignment.CenterEnd
-        BarAxis.Ends -> Alignment.BottomCenter
-        BarAxis.None -> Alignment.TopCenter
-    }
-    Surface(
-        modifier = Modifier.align(align).padding(FbngDimens.space8).widthIn(max = FbngDimens.hudActionsWidth),
-        color = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-    ) {
-        Column(
-            Modifier.padding(FbngDimens.space8),
-            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-        ) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-            ) {
-                HudActions(ready, busy, paused, focus, onSave, onLoad, onPause, onReset, onQuit,
-                    Modifier.widthIn(min = FbngDimens.hudActionWidth).heightIn(min = FbngDimens.buttonHeight))
-            }
-            Text(
-                stringResource(if (hasSlot) R.string.slot_ready else R.string.slot_empty),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (message.isNotEmpty()) {
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-private class HudFocus {
-    val requesters = listOf(ShellTags.Pause, ShellTags.Save, ShellTags.Load, ShellTags.Reset, ShellTags.Quit)
-        .associateWith { FocusRequester() }
-    var tag = ShellTags.Pause
-
-    fun target(id: String): Modifier = Modifier
-        .focusRequester(requesters.getValue(id))
-        .onFocusChanged { if (it.isFocused) tag = id }
-}
-
-@Composable
-private fun HudActions(
-    ready: Boolean,
-    busy: Boolean,
-    paused: Boolean,
-    focus: HudFocus,
-    onSave: () -> Unit,
-    onLoad: () -> Unit,
-    onPause: () -> Unit,
-    onReset: () -> Unit,
-    onQuit: () -> Unit,
-    modifier: Modifier,
-) {
-    ActionButton(
-        stringResource(if (paused) R.string.resume else R.string.pause), ShellTags.Pause,
-        enabled = ready && !busy, onClick = onPause,
-        modifier = modifier.then(focus.target(ShellTags.Pause)),
-    )
-    ActionButton(stringResource(R.string.save), ShellTags.Save, ready && !busy, onSave, modifier.then(focus.target(ShellTags.Save)))
-    ActionButton(stringResource(R.string.load), ShellTags.Load, ready && !busy, onLoad, modifier.then(focus.target(ShellTags.Load)))
-    ActionButton(stringResource(R.string.reset), ShellTags.Reset, ready && !busy, onReset, modifier.then(focus.target(ShellTags.Reset)))
-    ActionButton(stringResource(R.string.quit), ShellTags.Quit, !busy, onQuit, modifier.then(focus.target(ShellTags.Quit)))
-}
-
-@Composable
-private fun ActionButton(
-    label: String,
-    tag: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-) {
-    FbngButton(
-        onClick = onClick,
-        enabled = enabled,
-        kind = FbngButtonKind.Outline,
-        modifier = modifier.testTag(tag),
-    ) {
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
-}
-
-/** The slot is exactly [widthPx] or [heightPx] when set, so the dock cannot cross into the game. */
-private fun Modifier.barSlot(widthPx: Int? = null, heightPx: Int? = null): Modifier = layout { measurable, constraints ->
-    val width = (widthPx ?: constraints.maxWidth).coerceIn(0, constraints.maxWidth)
-    val height = (heightPx ?: constraints.maxHeight).coerceIn(0, constraints.maxHeight)
-    val placeable = measurable.measure(Constraints(width, width, height, height))
-    layout(width, height) { placeable.place(0, 0) }
 }
 
 @Composable

@@ -147,7 +147,6 @@ fun FbngApp(bridge: GamepadBridge) {
         library = withContext(Dispatchers.IO) {
             folders.refresh(catalog) { partial ->
                 withContext(Dispatchers.Main) {
-                    // Keep the visible pages stable until the background scan completes.
                     if (library == null) library = partial
                 }
             }

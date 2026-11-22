@@ -63,7 +63,6 @@ internal fun FbngPanel(
     )
 }
 
-/** A bounded island that centers short empty states and scrolls long text. */
 @Composable
 internal fun FbngEmptyState(
     modifier: Modifier = Modifier,

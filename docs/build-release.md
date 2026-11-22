@@ -2,7 +2,7 @@
 
 ## 本地环境
 
-- 使用仓库的 Gradle Wrapper。Gradle daemon 使用 Java 25，应用的 Java 源码和字节码兼容级别为 21。CI 的启动 JDK 配置为 Temurin 21。版本见 [daemon JVM 配置](../gradle/gradle-daemon-jvm.properties)和 [Gradle Wrapper 配置](../gradle/wrapper/gradle-wrapper.properties)。终端构建前让 `JAVA_HOME` 指向 Java 25，例如 `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`。
+- 使用仓库的 Gradle Wrapper。Gradle daemon 使用 Java 25，应用的 Java 源码和字节码兼容级别为 21。CI 的启动 JDK 配置为 Temurin 21。Android 模块使用 AGP 内置的 Kotlin 支持。版本见 [daemon JVM 配置](../gradle/gradle-daemon-jvm.properties)和 [Gradle Wrapper 配置](../gradle/wrapper/gradle-wrapper.properties)。终端构建前让 `JAVA_HOME` 指向 Java 25，例如 `export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`。
 - 安装 Android SDK `platforms;android-37.2`、Build-Tools 36.0.0、NDK `28.2.13676358` 和 CMake 3.22.1。通过 `local.properties` 的 `sdk.dir` 或环境变量 `ANDROID_HOME` 指定 SDK。
 - 当前 APK 仅含 `arm64-v8a`，`minSdk` 为 33，`targetSdk` 为 36，`compileSdk` 为 37.2。应用版本和 ABI 由 [app/build.gradle.kts](../app/build.gradle.kts) 定义。
 
@@ -75,7 +75,7 @@ Debug 和 Release 都用同一张发布证书签名，才能相互覆盖安装�
    )
    ```
 
-   分别确认 API 21、24、33 的输出中 v1、v2、v3 签名为 `true`，证书 SHA-256 与发布证书一致，且 16 KB 对齐检查通过。
+   分别确认 API 21、24、33 的输出中 v1、v2、v3 签名为 `true`，证书 SHA-256 与发布证书一致，且 16 KB 对齐检查通过。保留 v1 签名是为了给 ColorOS 侧载提供其检查的 `META-INF` 签名条目。
 
 如果本机仅因 Release Lint 依赖未缓存且无法连接 Google Maven 而构建失败，可以临时在上述 Gradle 命令中加 `--offline -x :app:lintVitalRelease`，并执行同样的验签和对齐检查。
 
@@ -89,5 +89,7 @@ Debug 和 Release 都用同一张发布证书签名，才能相互覆盖安装�
 Gradle 依赖缓存按工具链和依赖配置复用。依赖解析失败时刷新依赖元数据后重试一次。
 
 工作流验证 v1、v2、v3 签名和 APK 的 16 KB 对齐。成功后上传 `FBNG-<versionName>` artifact，保留 14 天。PR 到此结束。向 `main` 推送时，仅在 `versionName` 或 `versionCode` 变化后发布，手动运行也可发布。Release 标题为 `FBNG <versionName>`，tag 为 `v<versionName>`，附件为 `FBNG-<versionName>.apk`。0.x 版本标记为 prerelease。
+
+PR 产物对应分支提交。发布任务按 Git ref 排队，避免后续同版本提交取消先前的版本更新构建。
 
 Debug 和 Release 应用启动时都会匿名检查 GitHub Releases，也可通过「设置 → 关于 → 应用更新」手动检查、下载和安装。发布新版时递增 `versionCode` 并沿用同一张 Release 证书。发布说明中的 `版本 <versionName>（versionCode <versionCode>）` 与 tag、附件名和附件摘要共同供应用识别更新。应用核对下载文件的大小和 SHA-256，安装前再核对包名、版本和签名。首次安装更新按系统提示授权 FBNG 安装未知应用，系统要求确认时会打开安装界面。

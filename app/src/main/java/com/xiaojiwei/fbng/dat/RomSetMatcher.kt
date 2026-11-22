@@ -76,7 +76,6 @@ object RomSetMatcher {
             return if (tied) Identification(null, ambiguous = true) else Identification(bestClean)
         }
 
-        // A canonical filename still identifies a damaged set for the import report.
         if (preferredMatch != null && preferredMatch.contentHits > 0) return Identification(preferredMatch)
         val ranked = evaluated.sortedByDescending { it.contentHits }
         val top = ranked.firstOrNull() ?: return Identification(null)
@@ -128,7 +127,6 @@ object RomSetMatcher {
             }
         }
 
-        // FBNeo looks up inherited ROMs by CRC, including DAT merge aliases.
         for (rom in inherited) {
             val exact = members.firstOrNull { it.size == rom.size && it.crc == rom.crc }
             if (exact != null) {
@@ -145,7 +143,6 @@ object RomSetMatcher {
         }
 
         for ((name, group) in byName) {
-            // Some drivers legitimately use the same basename for different chips.
             if (group.size > 1 && (group.any { it !in used } || group.toSet().size != group.size)) {
                 problems += RomProblem(ProblemKind.DUPLICATE_NAME, actualName = name)
             }

@@ -10,7 +10,6 @@ internal data class SnapshotPage(val items: List<SaveSlotInfo>, val total: Int, 
     companion object { const val PAGE_SIZE = 3 }
 }
 
-/** Three mutable runs and independently retained historical snapshots. Legacy files are never removed. */
 internal class GameProgressStore(private val directory: File) {
     companion object {
         const val SLOT_COUNT = 3
@@ -40,7 +39,6 @@ internal class GameProgressStore(private val directory: File) {
                 if (old.savedAtEpochMs > 0) snapshot.setLastModified(old.savedAtEpochMs)
             }
             if (old.id == SaveStateStore.AUTO_SLOT && !slots.hasSlot(1)) {
-                // Copy even malformed bundles: loading will report the error without losing the original.
                 copyAtomic(snapshot, File(slotDirectory, "slot1.save"))
             }
         }

@@ -48,7 +48,6 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
             currentCoroutineContext().ensureActive()
             if (!file.isFile || file.extension != "zip") continue
             val expected = catalog.byName[file.nameWithoutExtension] ?: continue
-            // The old PGM install also made a copy in roms; the canonical BIOS is in system/fbneo.
             if (file != storage.archive(expected.name, expected.isBios)) continue
             val path = file.absolutePath
             val stamp = ArchiveStamp(file.name, file.length(), file.lastModified())
@@ -63,7 +62,6 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
                     displayName = storage.sourceName(expected.name, expected.isBios),
                 ))
             } catch (_: IOException) {
-                // A missing or damaged archive is never offered to the core.
             }
         }
         return IndexedSource(entries)
@@ -98,7 +96,6 @@ internal class LibraryScanner(private val catalog: DatCatalog) {
         }
 
         val missing = buildList {
-            // The chain starts with the split parent. Attribute remaining ROMs to their original set.
             for (ancestor in ancestors.asReversed()) {
                 if (inherited.removeAll(ancestor.roms.filter { it.required }.map { it.signature }.toSet())) {
                     add(MissingDependency(ancestor.name, ancestor.isBios))

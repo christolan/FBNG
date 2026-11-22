@@ -7,11 +7,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * WCAG 2.x contrast for the pairs the UI actually paints.
- * Body text needs 4.5:1. Large text and non-text marks (the mint control,
- * the progress indicator, the outline) need 3:1.
- */
 class ContrastTest {
     @Test
     fun mintTokensMatchTheRp6Design() {
@@ -84,7 +79,6 @@ class ContrastTest {
             FbngPalette.inverseSurface,
             4.5,
         )
-        // Disabled FbngButton: opaque onSurfaceVariant on surfaceContainerHighest.
         assertRatio(
             "disabledLabel/disabledContainer",
             FbngPalette.onSurfaceVariant,
@@ -171,7 +165,6 @@ class ContrastTest {
         assertRatio("primary/surfaceVariant (neutral and outline focus)", FbngPalette.primary, FbngPalette.surfaceVariant, 3.0)
         assertRatio("primary/surfaceContainerHigh (header focus)", FbngPalette.primary, FbngPalette.surfaceContainerHigh, 3.0)
         assertRatio("secondary/surfaceContainerHigh (active filters)", FbngPalette.secondary, FbngPalette.surfaceContainerHigh, 4.5)
-        // Linear progress: primary indicator on the secondaryContainer track.
         assertRatio(
             "primary/secondaryContainer",
             FbngPalette.primary,

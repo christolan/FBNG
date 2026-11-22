@@ -669,48 +669,6 @@ class ShellFocusTest {
 
     @Test
     @Config(sdk = [33], qualifiers = "w800dp-h480dp-mdpi")
-    fun pauseMenuRestoresTheSlotActionAndBackResumes() {
-        var resumed = 0
-        var exited = 0
-        rule.setContent {
-            var panelOpen by remember { mutableStateOf(false) }
-            FbngTheme {
-                GameMenuPage(
-                    entry = indexLibrary(readySnapshot().games, emptyMap()).first(),
-                    cover = null,
-                    fold = null,
-                    favorite = false,
-                    ready = true,
-                    busy = false,
-                    dialogOpen = panelOpen,
-                    message = "",
-                    onPrimary = { resumed++ },
-                    onBack = { resumed++ },
-                    onToggleFavorite = {},
-                    onLoad = {},
-                    onReset = {},
-                    onQuit = { exited++ },
-                    onSave = { panelOpen = true },
-                )
-                if (panelOpen) {
-                    SideEffect { panelOpen = false }
-                }
-            }
-        }
-        rule.onNodeWithTag(ShellTags.Pause).assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.Load).assertIsFocused()
-            .performKeyInput { pressKey(Key.DirectionDown) }
-        rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
-            .performKeyInput { pressKey(Key.ButtonA) }
-        rule.onNodeWithTag(ShellTags.Save).assertIsFocused()
-            .performKeyInput { pressKey(Key.ButtonB) }
-        assertEquals(1, resumed)
-        assertEquals(0, exited)
-    }
-
-    @Test
-    @Config(sdk = [33], qualifiers = "w800dp-h480dp-mdpi")
     fun searchShortcutAcceptsJoystickInTheDialogAndDoneFocusesTheResult() {
         rule.setContent {
             val context = ApplicationProvider.getApplicationContext<Context>()

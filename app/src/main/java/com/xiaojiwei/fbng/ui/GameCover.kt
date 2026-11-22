@@ -39,7 +39,6 @@ internal data class CoverUiState(
     val clearResult: Boolean? = null,
 )
 
-/** A fixed slot keeps focus and scroll positions stable when a cover arrives. */
 @Composable
 internal fun GameCover(
     image: CoverImage?,

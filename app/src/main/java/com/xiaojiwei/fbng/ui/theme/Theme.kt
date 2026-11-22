@@ -75,9 +75,6 @@ internal fun FbngTheme(
         typography = FbngTypography,
         shapes = shapes,
     ) {
-        // Text with no explicit color uses LocalContentColor, whose default is black.
-        // These screens draw their own backgrounds instead of a root Surface, so without
-        // this the titles and status lines were black on ink.
         CompositionLocalProvider(LocalContentColor provides Scheme.onBackground, content = content)
     }
 }

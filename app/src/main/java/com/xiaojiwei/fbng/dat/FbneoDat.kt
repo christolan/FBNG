@@ -101,8 +101,6 @@ sealed interface DatParse {
 }
 
 object FbneoDat {
-    // Android has no StAX. SAX is on the platform runtime and on the JVM that runs unit tests.
-    // A bad document comes back as DatParse.Error so startup can show it instead of dying.
     fun parse(text: String): DatParse {
         return try {
             val sanitized = DOCTYPE.replace(text, "")
@@ -133,7 +131,6 @@ object FbneoDat {
         try {
             setFeature(name, value)
         } catch (ignored: Exception) {
-            // Android's SAX parser does not implement every JDK feature flag.
         }
     }
 

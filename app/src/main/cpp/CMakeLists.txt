@@ -12,8 +12,6 @@ set_target_properties(libretrodroid PROPERTIES
     IMPORTED_LOCATION "${LIBRETRODROID_DIR}/liblibretrodroid.so"
 )
 
-# --no-as-needed keeps the dependency even though the probe looks the symbol up
-# with dlsym. The APK check requires every packaged .so to have PT_LOAD align >= 16 KB.
 target_link_libraries(fbng_aspect
     dl
     log

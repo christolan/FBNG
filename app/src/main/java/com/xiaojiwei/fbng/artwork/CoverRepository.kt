@@ -23,7 +23,6 @@ import org.json.JSONObject
 
 internal data class CoverImage(val file: File, val version: Long)
 
-/** Persistent images are separate from the disposable decoder cache. */
 internal class CoverRepository private constructor(private val context: Context) {
     private val directory = File(context.filesDir, "artwork/downloaded")
     private val settings = context.getSharedPreferences("cover-settings", Context.MODE_PRIVATE)
@@ -80,7 +79,6 @@ internal class CoverRepository private constructor(private val context: Context)
 
     fun recentlyMissing(path: String): Boolean = attempts.getLong(fileName(path), 0) > System.currentTimeMillis()
 
-    /** False means a confirmed 404; transport and decoding failures preserve the existing image. */
     suspend fun download(path: String): Boolean = withContext(Dispatchers.IO) {
         directory.mkdirs()
         val url = "https://raw.githubusercontent.com/libretro-thumbnails/FBNeo_-_Arcade_Games/master/" +
@@ -119,7 +117,6 @@ internal class CoverRepository private constructor(private val context: Context)
             if (options.outWidth <= 0 || options.outHeight <= 0 ||
                 options.outWidth.toLong() * options.outHeight > MAX_PIXELS
             ) throw IOException("Invalid cover dimensions")
-            // Decode a small sample too: a valid header alone does not prove the image is readable.
             val sample = BitmapFactory.Options().apply { inSampleSize = maxOf(options.outWidth, options.outHeight) / 512 + 1 }
             val bitmap = BitmapFactory.decodeFile(temporary.absolutePath, sample) ?: throw IOException("Unreadable cover")
             bitmap.recycle()

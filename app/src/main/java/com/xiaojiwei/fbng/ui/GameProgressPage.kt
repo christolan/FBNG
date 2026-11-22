@@ -58,7 +58,6 @@ private enum class ProgressAction { DeleteSlot, DeleteSnapshot, Apply }
 private data class ProgressConfirmation(val action: ProgressAction, val id: Int, val target: Int = 1, val state: SavedSlot? = null)
 private fun snapshotTag(id: Int) = "snapshot-$id"
 
-/** Shared launch/pause page. Browsing snapshots never changes a running session's slot. */
 @Composable
 internal fun GameProgressPage(
     entry: LibraryEntry,

@@ -18,12 +18,6 @@ val fbneoPin = Properties().apply {
 fun pin(key: String): String =
     fbneoPin.getProperty(key) ?: error("core/fbneo.pin.properties is missing $key")
 
-// Every build is signed with the release key. CI passes the four values as environment
-// variables; locally they come from a git-ignored .env in the repository root, which
-// Gradle reads during configuration so Android Studio syncs without shell variables.
-// A missing value stops Gradle during configuration: there is no fallback key and no
-// unsigned output, because a debug APK and a release APK signed with different
-// certificates cannot replace each other without uninstalling and losing app data.
 val envFileValues: Map<String, String> = rootProject.file(".env")
     .takeIf { it.isFile }
     ?.readLines()
@@ -154,8 +148,6 @@ android {
         buildConfigField("String", "FBNEO_DAT_VERSION", "\"${pin("fbneo.datVersion")}\"")
         externalNativeBuild {
             cmake {
-                // Link the probe against this copy so the APK library lists liblibretrodroid.so
-                // as NEEDED. Android only lets an app library dlopen another app library it depends on.
                 arguments += "-DLIBRETRODROID_DIR=${layout.buildDirectory.get().asFile.absolutePath}/libretrodroid-jni/arm64-v8a"
             }
         }
@@ -168,8 +160,6 @@ android {
             keyAlias = releaseKeyAlias
             keyPassword = releaseKeyPassword
             storeType = "PKCS12"
-            // v1 writes the META-INF signature files ColorOS looks for. v2 and v3 are
-            // required to sideload.
             enableV1Signing = true
             enableV2Signing = true
             enableV3Signing = true
@@ -178,7 +168,6 @@ android {
 
     buildTypes {
         debug {
-            // The same certificate as release, so one replaces the other in place.
             signingConfig = signingConfigs.getByName("release")
         }
         release {
@@ -214,8 +203,6 @@ android {
 
     packaging {
         jniLibs {
-            // Stored uncompressed and 16 KB-aligned. AGP then sets extractNativeLibs=false,
-            // so the installer does not copy the core into nativeLibraryDir.
             useLegacyPackaging = false
         }
     }

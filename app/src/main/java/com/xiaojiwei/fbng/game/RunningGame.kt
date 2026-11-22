@@ -9,7 +9,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
-/** One immutable slot binding per core. Lifecycle callbacks and core mutations run on main. */
 internal class RunningGame(val view: GLRetroView, private val store: GameProgressStore, val slotId: Int) {
     val life = SessionLifecycleOwner()
     var ready by mutableStateOf(false)
@@ -83,7 +82,6 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
         withContext(NonCancellable + Dispatchers.IO) { store.createSnapshot(state, cover, slotId) }
     }
 
-    /** Disk stays untouched until the snapshot has loaded. Failed loads restore the original core. */
     suspend fun applySnapshot(id: Int): SavedSlot = withPausedCore {
         withContext(NonCancellable) {
             val state = withContext(Dispatchers.IO) { store.readSnapshot(id) }
@@ -128,7 +126,6 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
             val state = captureState()
             val cover = pauseCover ?: GameCover.capture(GameCover.source(view))
             withContext(NonCancellable + Dispatchers.IO) { store.saveSlot(slotId, state, cover) }
-            // Set while still busy, so a deferred background callback cannot save twice.
             quitSaved = true
         }
         quitSaved = true
@@ -162,7 +159,6 @@ internal class RunningGame(val view: GLRetroView, private val store: GameProgres
 
     private fun saveBeforeStop() {
         if (!ready || busy || !canAutoSave || quitSaved || closed) return
-        // Complete before the lifecycle callback returns: Android may kill the process immediately.
         val state = captureState()
         val cover = if (paused) pauseCover else GameCover.capture(GameCover.source(view))
         store.saveSlot(slotId, state, cover)

@@ -3,7 +3,6 @@ package com.xiaojiwei.fbng.ui
 import android.view.KeyEvent
 import kotlin.math.abs
 
-/** One direction per deflection, with a smaller threshold for returning to neutral. */
 internal class ShellPad {
     private var held = false
 

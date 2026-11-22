@@ -106,7 +106,6 @@ class FolderLibraryTest {
         assertTrue(prepared.rom.readBytes().contentEquals(clone.readBytes()))
         assertFalse(storage.archive("arcadej", isBios = false).exists())
 
-        // A changed source may no longer be launched with the old scan result.
         clone.writeText("replaced since scan")
         assertThrows(IOException::class.java) { runBlocking { reopened.prepare(selected) } }
         assertFalse(storage.playDir.exists())
@@ -203,7 +202,6 @@ class FolderLibraryTest {
             zip.closeEntry()
         }
         val bytes = rom.readBytes()
-        // Change only the stored payload. Its CRC in the central directory stays intact.
         val payload = (0..bytes.size - standaloneData.size).single { offset ->
             standaloneData.indices.all { bytes[offset + it] == standaloneData[it] }
         }

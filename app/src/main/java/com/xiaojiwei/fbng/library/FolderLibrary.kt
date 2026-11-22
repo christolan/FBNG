@@ -65,7 +65,6 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
         try {
             resolver.releasePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
-            // The provider may already have revoked the grant.
         }
     }
 
@@ -74,7 +73,6 @@ internal class FolderLibrary(context: Context, private val storage: AppStorage) 
         onUpdate: suspend (LibraryRefresh) -> Unit = {},
     ): LibraryRefresh {
         storage.ensure()
-        // Older builds kept a disposable copy of the scanned folder archives here.
         File(storage.root, "folder-library").deleteRecursively()
         val scanner = LibraryScanner(catalog)
         val folders = preferences.all.mapNotNull { (uri, name) ->

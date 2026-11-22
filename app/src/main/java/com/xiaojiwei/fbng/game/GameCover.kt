@@ -18,7 +18,6 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 
-/** Copies the game surface itself; Compose dialogs and HUD controls are never included. */
 internal object GameCover {
     data class Source(val surface: Surface, val bounds: Rect)
 
@@ -39,7 +38,6 @@ internal object GameCover {
 
     suspend fun capturePreview(source: Source): ByteArray? = withTimeoutOrNull(200L) {
         suspendCancellableCoroutine { continuation ->
-            // Older Android versions can block inside PixelCopy.request itself.
             handler.post {
                 if (continuation.isActive) request(source) { continuation.resume(it) }
             }
@@ -54,7 +52,6 @@ internal object GameCover {
             result = it
             done.countDown()
         }
-        // The worker callback also lets Android's synchronous stop callback save its last frame.
         return if (done.await(1, TimeUnit.SECONDS)) result else null
     }
 
@@ -74,7 +71,6 @@ internal object GameCover {
                     Log.w("FBNG", "Could not encode save preview", error)
                     null
                 } finally {
-                    // The callback owns the bitmap, even when the caller has already timed out.
                     bitmap.recycle()
                 }
                 onComplete(result)

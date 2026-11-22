@@ -27,7 +27,6 @@ data class SaveSlotInfo(
     val automatic: Boolean get() = id == SaveStateStore.AUTO_SLOT
 }
 
-/** Each new slot atomically bundles the state, metadata and any available screenshot. */
 class SaveStateStore(private val directory: File) {
     companion object {
         const val AUTO_SLOT = 0
@@ -62,7 +61,6 @@ class SaveStateStore(private val directory: File) {
     fun slotInfo(id: Int): SaveSlotInfo {
         val file = bundle(id)
         val available = hasSlot(id)
-        // A damaged slot stays visible and cannot be silently overwritten as a new slot.
         val meta = runCatching { metadata(id) }.getOrNull()
         val timestamp = meta?.getProperty("savedAtEpochMs")?.toLongOrNull()
             ?: if (file.isFile) file.lastModified() else legacyState.lastModified()
@@ -147,7 +145,6 @@ class SaveStateStore(private val directory: File) {
                     out.fd.sync()
                 }
             }
-            // All files live on the same internal filesystem. Never copy over a live slot.
             Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         } finally {
             tmp.delete()
@@ -158,7 +155,6 @@ class SaveStateStore(private val directory: File) {
     fun delete(id: Int) {
         val file = bundle(id)
         if (id == AUTO_SLOT) {
-            // Remove the legacy fallback before removing the current bundle.
             Files.deleteIfExists(legacyState.toPath())
             Files.deleteIfExists(legacyMeta.toPath())
         }

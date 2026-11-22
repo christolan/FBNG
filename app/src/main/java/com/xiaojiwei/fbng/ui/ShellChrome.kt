@@ -111,11 +111,8 @@ internal object ShellTags {
     const val NavRecent = "shell-nav-recent"
     const val NavLibrary = "shell-nav-library"
     const val NavSettings = "shell-nav-settings"
-    const val Save = "shell-save"
-    const val Load = "shell-load"
     const val Quit = "shell-quit"
     const val Pause = "shell-pause"
-    const val Reset = "shell-reset"
     const val DatError = "shell-dat-error"
     const val CoreMissing = "shell-core-missing"
 }
@@ -206,7 +203,6 @@ private fun ShellHeader(
             val titleWidth = if (wrap || controls.isEmpty()) rowWidth else rowWidth - controlsWidth - gap
             val placedTitle = titleRow.measure(Constraints.fixed(titleWidth, rowHeight))
 
-            // Reposition the existing controls on resize so their focus targets stay attached.
             var extraWidth = if (wrap) (rowWidth - controlsWidth).coerceAtLeast(0) else 0
             var x = if (wrap) 0 else titleWidth + gap
             var y = if (wrap) rowHeight + gap else 0
@@ -441,7 +437,6 @@ internal fun FocusableMessage(
     )
 }
 
-/** Keeps a non-click message in the focus order for the DAT error screen. */
 @Composable
 internal fun PlainFocusBlock(
     tag: String,
