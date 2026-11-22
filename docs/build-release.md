@@ -55,27 +55,23 @@ Debug 和 Release 都用同一张发布证书签名，才能相互覆盖安装�
 
 ## 本地构建签名 Release APK
 
-本地 Release 使用仓库外的发布密钥库。缺少发布签名材料时 Gradle 直接报错，不会生成未签名的包。
+按「本地环境」准备 JDK 和 SDK，按「准备签名材料」配置 `.env`，然后在仓库根目录构建并验签。若 SDK 装在其他位置，按实际路径设置 `ANDROID_HOME`。产物为 `app/build/outputs/apk/release/app-release.apk`。
 
-1. 按上文准备 SDK。Gradle daemon 使用 Java 25，本机可使用 Android Studio 自带的 Java 25。
-2. 签名材料来自上一节准备的 `.env`：PKCS#12 发布密钥库放在仓库外，`FBNG_RELEASE_*` 四个值写在仓库根目录的 `.env` 里。
-3. 在仓库根目录构建并验签。若 SDK 装在其他位置，按实际路径设置 `ANDROID_HOME`。产物为 `app/build/outputs/apk/release/app-release.apk`。
+```bash
+(
+  set -e
+  ./gradlew :app:assembleRelease --no-daemon --no-configuration-cache
 
-   ```bash
-   (
-     set -e
-     ./gradlew :app:assembleRelease --no-daemon --no-configuration-cache
+  tools="${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/36.0.0"
+  apk="app/build/outputs/apk/release/app-release.apk"
+  "$tools/apksigner" verify --min-sdk-version 21 --verbose "$apk"
+  "$tools/apksigner" verify --min-sdk-version 24 --verbose "$apk"
+  "$tools/apksigner" verify --min-sdk-version 33 --verbose --print-certs "$apk"
+  "$tools/zipalign" -c -P 16 4 "$apk"
+)
+```
 
-     tools="${ANDROID_HOME:-$HOME/Library/Android/sdk}/build-tools/36.0.0"
-     apk="app/build/outputs/apk/release/app-release.apk"
-     "$tools/apksigner" verify --min-sdk-version 21 --verbose "$apk"
-     "$tools/apksigner" verify --min-sdk-version 24 --verbose "$apk"
-     "$tools/apksigner" verify --min-sdk-version 33 --verbose --print-certs "$apk"
-     "$tools/zipalign" -c -P 16 4 "$apk"
-   )
-   ```
-
-   分别确认 API 21、24、33 的输出中 v1、v2、v3 签名为 `true`，证书 SHA-256 与发布证书一致，且 16 KB 对齐检查通过。保留 v1 签名是为了给 ColorOS 侧载提供其检查的 `META-INF` 签名条目。
+分别确认 API 21、24、33 的输出中 v1、v2、v3 签名为 `true`，证书 SHA-256 与发布证书一致，且 16 KB 对齐检查通过。保留 v1 签名是为了给 ColorOS 侧载提供其检查的 `META-INF` 签名条目。
 
 如果本机仅因 Release Lint 依赖未缓存且无法连接 Google Maven 而构建失败，可以临时在上述 Gradle 命令中加 `--offline -x :app:lintVitalRelease`，并执行同样的验签和对齐检查。
 
