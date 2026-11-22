@@ -11,6 +11,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import androidx.work.await
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -26,6 +27,9 @@ class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWor
         val repository = CoverRepository.get(applicationContext)
         repository.downloadLock.withLock {
             val manual = inputData.getBoolean(MANUAL, false)
+            if (!repository.prepareBatch(inputData.getLong(GENERATION, 0L), manual)) {
+                return@withLock Result.success()
+            }
             val refresh = inputData.getBoolean(REFRESH, false)
             var downloaded = 0
             var existing = 0
@@ -73,12 +77,22 @@ class CoverWorker(context: Context, parameters: WorkerParameters) : CoroutineWor
         const val EXISTING = "existing"
         const val MISSING = "missing"
         const val FAILED = "failed"
+        private const val GENERATION = "generation"
         private const val WORK_NAME = "fbng-game-covers"
+
+        internal suspend fun clearDownloaded(context: Context): Boolean {
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME).await()
+            return CoverRepository.get(context).clearImages()
+        }
 
         fun enqueue(context: Context, manual: Boolean = false, refresh: Boolean = false): UUID {
             val request = OneTimeWorkRequestBuilder<CoverWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
-                .setInputData(workDataOf(MANUAL to manual, REFRESH to refresh))
+                .setInputData(workDataOf(
+                    MANUAL to manual,
+                    REFRESH to refresh,
+                    GENERATION to CoverRepository.get(context).downloadGeneration(),
+                ))
                 .addTag(if (refresh) REFRESH else "missing")
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()

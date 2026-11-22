@@ -34,6 +34,9 @@ internal data class CoverUiState(
     val manualWork: WorkInfo? = null,
     val fetch: () -> Unit = {},
     val refresh: () -> Unit = {},
+    val clear: () -> Unit = {},
+    val clearing: Boolean = false,
+    val clearResult: Boolean? = null,
 )
 
 /** A fixed slot keeps focus and scroll positions stable when a cover arrives. */
@@ -65,6 +68,7 @@ internal fun CoverSettings(
     state: CoverUiState,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
+    onClear: () -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().padding(FbngDimens.space8),
@@ -72,20 +76,34 @@ internal fun CoverSettings(
         for ((tag, label, action) in listOf(
             Triple(ShellTags.FetchCovers, R.string.covers_fetch, state.fetch),
             Triple(ShellTags.RefreshCovers, R.string.covers_refresh, state.refresh),
+            Triple(ShellTags.ClearCovers, R.string.covers_clear, onClear),
         )) {
+            val enabled = !state.clearing && (tag != ShellTags.ClearCovers || state.images.isNotEmpty())
             Row(
                 Modifier.fillMaxWidth().libraryFocus(tag, requesters.getValue(tag), onFocused)
-                    .fbngFocusTarget(action, scheme.surface)
+                    .fbngFocusTarget(
+                        action, scheme.surface, enabled = enabled,
+                        focusableWhenDisabled = state.clearing && tag == ShellTags.FetchCovers,
+                    )
                     .height(FbngDimens.buttonHeight).padding(horizontal = FbngDimens.space12),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                Text("›", color = scheme.secondary)
+                Text(stringResource(label), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium,
+                    color = if (enabled) scheme.onSurface else scheme.onSurfaceVariant)
+                if (enabled) Text("›", color = scheme.secondary)
             }
         }
         Spacer(Modifier.weight(1f))
         val work = state.manualWork
-        if (work != null) {
+        if (state.clearing || state.clearResult != null) {
+            val label = when {
+                state.clearing -> R.string.covers_clearing
+                state.clearResult == true -> R.string.covers_cleared
+                else -> R.string.covers_clear_failed
+            }
+            Text(stringResource(label), style = MaterialTheme.typography.labelMedium,
+                color = if (state.clearResult == false && !state.clearing) scheme.error else scheme.onSurfaceVariant)
+        } else if (work != null) {
             val failed = work.state == WorkInfo.State.FAILED || work.outputData.getInt(CoverWorker.FAILED, 0) > 0
             val status = when {
                 failed -> stringResource(R.string.covers_failed)

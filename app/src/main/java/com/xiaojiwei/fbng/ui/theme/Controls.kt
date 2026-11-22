@@ -40,6 +40,7 @@ fun FbngButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = FbngDimens.space16, vertical = FbngDimens.space8),
     selected: Boolean = false,
     role: Role = Role.Button,
+    focusableWhenDisabled: Boolean = false,
     content: @Composable RowScope.() -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -75,6 +76,7 @@ fun FbngButton(
                     enabled = enabled,
                     role = role,
                     restingStroke = resting,
+                    focusableWhenDisabled = focusableWhenDisabled,
                 )
                 .heightIn(min = FbngDimens.buttonHeight)
                 .padding(contentPadding),

@@ -44,7 +44,8 @@ internal fun GameLibraryPage(
     games: List<LibraryEntry>,
     totalGames: Int,
     playableOnly: Boolean,
-    emptyMessage: Int,
+    noPlayableResults: Boolean,
+    modalOpen: Boolean,
     pageIndex: Int,
     pages: Int,
     rows: Int,
@@ -62,6 +63,7 @@ internal fun GameLibraryPage(
     onOpenLetters: () -> Unit,
     onOpenFilter: () -> Unit,
     onClearFilters: () -> Unit,
+    onShowAllStatuses: () -> Unit,
     query: String,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -70,6 +72,7 @@ internal fun GameLibraryPage(
     ShellPage(
         title = "",
         leadingAction = navigation,
+        modalOpen = modalOpen,
         footer = { BrowseFooter(pageIndex, pages, ShellTags.NavLibrary, scanning, requesters, onFocused, onPage) },
         margin = margin,
         headerAction = { width ->
@@ -100,12 +103,20 @@ internal fun GameLibraryPage(
         }
         if (games.isEmpty()) {
             FbngEmptyState(scrollable = false) {
-                Text(stringResource(emptyMessage), style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant)
+                Text(
+                    stringResource(if (noPlayableResults) R.string.library_no_playable else R.string.search_empty),
+                    style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant,
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
-                    FbngButton(
-                        onOpenLetters,
-                        Modifier.libraryFocus(ShellTags.EditSearch, requesters.getValue(ShellTags.EditSearch), onFocused),
-                    ) { Text(stringResource(R.string.library_edit_search)) }
+                    if (noPlayableResults) {
+                        FbngButton(onShowAllStatuses, Modifier.libraryFocus(
+                            ShellTags.ShowAllStatuses, requesters.getValue(ShellTags.ShowAllStatuses), onFocused,
+                        )) { Text(stringResource(R.string.library_show_all_statuses)) }
+                    } else {
+                        FbngButton(onOpenLetters, Modifier.libraryFocus(
+                            ShellTags.EditSearch, requesters.getValue(ShellTags.EditSearch), onFocused,
+                        )) { Text(stringResource(R.string.library_edit_search)) }
+                    }
                     FbngButton(
                         onClearFilters,
                         Modifier.libraryFocus(ShellTags.ClearFilters, requesters.getValue(ShellTags.ClearFilters), onFocused),

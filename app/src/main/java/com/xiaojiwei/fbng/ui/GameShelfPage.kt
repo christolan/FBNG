@@ -75,11 +75,11 @@ internal fun GameShelfPage(
                         else -> if (recent) R.string.recent_unavailable else R.string.favorites_unavailable
                     }
                     Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = scheme.onSurface)
-                    if (!hasSavedGames || !scanning) {
+                    if ((hasSavedGames && !scanning) || (!hasSavedGames && !recent)) {
                         Text(
                             stringResource(
                                 if (hasSavedGames) R.string.favorites_unavailable_hint
-                                else if (recent) R.string.recent_empty_hint else R.string.favorites_empty_hint,
+                                else R.string.favorites_empty_hint,
                             ),
                             style = MaterialTheme.typography.bodyLarge,
                             color = scheme.onSurfaceVariant,

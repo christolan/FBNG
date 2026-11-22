@@ -52,6 +52,7 @@ internal fun Modifier.fbngFocusTarget(
     role: Role = Role.Button,
     restingStroke: Color = Color.Transparent,
     focusedStroke: Color? = null,
+    focusableWhenDisabled: Boolean = false,
     shape: Shape = MaterialTheme.shapes.medium,
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
@@ -59,12 +60,12 @@ internal fun Modifier.fbngFocusTarget(
     val focused = hasFocus && LocalWindowInfo.current.isWindowFocused
     val scheme = MaterialTheme.colorScheme
     val stroke = when {
-        !enabled -> Color.Transparent
         focused -> focusedStroke ?: scheme.primary
+        !enabled -> Color.Transparent
         else -> restingStroke
     }
     return this
-        .focusable(enabled = enabled, interactionSource = interaction)
+        .focusable(enabled = enabled || focusableWhenDisabled, interactionSource = interaction)
         .onKeyEvent { event ->
             if (!enabled || event.type != KeyEventType.KeyUp) return@onKeyEvent false
             val activate = event.key == Key.ButtonA ||
@@ -99,7 +100,7 @@ internal fun Modifier.fbngFocusTarget(
         }
         .drawWithContent {
             drawContent()
-            if (focused && enabled) {
+            if (focused) {
                 val line = FbngDimens.focusStroke.toPx()
                 val gap = FbngDimens.focusGap.toPx()
                 val outer = gap + line / 2

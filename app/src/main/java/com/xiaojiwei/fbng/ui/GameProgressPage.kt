@@ -327,7 +327,6 @@ internal fun GameProgressPage(
                                 else -> R.string.shell_hint_select
                             }
                             add("A" to action)
-                            add("L1 / R1" to R.string.shell_hint_switch_tab)
                             add("B" to if (paused) R.string.progress_resume else R.string.back)
                             if (snapshotsOpen && (snapshotPage?.pages ?: 0) > 1) add("← / →" to R.string.shell_hint_page)
                         }
@@ -377,20 +376,23 @@ internal fun GameProgressPage(
                             Modifier.weight(12f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
                             verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                         ) {
-                            FlowRow(
+                            Row(
                                 Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
+                                    val tabPadding = PaddingValues(horizontal = FbngDimens.space8)
+                                    ShoulderHint("L1")
                                     FbngButton({ snapshotsOpen = false }, target("slots-tab").semantics { selected = !snapshotsOpen },
-                                        enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab) {
+                                        enabled = !blocked, selected = !snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab, contentPadding = tabPadding) {
                                         Text(stringResource(R.string.progress_slots))
                                     }
                                     FbngButton({ snapshotsOpen = true }, target("snapshots-tab").semantics { selected = snapshotsOpen },
-                                        enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab) {
+                                        enabled = !blocked, selected = snapshotsOpen, kind = FbngButtonKind.Neutral, role = Role.Tab, contentPadding = tabPadding) {
                                         Text(stringResource(R.string.progress_snapshots))
                                     }
+                                    ShoulderHint("R1")
                                 }
                                 if (snapshotsOpen && displayedPage != null && displayedPage.pages > 1) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4), verticalAlignment = Alignment.CenterVertically) {
@@ -423,7 +425,7 @@ internal fun GameProgressPage(
                                         }
                                     }
                                     items.isEmpty() -> Text(
-                                        stringResource(R.string.progress_no_snapshots),
+                                        stringResource(if (paused) R.string.progress_no_snapshots_paused else R.string.progress_no_snapshots),
                                         Modifier.padding(FbngDimens.space8),
                                         style = MaterialTheme.typography.bodyLarge,
                                     )
@@ -620,7 +622,7 @@ internal fun GameProgressPage(
 private fun SnapshotPageButton(next: Boolean, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) {
     val label = stringResource(if (next) R.string.library_next_page else R.string.library_previous_page)
     FbngButton(
-        onClick, modifier.width(FbngDimens.buttonHeight).semantics { contentDescription = label }, enabled,
+        onClick, modifier.width(FbngDimens.space32).semantics { contentDescription = label }, enabled,
         kind = FbngButtonKind.Neutral, contentPadding = PaddingValues(),
     ) {
         Text(if (next) "›" else "‹", style = MaterialTheme.typography.titleMedium)

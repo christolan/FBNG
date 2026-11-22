@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -87,6 +88,7 @@ internal object ShellTags {
     fun recent(name: String) = "shell-recent-game-$name"
     const val JumpToLetter = "shell-jump-to-letter"
     const val EditSearch = "shell-edit-search"
+    const val ShowAllStatuses = "shell-show-all-statuses"
     const val ClearFilters = "shell-clear-filters"
     const val LibraryFilter = "shell-library-filter"
     const val PreviousPage = "shell-library-previous-page"
@@ -103,6 +105,7 @@ internal object ShellTags {
     fun cornerRadius(option: CornerRadiusOption) = "shell-corner-radius-${option.name}"
     const val AppUpdate = "shell-app-update"
     const val FetchCovers = "shell-fetch-covers"
+    const val ClearCovers = "shell-clear-covers"
     const val RefreshCovers = "shell-refresh-covers"
     const val NavFavorites = "shell-nav-favorites"
     const val NavRecent = "shell-nav-recent"
@@ -265,15 +268,16 @@ internal fun ShellTabs(
 ) {
     val scheme = MaterialTheme.colorScheme
     val width = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.width.toDp() }
-    val showBrand = width >= 460.dp
+    val showBrand = width >= if (section == ShellSection.Library) 600.dp else 460.dp
     val tabPadding = if (width < 360.dp) FbngDimens.space8 else FbngDimens.space12
     val updateDescription = if (updateAvailable) stringResource(R.string.update_nav_available) else null
     Row(Modifier.testTag(ShellTags.HeaderTitle),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
         if (showBrand) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8)) {
             Text("F", color = scheme.primary, style = MaterialTheme.typography.headlineSmall)
             Text("FBNG", style = MaterialTheme.typography.titleLarge)
         }
+        ShoulderHint("L1")
         Row(
             Modifier.fbngIsland().padding(FbngDimens.panelInset),
             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
@@ -306,7 +310,19 @@ internal fun ShellTabs(
                 }
             }
         }
+        ShoulderHint("R1")
     }
+}
+
+@Composable
+internal fun ShoulderHint(label: String) {
+    val scheme = MaterialTheme.colorScheme
+    Text(
+        label,
+        modifier = Modifier.background(scheme.surfaceContainerHighest, RoundedCornerShape(FbngDimens.space4))
+            .padding(horizontal = FbngDimens.space4, vertical = 2.dp),
+        color = scheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+    )
 }
 
 @Composable
@@ -358,7 +374,7 @@ internal fun BrowseFooter(
     onPage: (Int) -> Unit,
 ) {
     val hints = buildList {
-        add("A" to R.string.shell_hint_open)
+        add("A" to if (pages == 0) R.string.shell_hint_select else R.string.shell_hint_open)
         val direction = when (tab) {
             ShellTags.NavFavorites -> R.string.shell_hint_gallery
             ShellTags.NavLibrary -> R.string.shell_hint_grid
@@ -366,7 +382,6 @@ internal fun BrowseFooter(
         }
         if (pages > 1 || (pages == 1 && tab != ShellTags.NavRecent)) add("← / →" to direction)
         if (tab == ShellTags.NavLibrary) add("Y" to R.string.library_jump_to_letter)
-        add("L1 / R1" to R.string.shell_hint_switch_page)
     }
     ShellFooter(hints) {
         if (scanning) {

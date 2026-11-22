@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.alpha
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -81,7 +83,7 @@ internal fun UpdateSettings(
         else -> R.string.update_check
     }
     val status = when (state) {
-        UpdateState.Unchecked -> null
+        UpdateState.Unchecked -> ""
         UpdateState.Checking -> stringResource(R.string.update_checking)
         UpdateState.Current -> stringResource(R.string.update_current)
         UpdateState.CheckFailed -> stringResource(R.string.update_check_failed)
@@ -108,21 +110,23 @@ internal fun UpdateSettings(
             style = MaterialTheme.typography.bodyLarge,
             color = scheme.onSurfaceVariant,
         )
-        if (status != null) {
-            Text(
-                status,
-                modifier = Modifier.semantics { if (state !is UpdateState.Downloading) liveRegion = LiveRegionMode.Polite },
-                style = MaterialTheme.typography.bodyLarge,
-                color = when {
-                    error -> scheme.error
-                    state is UpdateState.Available -> scheme.secondary
-                    else -> scheme.onSurfaceVariant
-                },
-            )
-        }
-        if (state is UpdateState.Downloading) {
-            LinearProgressIndicator(progress = { state.percent / 100f }, modifier = Modifier.fillMaxWidth())
-        }
+        Text(
+            status,
+            minLines = 1,
+            modifier = Modifier.semantics { if (state !is UpdateState.Downloading) liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyLarge,
+            color = when {
+                error -> scheme.error
+                state is UpdateState.Available -> scheme.secondary
+                else -> scheme.onSurfaceVariant
+            },
+        )
+        val download = state as? UpdateState.Downloading
+        LinearProgressIndicator(
+            progress = { (download?.percent ?: 0) / 100f },
+            modifier = Modifier.fillMaxWidth().alpha(if (download == null) 0f else 1f)
+                .then(if (download == null) Modifier.clearAndSetSemantics {} else Modifier),
+        )
         FbngButton(
             onClick = {
                 when (state) {
@@ -135,6 +139,7 @@ internal fun UpdateSettings(
             },
             modifier = Modifier.fillMaxWidth().libraryFocus(ShellTags.AppUpdate, requester, onFocused),
             enabled = actionEnabled,
+            focusableWhenDisabled = state == UpdateState.Checking,
             kind = if (state is UpdateState.Available || state is UpdateState.Ready || state is UpdateState.Confirm) {
                 FbngButtonKind.Filled
             } else FbngButtonKind.Neutral,

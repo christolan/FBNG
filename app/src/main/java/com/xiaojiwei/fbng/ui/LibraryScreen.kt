@@ -235,12 +235,12 @@ private fun LibraryShell(
             ShellTags.JumpToLetter,
             ShellTags.EditSearch,
             ShellTags.ClearFilters,
+            ShellTags.ShowAllStatuses,
             ShellTags.LibraryFilter,
             ShellTags.PreviousPage,
             ShellTags.NextPage,
             ShellTags.AddFolder,
             ShellTags.ScanFolders,
-            ShellTags.Sync,
             ShellTags.OpenImport,
             ShellTags.OpenSync,
             ShellTags.SettingsInfo,
@@ -248,6 +248,7 @@ private fun LibraryShell(
             ShellTags.AppUpdate,
             ShellTags.FetchCovers,
             ShellTags.RefreshCovers,
+            ShellTags.ClearCovers,
             ShellTags.NavFavorites,
             ShellTags.NavRecent,
             ShellTags.NavLibrary,
@@ -319,6 +320,8 @@ private fun LibraryShell(
         val results = remember(matchingEntries, playableOnly) {
             LibraryResults(if (playableOnly) matchingEntries.filter { it.game.canLaunch } else matchingEntries)
         }
+        val noPlayableResults = playableOnly && matchingEntries.isNotEmpty() && results.entries.isEmpty()
+        val emptySearchAction = if (noPlayableResults) ShellTags.ShowAllStatuses else ShellTags.EditSearch
         val byName = remember(entries) { entries.associateBy { it.game.name } }
         val detail = byName[detailName].takeIf { showShelf || section == ShellSection.Library }
         val showDetails = detail != null
@@ -458,7 +461,7 @@ private fun LibraryShell(
                 ShellSection.Library -> {
                     libraryFocus.takeIf { savedGameIndex >= 0 }
                         ?: pageEntries.firstOrNull()?.let { ShellTags.game(it.game.name) }
-                        ?: if (entries.isEmpty()) ShellTags.EmptyImport else ShellTags.EditSearch
+                        ?: if (entries.isEmpty()) ShellTags.EmptyImport else emptySearchAction
                 }
                 else -> null
             }
@@ -520,7 +523,7 @@ private fun LibraryShell(
             (section == ShellSection.Settings && settingsCategory == SettingsCategory.Import))
         val savedRowExists = pageEntries.any { it.game.name == focusedGameName }
         LaunchedEffect(
-            section, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
+            section, emptySearchAction, results.entries.isNotEmpty(), savedRowExists, libraryFocusBusy, importBusy, folderTags, rail, fold,
             widthClass, pickerOpen, focusRequest, currentPage, libraryPageSize, returnFromGame,
             windowFocused,
             pageEntries.map { it.game.name }.takeIf { section == ShellSection.Library },
@@ -552,7 +555,7 @@ private fun LibraryShell(
                         libraryFocus,
                         card,
                         ShellTags.EmptyImport,
-                        ShellTags.EditSearch,
+                        emptySearchAction,
                         ShellTags.JumpToLetter,
                         ShellTags.LibraryFilter,
                     )
@@ -562,7 +565,7 @@ private fun LibraryShell(
                     folderTags.firstOrNull().orEmpty(),
                     ShellTags.AddFolder,
                 )
-                ShellSection.Sync -> listOf(savedFocus, SettingsCategory.Sync.tag, ShellTags.Sync)
+                ShellSection.Sync -> listOf(savedFocus, SettingsCategory.Sync.tag)
                 ShellSection.Settings -> listOf(savedFocus, settingsCategory.tag)
             }
             val targets = preferred.distinct()
@@ -696,11 +699,8 @@ private fun LibraryShell(
                         games = pageEntries,
                         totalGames = entries.size,
                         playableOnly = playableOnly,
-                        emptyMessage = if (playableOnly && matchingEntries.isNotEmpty()) {
-                            R.string.library_no_playable
-                        } else {
-                            R.string.search_empty
-                        },
+                        noPlayableResults = noPlayableResults,
+                        modalOpen = picker == LibraryPicker.Status,
                         pageIndex = currentPage,
                         pages = pageCount,
                         rows = libraryRows,
@@ -730,6 +730,14 @@ private fun LibraryShell(
                         },
                         onOpenLetters = { showPicker(LibraryPicker.Letters) },
                         onOpenFilter = { showPicker(LibraryPicker.Status) },
+                        onShowAllStatuses = {
+                            val firstMatch = ShellTags.game(matchingEntries.first().game.name)
+                            playableOnly = false
+                            libraryPage = 0
+                            selectedName = null
+                            focusSaved(firstMatch)
+                            restoreFocus(firstMatch)
+                        },
                         onClearFilters = {
                             searchQuery = ""
                             playableOnly = false
@@ -799,24 +807,41 @@ private fun SettingsPage(
     request: (String) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    var clearCovers by remember { mutableStateOf(false) }
     var pendingRemoval by remember { mutableStateOf<FolderScan?>(null) }
     fun contentEntry(item: SettingsCategory): String? = when (item) {
         SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
         SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
         SettingsCategory.Appearance -> ShellTags.cornerRadius(cornerRadius)
-        SettingsCategory.Sync -> ShellTags.Sync
+        SettingsCategory.Sync -> null
         SettingsCategory.About -> if (appUpdate == null) ShellTags.SettingsInfo else ShellTags.AppUpdate
+    }
+    if (clearCovers && covers != null) {
+        fun dismiss() {
+            clearCovers = false
+            request(ShellTags.ClearCovers)
+        }
+        GameConfirmationDialog(
+            title = stringResource(R.string.covers_clear_title),
+            body = stringResource(R.string.covers_clear_body),
+            actionLabel = stringResource(R.string.covers_clear),
+            onConfirm = {
+                clearCovers = false
+                request(ShellTags.FetchCovers)
+                covers.clear()
+            },
+            onDismiss = ::dismiss,
+        )
     }
     ShellPage(
         title = "",
-        modalOpen = pendingRemoval != null,
+        modalOpen = pendingRemoval != null || clearCovers,
         margin = margin,
         leadingAction = navigation,
         footer = {
-            ShellFooter(listOf(
+            ShellFooter(if (category == SettingsCategory.Sync) listOf("B" to R.string.back) else listOf(
                 "A" to R.string.shell_hint_select,
                 "B" to R.string.shell_hint_return_category,
-                "L1 / R1" to R.string.shell_hint_switch_page,
             ))
         },
     ) {
@@ -856,7 +881,7 @@ private fun SettingsPage(
                         horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
                     ) {
                         Text(stringResource(item.label), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, maxLines = 1)
-                        Text("›", color = scheme.secondary)
+                        if (contentEntry(item) != null) Text("›", color = scheme.secondary)
                     }
                 }
             }
@@ -869,11 +894,12 @@ private fun SettingsPage(
                         folders, busy, workMessage, folderError, requesters, onFocused, folderActions,
                         onRemove = { pendingRemoval = it },
                     )
-                    SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) }
+                    SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) { clearCovers = true } }
                     SettingsCategory.Appearance -> CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
-                    SettingsCategory.Sync -> FocusableMessage(
-                        ShellTags.Sync, requesters.getValue(ShellTags.Sync), onFocused, scheme.surface,
-                    ) { Text(stringResource(R.string.sync_body), style = MaterialTheme.typography.bodyLarge) }
+                    SettingsCategory.Sync -> Text(
+                        stringResource(R.string.sync_body), Modifier.padding(FbngDimens.space16),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                     SettingsCategory.About -> Column(
                         Modifier.verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),

@@ -26,6 +26,7 @@ internal data class CoverImage(val file: File, val version: Long)
 /** Persistent images are separate from the disposable decoder cache. */
 internal class CoverRepository private constructor(private val context: Context) {
     private val directory = File(context.filesDir, "artwork/downloaded")
+    private val settings = context.getSharedPreferences("cover-settings", Context.MODE_PRIVATE)
     private val attempts = context.getSharedPreferences("cover-attempts", Context.MODE_PRIVATE)
     private val mutableImages = MutableStateFlow<Map<String, CoverImage>>(emptyMap())
     val images = mutableImages.asStateFlow()
@@ -52,6 +53,26 @@ internal class CoverRepository private constructor(private val context: Context)
             mutableImages.value = index.mapNotNull { (name, path) ->
                 existing[fileName(path)]?.takeIf { it.length() > 0 }?.let { name to CoverImage(it, it.lastModified()) }
             }.toMap()
+        }
+    }
+
+    fun downloadGeneration(): Long = settings.getLong("download-generation", 0L)
+
+    fun prepareBatch(generation: Long, manual: Boolean): Boolean {
+        if (generation != downloadGeneration()) return false
+        if (manual) settings.edit().putBoolean("auto-download", true).apply()
+        return manual || settings.getBoolean("auto-download", true)
+    }
+
+    suspend fun clearImages(): Boolean = withContext(Dispatchers.IO) {
+        downloadLock.withLock {
+            val saved = settings.edit().putBoolean("auto-download", false)
+                .putLong("download-generation", downloadGeneration() + 1).commit()
+            if (!saved) return@withLock false
+            val images = directory.listFiles().orEmpty().filter { it.extension == "png" }
+            val failures = images.count { !it.delete() }
+            reloadImages()
+            failures == 0
         }
     }
 

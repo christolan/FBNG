@@ -79,11 +79,15 @@ fun FbngApp(bridge: GamepadBridge) {
     var recentNames by remember { mutableStateOf(recentGames.read()) }
     val favorites = remember(context) { context.getSharedPreferences("library-favorites", Context.MODE_PRIVATE) }
     val coverPreferences = remember(context) { context.getSharedPreferences("cover-requests", Context.MODE_PRIVATE) }
+    val scope = rememberCoroutineScope()
     val coverRepository = remember(context) { CoverRepository.get(context) }
     val coverImages by coverRepository.images.collectAsStateWithLifecycle()
+    var clearingCovers by remember { mutableStateOf(false) }
+    var clearCoverResult by remember { mutableStateOf<Boolean?>(null) }
     var manualCoverId by remember { mutableStateOf(coverPreferences.getString("manual-id", null)) }
     val manualCoverWork by produceState<WorkInfo?>(null, manualCoverId) {
         val id = manualCoverId?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+        value = null
         if (id != null) WorkManager.getInstance(context).getWorkInfoByIdFlow(id).collect { value = it }
     }
     LaunchedEffect(coverRepository) {
@@ -91,12 +95,32 @@ fun FbngApp(bridge: GamepadBridge) {
         if (coverRepository.eligibleNames().isNotEmpty()) CoverWorker.enqueue(context)
     }
     fun requestCovers(refresh: Boolean) {
-        if (manualCoverWork?.state?.isFinished == false &&
+        if (clearingCovers) return
+        clearCoverResult = null
+        if (manualCoverWork?.id?.toString() == manualCoverId && manualCoverWork?.state?.isFinished == false &&
             (if (refresh) CoverWorker.REFRESH else "missing") in manualCoverWork?.tags.orEmpty()
         ) return
         val id = CoverWorker.enqueue(context, manual = true, refresh = refresh).toString()
         coverPreferences.edit().putString("manual-id", id).apply()
         manualCoverId = id
+    }
+    fun clearCovers() {
+        if (clearingCovers) return
+        clearingCovers = true
+        manualCoverId = null
+        coverPreferences.edit().remove("manual-id").apply()
+        scope.launch {
+            try {
+                clearCoverResult = CoverWorker.clearDownloaded(context)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("FBNG", "Could not clear downloaded covers", error)
+                clearCoverResult = false
+            } finally {
+                clearingCovers = false
+            }
+        }
     }
     var favoriteNames by remember(favorites) {
         mutableStateOf(favorites.getStringSet("sets", null).orEmpty().toSet())
@@ -107,7 +131,6 @@ fun FbngApp(bridge: GamepadBridge) {
         favoriteNames = updated
         if (name in updated) CoverWorker.enqueue(context)
     }
-    val scope = rememberCoroutineScope()
     val saveableState = rememberSaveableStateHolder()
     val load by produceState<CatalogLoad>(CatalogLoad.Loading, context) {
         value = withContext(Dispatchers.IO) { loadBundledCatalog(context) }
@@ -234,7 +257,15 @@ fun FbngApp(bridge: GamepadBridge) {
                     },
                     returnFromGame = returnFromGame,
                     onReturnRestored = { returnFromGame = null },
-                    covers = CoverUiState(coverImages, manualCoverWork, { requestCovers(false) }, { requestCovers(true) }),
+                    covers = CoverUiState(
+                        images = coverImages,
+                        manualWork = manualCoverWork,
+                        fetch = { requestCovers(false) },
+                        refresh = { requestCovers(true) },
+                        clear = ::clearCovers,
+                        clearing = clearingCovers,
+                        clearResult = clearCoverResult,
+                    ),
                     appUpdate = UpdateUiState(updater, updateState, canInstall = !initialScan && workMessage == null && !preparing),
                     onToggleFavorite = ::toggleFavorite,
                 )

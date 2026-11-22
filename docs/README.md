@@ -1,6 +1,6 @@
 # FBNG 项目文档
 
-FBNG（FBNeo Next Generation）是自用 Android 街机前端。RP6 掌机是项目唯一的设备适配和真机验收目标。应用从启动起固定横屏，以内置手柄操作为主。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页显示「即将推出」，现阶段仅支持 FBNeo 街机核心。
+FBNG（FBNeo Next Generation）是自用 Android 街机前端。RP6 掌机是项目唯一的设备适配和真机验收目标。应用从启动起固定横屏，以内置手柄操作为主。应用通过 LibretroDroid 运行固定版本的 FBNeo，并用配套街机 DAT 识别游戏、父套件和 BIOS。应用目前提供本地游戏库、收藏、最近游玩、封面、暂停和存读档。同步页说明存档当前只保存在本机，现阶段仅支持 FBNeo 街机核心。
 
 ## 现行说明
 
