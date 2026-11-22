@@ -47,6 +47,7 @@ import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 
 private const val QueryCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 
@@ -98,7 +99,7 @@ internal fun LibraryQueryDialog(
                 ) {
                     Box(
                         Modifier.fillMaxWidth().height(FbngDimens.shellHeaderHeight)
-                            .background(MaterialTheme.colorScheme.background, MaterialTheme.shapes.medium)
+                            .background(MaterialTheme.colorScheme.background, FbngShapes.Button)
                             .padding(horizontal = FbngDimens.space12),
                         contentAlignment = Alignment.CenterStart,
                     ) {

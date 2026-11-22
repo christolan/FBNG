@@ -29,6 +29,7 @@ import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 import com.xiaojiwei.fbng.ui.theme.FbngEmptyState
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 
@@ -99,10 +100,9 @@ internal fun GameShelfPage(
                     modifier.padding(FbngDimens.panelInset),
                     verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                 ) {
-                    val shape = MaterialTheme.shapes.medium
                     GameCover(
                         covers?.images?.get(entry.game.name),
-                        Modifier.fillMaxWidth().weight(1f).clip(shape),
+                        Modifier.fillMaxWidth().weight(1f).clip(FbngShapes.PanelItem),
                         contentScale = ContentScale.Crop,
                     )
                     Column(Modifier.fillMaxWidth().padding(horizontal = FbngDimens.space8)) {
@@ -151,7 +151,7 @@ internal fun GameShelfPage(
                             coverCard(
                                 entry,
                                 target.fbngFocusTarget(
-                                    { onChoose(entry) }, Color.Transparent, shape = MaterialTheme.shapes.large,
+                                    { onChoose(entry) }, Color.Transparent, shape = FbngShapes.Island,
                                 ).fbngIsland(),
                             )
                         }

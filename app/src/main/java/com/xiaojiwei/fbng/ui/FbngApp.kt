@@ -67,8 +67,6 @@ private data class GameLaunch(val game: PreparedGame, val entry: LibraryEntry, v
 @Composable
 fun FbngApp(bridge: GamepadBridge) {
     val context = LocalContext.current.applicationContext
-    val appearance = remember(context) { AppearancePreferences(context) }
-    var cornerRadius by remember(appearance) { mutableStateOf(appearance.readCornerRadius()) }
     val updater = (context as FbngApplication).appUpdate
     val updateState by updater.state.collectAsStateWithLifecycle()
     val installingUpdate = updateState == UpdateState.Installed || updateState is UpdateState.Installing
@@ -217,7 +215,7 @@ fun FbngApp(bridge: GamepadBridge) {
     }
 
     var returnFromGame by remember { mutableStateOf<String?>(null) }
-    FbngTheme(cornerRadius) {
+    FbngTheme {
         val game = playing
         if (game == null) {
             saveableState.SaveableStateProvider("Library") {
@@ -249,11 +247,6 @@ fun FbngApp(bridge: GamepadBridge) {
                     favoriteNames = favoriteNames,
                     recentNames = recentNames,
                     recentTimes = recentNames.associateWith(recentGames::playedAt),
-                    cornerRadius = cornerRadius,
-                    onCornerRadiusChange = { option ->
-                        appearance.writeCornerRadius(option)
-                        cornerRadius = option
-                    },
                     returnFromGame = returnFromGame,
                     onReturnRestored = { returnFromGame = null },
                     covers = CoverUiState(

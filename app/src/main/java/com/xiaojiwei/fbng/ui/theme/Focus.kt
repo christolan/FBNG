@@ -5,7 +5,6 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -23,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -46,7 +46,7 @@ internal fun Modifier.fbngFocusTarget(
     restingStroke: Color = Color.Transparent,
     focusedStroke: Color? = null,
     focusableWhenDisabled: Boolean = false,
-    shape: Shape = MaterialTheme.shapes.medium,
+    shape: Shape = FbngShapes.PanelItem,
 ): Modifier {
     val interaction = remember { MutableInteractionSource() }
     val hasFocus by interaction.collectIsFocusedAsState()
@@ -97,7 +97,8 @@ internal fun Modifier.fbngFocusTarget(
                 val line = FbngDimens.focusStroke.toPx()
                 val gap = FbngDimens.focusGap.toPx()
                 val outer = gap + line / 2
-                val radius = (shape as? RoundedCornerShape)?.topStart?.toPx(size, this) ?: 0f
+                val outline = shape.createOutline(size, layoutDirection, this)
+                val radius = (outline as? Outline.Rounded)?.roundRect?.topLeftCornerRadius?.x ?: 0f
                 drawRoundRect(stroke, Offset(-outer, -outer),
                     Size(size.width + 2 * outer, size.height + 2 * outer),
                     CornerRadius(radius + outer), style = Stroke(line))

@@ -351,13 +351,13 @@ internal fun GameProgressPage(
                                     val bitmap = frame
                                     val ratio = bitmap?.let { it.width.toFloat() / it.height } ?: FbngDimens.coverAspectRatio
                                     val artwork = Modifier.fillMaxWidth().height(minOf(maxHeight, maxWidth / ratio))
-                                        .clip(MaterialTheme.shapes.medium)
+                                        .clip(FbngShapes.PanelItem)
                                     if (bitmap == null) GameCover(cover, artwork, contentScale = ContentScale.Crop)
                                     else Image(bitmap, null, artwork.background(Color.Black), contentScale = ContentScale.Fit)
                                 }
                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { favorites() }
                             } else {
-                                GameCover(cover, Modifier.fillMaxWidth().weight(1f).clip(MaterialTheme.shapes.medium),
+                                GameCover(cover, Modifier.fillMaxWidth().weight(1f).clip(FbngShapes.PanelItem),
                                     contentScale = ContentScale.Crop)
                                 Text(entry.game.fileNames.joinToString(" · "),
                                     Modifier.padding(horizontal = FbngDimens.space8, vertical = FbngDimens.space4),
@@ -536,7 +536,7 @@ internal fun GameProgressPage(
     targetSnapshot?.let { (id, state) ->
         val cancel = remember { FocusRequester() }
         LaunchedEffect(Unit) { withFrameNanos { }; cancel.requestFocus() }
-        AlertDialog(onDismissRequest = ::dismiss, shape = MaterialTheme.shapes.medium,
+        AlertDialog(onDismissRequest = ::dismiss, shape = FbngShapes.Island,
             title = { DialogGamepadInput(); Text(stringResource(R.string.progress_target_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(FbngDimens.space12)) {
@@ -656,7 +656,7 @@ private fun ProgressCard(
     ) {
         if (!snapshot) Box(
             Modifier.size(FbngDimens.space24).background(
-                if (selected) scheme.primary else scheme.surfaceContainerHighest, MaterialTheme.shapes.extraSmall,
+                if (selected) scheme.primary else scheme.surfaceContainerHighest, FbngShapes.ActionKey,
             ),
             contentAlignment = Alignment.Center,
         ) { Text(slot.id.toString(), style = MaterialTheme.typography.labelLarge,

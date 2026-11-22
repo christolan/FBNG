@@ -1,13 +1,15 @@
 package com.xiaojiwei.fbng.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,13 +22,13 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -50,10 +53,10 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -71,11 +74,8 @@ import com.xiaojiwei.fbng.library.LibraryEntry
 import com.xiaojiwei.fbng.library.LibraryResults
 import com.xiaojiwei.fbng.library.LibrarySnapshot
 import com.xiaojiwei.fbng.library.indexLibrary
-import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
-import com.xiaojiwei.fbng.ui.theme.FbngButton
-import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
-import com.xiaojiwei.fbng.ui.theme.FbngPanel
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 import com.xiaojiwei.fbng.ui.theme.fbngFocusTarget
 import com.xiaojiwei.fbng.ui.theme.fbngIsland
 import com.xiaojiwei.fbng.update.UpdateState
@@ -89,7 +89,6 @@ private enum class LibraryPicker { Letters, Status }
 private enum class SettingsCategory(val label: Int, val tag: String) {
     Import(R.string.shell_import, ShellTags.OpenImport),
     Covers(R.string.covers_title, "settings-covers"),
-    Appearance(R.string.settings_appearance, "settings-appearance"),
     Sync(R.string.shell_sync, ShellTags.OpenSync),
     About(R.string.settings_about, "settings-about"),
 }
@@ -115,8 +114,6 @@ internal fun LibraryContent(
     onToggleFavorite: (String) -> Unit = {},
     covers: CoverUiState? = null,
     appUpdate: UpdateUiState? = null,
-    cornerRadius: CornerRadiusOption = CornerRadiusOption.Default,
-    onCornerRadiusChange: (CornerRadiusOption) -> Unit = {},
     returnFromGame: String? = null,
     onReturnRestored: () -> Unit = {},
 ) {
@@ -166,8 +163,6 @@ internal fun LibraryContent(
                 onToggleFavorite = onToggleFavorite,
                 covers = covers,
                 appUpdate = appUpdate,
-                cornerRadius = cornerRadius,
-                onCornerRadiusChange = onCornerRadiusChange,
                 returnFromGame = returnFromGame,
                 onReturnRestored = onReturnRestored,
             )
@@ -195,8 +190,6 @@ private fun LibraryShell(
     onToggleFavorite: (String) -> Unit,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
-    cornerRadius: CornerRadiusOption,
-    onCornerRadiusChange: (CornerRadiusOption) -> Unit,
     returnFromGame: String?,
     onReturnRestored: () -> Unit,
 ) {
@@ -253,7 +246,7 @@ private fun LibraryShell(
             ShellTags.NavRecent,
             ShellTags.NavLibrary,
             ShellTags.NavSettings,
-        ).plus(CornerRadiusOption.entries.map(ShellTags::cornerRadius)).plus(SettingsCategory.entries.map { it.tag })
+        ).plus(SettingsCategory.entries.map { it.tag })
             .associateWith { FocusRequester() }
     }
     val folderTags = folders.map { ShellTags.removeFolder(it.folder.uri) }
@@ -763,7 +756,6 @@ private fun LibraryShell(
                             },
                             busy = busy, folders = folders, folderError = folderError, workMessage = workMessage,
                             folderActions = folderActions, covers = covers, appUpdate = appUpdate,
-                            cornerRadius = cornerRadius, onCornerRadiusChange = onCornerRadiusChange,
                             margin = margin, requesters = requesters,
                             navigation = navigation, onFocused = ::focusSaved,
                             request = { restoreFocus(it) },
@@ -798,8 +790,6 @@ private fun SettingsPage(
     folderActions: FolderActions,
     covers: CoverUiState?,
     appUpdate: UpdateUiState?,
-    cornerRadius: CornerRadiusOption,
-    onCornerRadiusChange: (CornerRadiusOption) -> Unit,
     margin: Dp,
     requesters: Map<String, FocusRequester>,
     navigation: @Composable () -> Unit,
@@ -812,7 +802,6 @@ private fun SettingsPage(
     fun contentEntry(item: SettingsCategory): String? = when (item) {
         SettingsCategory.Import -> folders.firstOrNull()?.let { ShellTags.removeFolder(it.folder.uri) } ?: ShellTags.AddFolder
         SettingsCategory.Covers -> if (covers == null) null else ShellTags.FetchCovers
-        SettingsCategory.Appearance -> ShellTags.cornerRadius(cornerRadius)
         SettingsCategory.Sync -> null
         SettingsCategory.About -> if (appUpdate == null) ShellTags.SettingsInfo else ShellTags.AppUpdate
     }
@@ -885,8 +874,13 @@ private fun SettingsPage(
                     }
                 }
             }
+            val contentInset = if (category == SettingsCategory.About) {
+                Modifier.clip(FbngShapes.Island).padding(horizontal = FbngDimens.panelInset)
+            } else {
+                Modifier.padding(FbngDimens.panelInset)
+            }
             Column(
-                Modifier.weight(5f).fillMaxHeight().fbngIsland().padding(FbngDimens.panelInset),
+                Modifier.weight(5f).fillMaxHeight().fbngIsland().then(contentInset),
                 verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
             ) {
                 when (category) {
@@ -895,24 +889,11 @@ private fun SettingsPage(
                         onRemove = { pendingRemoval = it },
                     )
                     SettingsCategory.Covers -> covers?.let { CoverSettings(it, requesters, onFocused) { clearCovers = true } }
-                    SettingsCategory.Appearance -> CornerRadiusButtonGroup(cornerRadius, requesters, onFocused, onCornerRadiusChange)
                     SettingsCategory.Sync -> Text(
                         stringResource(R.string.sync_body), Modifier.padding(FbngDimens.space16),
                         style = MaterialTheme.typography.bodyLarge,
                     )
-                    SettingsCategory.About -> Column(
-                        Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
-                    ) {
-                        if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
-                        FocusableMessage(ShellTags.SettingsInfo, requesters.getValue(ShellTags.SettingsInfo), onFocused, scheme.surface) {
-                            Text(stringResource(R.string.legal_notice), style = MaterialTheme.typography.bodyLarge)
-                        }
-                        FocusableMessage(ShellTags.SettingsCore, requesters.getValue(ShellTags.SettingsCore), onFocused, scheme.surface) {
-                            Text(stringResource(R.string.footer_core, BuildConfig.FBNEO_COMMIT_SHORT,
-                                BuildConfig.FBNEO_BUILD_DATE, BuildConfig.LIBRETRODROID_VERSION), style = MaterialTheme.typography.bodyLarge)
-                        }
-                    }
+                    SettingsCategory.About -> AboutSettings(appUpdate, requesters, onFocused)
                 }
             }
         }
@@ -937,38 +918,33 @@ private fun SettingsPage(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CornerRadiusButtonGroup(
-    selected: CornerRadiusOption,
+private fun AboutSettings(
+    appUpdate: UpdateUiState?,
     requesters: Map<String, FocusRequester>,
     onFocused: (String) -> Unit,
-    onSelect: (CornerRadiusOption) -> Unit,
 ) {
-    FbngPanel {
-        Text(stringResource(R.string.corner_radius_title), style = MaterialTheme.typography.titleMedium)
-        Row(
-            modifier = Modifier.fillMaxWidth().selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
+    val scheme = MaterialTheme.colorScheme
+    val inset = with(LocalDensity.current) { FbngDimens.panelInset.roundToPx().toFloat() }
+    val scrollSpec = remember(inset) {
+        object : BringIntoViewSpec {
+            override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+                super.calculateScrollDistance(offset - inset, size + 2 * inset, containerSize)
+        }
+    }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides scrollSpec) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()).padding(vertical = FbngDimens.panelInset),
+            verticalArrangement = Arrangement.spacedBy(FbngDimens.space8),
         ) {
-            CornerRadiusOption.entries.forEach { option ->
-                val label = when (option) {
-                    CornerRadiusOption.Smaller -> R.string.corner_radius_smaller
-                    CornerRadiusOption.Default -> R.string.corner_radius_default
-                    CornerRadiusOption.Larger -> R.string.corner_radius_larger
-                }
-                val tag = ShellTags.cornerRadius(option)
-                val checked = option == selected
-                FbngButton(
-                    onClick = { if (!checked) onSelect(option) },
-                    modifier = Modifier.weight(1f)
-                        .libraryFocus(tag, requesters.getValue(tag), onFocused)
-                        .semantics { this.selected = checked },
-                    kind = if (checked) FbngButtonKind.Filled else FbngButtonKind.Neutral,
-                    contentPadding = PaddingValues(FbngDimens.space8),
-                    role = Role.RadioButton,
-                ) {
-                    Text(stringResource(label), style = MaterialTheme.typography.labelLarge)
-                }
+            if (appUpdate != null) UpdateSettings(appUpdate, requesters.getValue(ShellTags.AppUpdate), onFocused)
+            FocusableMessage(ShellTags.SettingsInfo, requesters.getValue(ShellTags.SettingsInfo), onFocused, scheme.surface) {
+                Text(stringResource(R.string.legal_notice), style = MaterialTheme.typography.bodyLarge)
+            }
+            FocusableMessage(ShellTags.SettingsCore, requesters.getValue(ShellTags.SettingsCore), onFocused, scheme.surface) {
+                Text(stringResource(R.string.footer_core, BuildConfig.FBNEO_COMMIT_SHORT,
+                    BuildConfig.FBNEO_BUILD_DATE, BuildConfig.LIBRETRODROID_VERSION), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }

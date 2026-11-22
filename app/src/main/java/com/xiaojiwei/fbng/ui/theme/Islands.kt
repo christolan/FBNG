@@ -22,14 +22,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 
 @Composable
-internal fun Modifier.fbngIsland(): Modifier {
-    val shape = MaterialTheme.shapes.large
+internal fun Modifier.fbngIsland(shape: Shape = FbngShapes.Island): Modifier {
     val scheme = MaterialTheme.colorScheme
-    return clip(shape)
-        .background(Brush.linearGradient(listOf(scheme.surfaceContainerHighest.copy(alpha = .65f), scheme.surface.copy(alpha = .72f))))
+    return background(
+        Brush.linearGradient(listOf(scheme.surfaceContainerHighest.copy(alpha = .65f), scheme.surface.copy(alpha = .72f))),
+        shape,
+    )
         .border(Dp.Hairline, scheme.outlineVariant.copy(alpha = .65f), shape)
 }
 
@@ -54,10 +55,11 @@ internal fun FbngBackdrop() {
 @Composable
 internal fun FbngPanel(
     modifier: Modifier = Modifier,
+    shape: Shape = FbngShapes.Island,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.fillMaxWidth().fbngIsland().padding(FbngDimens.panelInset),
+        modifier.fillMaxWidth().fbngIsland(shape).padding(FbngDimens.panelInset),
         verticalArrangement = Arrangement.spacedBy(FbngDimens.space12),
         content = content,
     )

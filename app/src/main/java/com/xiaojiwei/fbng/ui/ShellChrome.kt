@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -50,7 +49,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.constrainHeight
 import com.xiaojiwei.fbng.R
-import com.xiaojiwei.fbng.ui.theme.CornerRadiusOption
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
@@ -102,7 +101,6 @@ internal object ShellTags {
     const val OpenSync = "shell-open-sync"
     const val SettingsInfo = "shell-settings-info"
     const val SettingsCore = "shell-settings-core"
-    fun cornerRadius(option: CornerRadiusOption) = "shell-corner-radius-${option.name}"
     const val AppUpdate = "shell-app-update"
     const val FetchCovers = "shell-fetch-covers"
     const val ClearCovers = "shell-clear-covers"
@@ -275,7 +273,7 @@ internal fun ShellTabs(
         }
         ShoulderHint("L1")
         Row(
-            Modifier.fbngIsland().padding(FbngDimens.panelInset),
+            Modifier.fbngIsland(FbngShapes.Navigation).padding(FbngDimens.panelInset),
             horizontalArrangement = Arrangement.spacedBy(FbngDimens.space4),
         ) {
             Destinations.forEach { destination ->
@@ -292,6 +290,7 @@ internal fun ShellTabs(
                             container = if (selected) scheme.primary.copy(alpha = .22f) else Color.Transparent,
                             restingStroke = if (selected) scheme.primary.copy(alpha = .65f) else Color.Transparent,
                             role = Role.Tab,
+                            shape = FbngShapes.Tab,
                         )
                         .height(FbngDimens.space24).padding(horizontal = tabPadding),
                     contentAlignment = Alignment.Center,
@@ -315,7 +314,7 @@ internal fun ShoulderHint(label: String) {
     val scheme = MaterialTheme.colorScheme
     Text(
         label,
-        modifier = Modifier.background(scheme.surfaceContainerHighest, RoundedCornerShape(FbngDimens.space4))
+        modifier = Modifier.background(scheme.surfaceContainerHighest, FbngShapes.ShoulderKey)
             .padding(horizontal = FbngDimens.space4, vertical = 2.dp),
         color = scheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall, maxLines = 1,
     )
@@ -342,7 +341,7 @@ internal fun ShellFooter(
                     Box(
                         Modifier.background(
                             if (key == "A") scheme.primary else scheme.surfaceContainerHighest,
-                            MaterialTheme.shapes.extraSmall,
+                            FbngShapes.ActionKey,
                         ).padding(horizontal = FbngDimens.space8, vertical = 2.dp),
                     ) {
                         Text(key, color = if (key == "A") scheme.onPrimary else scheme.onSurface, style = MaterialTheme.typography.labelSmall, maxLines = 1)

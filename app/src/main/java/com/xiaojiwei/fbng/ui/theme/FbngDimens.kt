@@ -1,6 +1,5 @@
 package com.xiaojiwei.fbng.ui.theme
 
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 internal object FbngDimens {
@@ -35,10 +34,4 @@ internal object FbngDimens {
     const val coverAspectRatio = 4f / 3f
 
     val libraryPickerWidth = space48 * 9
-}
-
-internal enum class CornerRadiusOption(val radius: Dp) {
-    Smaller(8.dp),
-    Default(12.dp),
-    Larger(16.dp),
 }

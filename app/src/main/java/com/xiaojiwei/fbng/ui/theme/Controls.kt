@@ -75,6 +75,7 @@ fun FbngButton(
                     role = role,
                     restingStroke = resting,
                     focusableWhenDisabled = focusableWhenDisabled,
+                    shape = if (role == Role.Tab) FbngShapes.Tab else FbngShapes.Button,
                 )
                 .heightIn(min = FbngDimens.buttonHeight)
                 .padding(contentPadding),

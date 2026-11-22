@@ -29,6 +29,7 @@ import com.xiaojiwei.fbng.R
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngPanel
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 import com.xiaojiwei.fbng.update.AppUpdate
 import com.xiaojiwei.fbng.update.UpdateState
 
@@ -103,7 +104,7 @@ internal fun UpdateSettings(
         else -> true
     }
     val scheme = MaterialTheme.colorScheme
-    FbngPanel {
+    FbngPanel(shape = FbngShapes.PanelItem) {
         Text(stringResource(R.string.update_title), style = MaterialTheme.typography.titleLarge)
         Text(
             stringResource(R.string.update_installed_version, BuildConfig.VERSION_NAME),

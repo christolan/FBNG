@@ -28,6 +28,7 @@ import com.xiaojiwei.fbng.library.FolderScan
 import com.xiaojiwei.fbng.ui.theme.FbngButton
 import com.xiaojiwei.fbng.ui.theme.FbngButtonKind
 import com.xiaojiwei.fbng.ui.theme.FbngDimens
+import com.xiaojiwei.fbng.ui.theme.FbngShapes
 
 internal data class FolderActions(
     val add: () -> Unit = {},
@@ -67,7 +68,7 @@ internal fun FolderManagement(
                 }
                 val removeLabel = stringResource(R.string.folder_remove_label, scan.folder.name)
                 Row(
-                    Modifier.fillMaxWidth().background(scheme.surface, MaterialTheme.shapes.medium)
+                    Modifier.fillMaxWidth().background(scheme.surface, FbngShapes.PanelItem)
                         .padding(horizontal = FbngDimens.space12, vertical = FbngDimens.space4),
                     horizontalArrangement = Arrangement.spacedBy(FbngDimens.space8),
                     verticalAlignment = Alignment.CenterVertically,

@@ -46,7 +46,6 @@
 | `files/states/<套件名>/` | 旧档迁移备份、`progress-v1.migrated` 标记及 `selected-slot`；兼容性见[存档与读档](usage.md#存档与读档) |
 | `files/artwork/downloaded/` | 已下载的游戏封面 |
 | `library-folders`、`library-favorites`、`library-recent`、`cover-attempts` | 目录、收藏、最近游玩和重复缺图探测的本地偏好 |
-| `appearance` | 全局圆角大小的本地偏好 |
 | `cache/fbng-update.apk` | 应用更新下载缓存 |
 
 ## 联网流程
